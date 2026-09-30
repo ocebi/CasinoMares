@@ -1,0 +1,20 @@
+{
+    "name": "CasinoMares",
+    "rootNamespace": "CasinoMares",
+    "references": [
+        "Fusion.Unity",
+        "Photon.Realtime",
+        "CasinoMares.Rules",
+        "Unity.InputSystem",
+        "Unity.Cinemachine"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
