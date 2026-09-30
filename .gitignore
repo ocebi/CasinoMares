@@ -80,3 +80,10 @@ crashlytics-build.properties
 .Trashes
 Thumbs.db
 ehthumbs.db
+
+# Unity/Mono crash dumps
+mono_crash.*.json
+
+# Photon App IDs (re-created empty by Fusion Hub; paste App ID locally)
+/[Aa]ssets/Photon/Fusion/Resources/PhotonAppSettings.asset
+/[Aa]ssets/Photon/Fusion/Resources/PhotonAppSettings.asset.meta
