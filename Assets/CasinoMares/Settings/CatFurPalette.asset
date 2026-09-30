@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad4d02ee2e25d4708b901687e352c2c0, type: 3}
+  m_Name: CatFurPalette
+  m_EditorClassIdentifier: CasinoMares::CasinoMares.Core.CatFurPalette
+  _options:
+  - Name: Midnight
+    Material: {fileID: 2100000, guid: 9e05b59c7d70547cabab0c75ce63e2c6, type: 2}
+    Swatch: {r: 0.16, g: 0.15, b: 0.17, a: 1}
+  - Name: Ginger
+    Material: {fileID: 2100000, guid: 7f1ec2689811b4dd8be29713f3edb939, type: 2}
+    Swatch: {r: 0.93, g: 0.55, b: 0.22, a: 1}
+  - Name: Snow
+    Material: {fileID: 2100000, guid: 9fe26427dab794171b8e903d6cf05080, type: 2}
+    Swatch: {r: 0.95, g: 0.94, b: 0.92, a: 1}
+  - Name: Smoke
+    Material: {fileID: 2100000, guid: 658ed8647b9d94681b8e26e7f1086016, type: 2}
+    Swatch: {r: 0.55, g: 0.57, b: 0.62, a: 1}
+  - Name: Cream
+    Material: {fileID: 2100000, guid: 22e6c5aeee0534381a00495761d6f1cf, type: 2}
+    Swatch: {r: 0.98, g: 0.85, b: 0.66, a: 1}
+  - Name: Cocoa
+    Material: {fileID: 2100000, guid: f6120857b8f5948a29c7fad72a4d58ba, type: 2}
+    Swatch: {r: 0.48, g: 0.3, b: 0.2, a: 1}
