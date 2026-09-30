@@ -1,0 +1,33 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="hud-root" class="screen hidden" picking-mode="Ignore">
+        <ui:VisualElement class="hud-chip hud-balance" picking-mode="Ignore">
+            <ui:Label text="Chips" class="hud-label-dim" />
+            <ui:Label name="balance-label" text="0" class="hud-value" />
+        </ui:VisualElement>
+        <ui:VisualElement class="hud-chip hud-players" picking-mode="Ignore">
+            <ui:Label text="Cats online" class="hud-label-dim" />
+            <ui:Label name="players-label" text="1/10" class="hud-value" />
+        </ui:VisualElement>
+        <ui:VisualElement name="toast-stack" class="toast-stack" picking-mode="Ignore" />
+        <ui:VisualElement name="prompt" class="prompt hidden" picking-mode="Ignore">
+            <ui:Label name="prompt-label" class="prompt-label" picking-mode="Ignore" enable-rich-text="true" />
+        </ui:VisualElement>
+        <ui:VisualElement name="leaderboard" class="panel leaderboard hidden" picking-mode="Ignore">
+            <ui:Label text="High rollers" class="leaderboard-title" />
+            <ui:VisualElement name="leaderboard-rows" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="hint-label" text="WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu" class="hud-hint" picking-mode="Ignore" />
+        <ui:VisualElement name="pause-root" class="screen pause-backdrop hidden">
+            <ui:VisualElement class="panel pause-panel">
+                <ui:Label text="Paused" class="pause-title" />
+                <ui:Slider name="volume-slider" label="Volume" low-value="0" high-value="1" />
+                <ui:Slider name="sensitivity-slider" label="Mouse sensitivity" low-value="0.02" high-value="0.4" />
+                <ui:Toggle name="follow-toggle" label="Camera turns with the cat" class="pause-toggle" />
+                <ui:Button name="resume-button" text="Resume" class="primary-button" />
+                <ui:Button name="leave-button" text="Leave casino" class="secondary-button" />
+                <ui:Button name="quit-button" text="Quit game" class="secondary-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

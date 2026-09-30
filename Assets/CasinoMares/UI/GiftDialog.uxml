@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="gift-root" class="screen dialog-backdrop hidden">
+        <ui:VisualElement class="panel dialog">
+            <ui:Label name="gift-title" class="dialog-title" />
+            <ui:IntegerField name="gift-amount" label="Chips" value="100" />
+            <ui:VisualElement class="dialog-row">
+                <ui:Button name="gift-50" text="50" class="secondary-button" />
+                <ui:Button name="gift-100" text="100" class="secondary-button" />
+                <ui:Button name="gift-250" text="250" class="secondary-button" />
+                <ui:Button name="gift-500" text="500" class="secondary-button" />
+            </ui:VisualElement>
+            <ui:Label name="gift-status" class="status" />
+            <ui:Button name="gift-send" text="Send gift" class="primary-button" />
+            <ui:Button name="gift-cancel" text="Cancel" class="secondary-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

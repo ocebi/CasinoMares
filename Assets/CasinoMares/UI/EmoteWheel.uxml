@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="emote-root" class="screen emote-root hidden" picking-mode="Ignore">
+        <ui:VisualElement name="wheel" class="emote-wheel" picking-mode="Ignore">
+            <ui:VisualElement name="options" class="emote-options" picking-mode="Ignore" />
+            <ui:VisualElement name="center" class="emote-center" picking-mode="Ignore">
+                <ui:Label name="center-title" text="Emotes" class="emote-center-title" picking-mode="Ignore" />
+                <ui:Label name="center-hint" text="Move the mouse, release Q" class="emote-center-hint" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pointer" class="emote-pointer" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

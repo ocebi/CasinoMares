@@ -1,0 +1,310 @@
+using System.Collections.Generic;
+using System.Text;
+using CasinoMares.Baccarat;
+using CasinoMares.Blackjack;
+using CasinoMares.Core;
+using CasinoMares.Player;
+using CasinoMares.Poker;
+using CasinoMares.Roulette;
+using CasinoMares.Slots;
+using CasinoMares.Rules;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace CasinoMares.UI
+{
+    /// <summary>
+    /// World-anchored labels over every hand at nearby tables (totals, results, whose turn), plus the spectator
+    /// panel when you stand near a playing friend (GDD §6). Everything shown is public table information.
+    /// </summary>
+    public class TableOverlay : MonoBehaviour
+    {
+        const float LabelRange = 8f;
+        const float SpectateRange = 3f;
+
+        [SerializeField] UIDocument _document;
+
+        VisualElement _layer;
+        VisualElement _spectator;
+        Label _spectatorName;
+        Label _spectatorBody;
+        readonly List<Label> _labels = new();
+        readonly StringBuilder _text = new();
+        readonly Dictionary<BlackjackTable, BlackjackTableView> _views = new();
+        readonly Dictionary<RouletteTable, RouletteView> _rouletteViews = new();
+        readonly Dictionary<SlotMachine, SlotMachineView> _slotViews = new();
+        readonly Dictionary<BaccaratTable, BaccaratView> _baccaratViews = new();
+        readonly Dictionary<PokerTable, PokerView> _pokerViews = new();
+        int _used;
+
+        void OnEnable()
+        {
+            var ui = _document.rootVisualElement;
+            _layer = ui.Q("label-layer");
+            _spectator = ui.Q("spectator");
+            _spectatorName = ui.Q<Label>("spectator-name");
+            _spectatorBody = ui.Q<Label>("spectator-body");
+        }
+
+        void LateUpdate()
+        {
+            _used = 0;
+            var cam = Camera.main;
+            if (cam != null && _layer.panel != null)
+            {
+                foreach (var table in BlackjackTable.All)
+                {
+                    if (table == null || table.Object == null || !table.Object.IsValid)
+                        continue;
+                    if ((table.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
+                        continue;
+                    LabelTable(table, cam);
+                }
+
+                foreach (var poker in PokerTable.All)
+                {
+                    if (poker == null || poker.Object == null || !poker.Object.IsValid)
+                        continue;
+                    if ((poker.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
+                        continue;
+                    LabelPoker(poker, cam);
+                }
+
+                foreach (var baccarat in BaccaratTable.All)
+                {
+                    if (baccarat == null || baccarat.Object == null || !baccarat.Object.IsValid || baccarat.Revealed == 0)
+                        continue;
+                    if ((baccarat.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
+                        continue;
+                    LabelBaccarat(baccarat, cam);
+                }
+
+                foreach (var machine in SlotMachine.All)
+                {
+                    if (machine == null || machine.Object == null || !machine.Object.IsValid || machine.SpinId == 0)
+                        continue;
+                    if ((machine.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
+                        continue;
+                    LabelSlots(machine, cam);
+                }
+
+                foreach (var roulette in RouletteTable.All)
+                {
+                    if (roulette == null || roulette.Object == null || !roulette.Object.IsValid)
+                        continue;
+                    if ((roulette.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
+                        continue;
+                    LabelRoulette(roulette, cam);
+                }
+            }
+
+            for (var i = _used; i < _labels.Count; i++)
+                _labels[i].style.display = DisplayStyle.None;
+
+            UpdateSpectator();
+        }
+
+        void LabelTable(BlackjackTable table, Camera cam)
+        {
+            if (!_views.TryGetValue(table, out var view) || view == null)
+            {
+                view = table.GetComponent<BlackjackTableView>();
+                _views[table] = view;
+            }
+
+            if (view == null)
+                return;
+
+            for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
+            {
+                var hands = table.HandCountAt(seat);
+                for (var hand = 0; hand < hands; hand++)
+                {
+                    if (table.CardCountAt(seat, hand) == 0)
+                        continue;
+
+                    var outcome = table.OutcomeAt(seat, hand);
+                    var value = table.EvaluateHand(seat, hand);
+                    var text = outcome == HandOutcome.None
+                        ? value.IsBust ? "Bust" : value.ToString()
+                        : $"{value.Total} · {BlackjackTable.OutcomeLabel(outcome)}";
+
+                    var label = Place(view.HandLabelPosition(seat, hand, hands), text, cam);
+                    if (label == null)
+                        continue;
+                    label.EnableInClassList("hand-label--active", table.IsActiveTurn(seat) && table.ActiveHand == hand);
+                    label.EnableInClassList("hand-label--win", outcome is HandOutcome.Win or HandOutcome.Blackjack);
+                    label.EnableInClassList("hand-label--lose", outcome is HandOutcome.Lose or HandOutcome.Bust || (outcome == HandOutcome.None && value.IsBust));
+                    label.EnableInClassList("hand-label--push", outcome == HandOutcome.Push);
+                }
+            }
+
+            if (table.DealerCardCount > 0)
+            {
+                var dealer = Place(view.DealerLabelPosition, $"Dealer {table.EvaluateDealerVisible()}", cam);
+                dealer?.EnableInClassList("hand-label--active", table.Phase == BlackjackPhase.DealerTurn);
+            }
+        }
+
+        void LabelPoker(PokerTable table, Camera cam)
+        {
+            if (!_pokerViews.TryGetValue(table, out var view) || view == null)
+            {
+                view = table.GetComponent<PokerView>();
+                _pokerViews[table] = view;
+            }
+
+            if (view == null || table.Phase == PokerPhase.WaitingForPlayers)
+                return;
+
+            if (table.TotalPot > 0 && !(table.Phase == PokerPhase.Showdown && table.ShowdownSettled))
+                Place(view.PotLabelPosition, $"Pot {table.TotalPot:N0}", cam);
+
+            for (var seat = 0; seat < PokerTable.SeatCount; seat++)
+            {
+                if (table.OccupantAt(seat) == PokerOccupant.Empty || (table.FlagsAt(seat) & PokerSeatFlags.InHand) == 0)
+                    continue;
+
+                string text;
+                if (table.Phase == PokerPhase.Showdown && table.WonAt(seat) > 0)
+                    text = $"+{table.WonAt(seat):N0}";
+                else if ((table.FlagsAt(seat) & PokerSeatFlags.Folded) != 0)
+                    text = "Fold";
+                else if ((table.FlagsAt(seat) & PokerSeatFlags.AllIn) != 0)
+                    text = "All in";
+                else
+                    text = PokerTable.ActionLabel(table.LastActionAt(seat), table.LastAmountAt(seat));
+
+                if (string.IsNullOrEmpty(text))
+                    continue;
+                var label = Place(view.SeatLabelPosition(seat), text, cam);
+                if (label == null)
+                    continue;
+                label.EnableInClassList("hand-label--active", table.IsActiveTurn(seat));
+                label.EnableInClassList("hand-label--win", table.Phase == PokerPhase.Showdown && table.WonAt(seat) > 0);
+                label.EnableInClassList("hand-label--push", (table.FlagsAt(seat) & PokerSeatFlags.Folded) != 0);
+            }
+        }
+
+        void LabelBaccarat(BaccaratTable table, Camera cam)
+        {
+            if (!_baccaratViews.TryGetValue(table, out var view) || view == null)
+            {
+                view = table.GetComponent<BaccaratView>();
+                _baccaratViews[table] = view;
+            }
+
+            if (view == null)
+                return;
+
+            var result = table.Phase == BaccaratPhase.Result;
+            var player = Place(view.PlayerLabelPosition, $"Player {table.VisibleTotal(false)}", cam);
+            player?.EnableInClassList("hand-label--win", result && table.Outcome == Rules.BaccaratOutcome.Player);
+            var banker = Place(view.BankerLabelPosition, $"Banker {table.VisibleTotal(true)}", cam);
+            banker?.EnableInClassList("hand-label--win", result && table.Outcome == Rules.BaccaratOutcome.Banker);
+            if (result && table.Outcome == Rules.BaccaratOutcome.Tie)
+            {
+                player?.AddToClassList("hand-label--push");
+                banker?.AddToClassList("hand-label--push");
+            }
+        }
+
+        void LabelSlots(SlotMachine machine, Camera cam)
+        {
+            if (!_slotViews.TryGetValue(machine, out var view) || view == null)
+            {
+                view = machine.GetComponent<SlotMachineView>();
+                _slotViews[machine] = view;
+            }
+
+            if (view == null || machine.IsSpinning)
+                return;
+            var payout = machine.LastPayout;
+            var label = Place(view.LabelPosition, payout > 0 ? $"{PlayerCat.NameOf(machine.SpinOwner)} won {payout:N0}" : $"{PlayerCat.NameOf(machine.SpinOwner)}: no luck", cam);
+            label?.AddToClassList(payout > machine.Bet ? "hand-label--win" : "hand-label--push");
+        }
+
+        void LabelRoulette(RouletteTable table, Camera cam)
+        {
+            if (!_rouletteViews.TryGetValue(table, out var view) || view == null)
+            {
+                view = table.GetComponent<RouletteView>();
+                _rouletteViews[table] = view;
+            }
+
+            if (view == null)
+                return;
+
+            var text = table.Phase switch
+            {
+                RoulettePhase.Betting => $"Place your bets · {Mathf.CeilToInt(Mathf.Max(0f, table.TimeRemaining))}s",
+                RoulettePhase.Spinning => "No more bets!",
+                RoulettePhase.Result => $"{table.Result} {Rules.RouletteRules.ColorName(table.Result)}",
+                _ => null,
+            };
+
+            if (text == null)
+                return;
+            var label = Place(view.ResultLabelPosition, text, cam);
+            if (label == null || table.Phase != RoulettePhase.Result)
+                return;
+            label.AddToClassList(table.Result == 0 ? "hand-label--win" : Rules.RouletteRules.IsRed(table.Result) ? "hand-label--lose" : "hand-label--push");
+        }
+
+        Label Place(Vector3 world, string text, Camera cam)
+        {
+            if (Vector3.Dot(world - cam.transform.position, cam.transform.forward) <= 0f)
+                return null;
+
+            if (_used >= _labels.Count)
+            {
+                var created = new Label { pickingMode = PickingMode.Ignore };
+                created.AddToClassList("hand-label");
+                _layer.Add(created);
+                _labels.Add(created);
+            }
+
+            var label = _labels[_used++];
+            var position = RuntimePanelUtils.CameraTransformWorldToPanel(_layer.panel, world, cam);
+            label.style.display = DisplayStyle.Flex;
+            label.style.left = position.x;
+            label.style.top = position.y;
+            label.text = text;
+            label.ClearClassList();
+            label.AddToClassList("hand-label");
+            return label;
+        }
+
+        void UpdateSpectator()
+        {
+            var local = PlayerCat.Local;
+            PlayerCat watched = null;
+            if (local != null && SeatingController.LocalTable == null)
+            {
+                var best = SpectateRange;
+                foreach (var cat in PlayerCat.All)
+                {
+                    if (cat == null || cat == local || cat.Object == null || !cat.Object.IsValid || !cat.IsSeated)
+                        continue;
+                    var distance = Vector3.Distance(cat.transform.position, local.transform.position);
+                    if (distance < best)
+                    {
+                        best = distance;
+                        watched = cat;
+                    }
+                }
+            }
+
+            _text.Clear();
+            var show = watched != null && GameTables.TryFindSeat(watched.Owner, out var table, out _) &&
+                       table.TryDescribePlayer(watched.Owner, _text);
+            _spectator.EnableInClassList("hidden", !show);
+            if (!show)
+                return;
+
+            _spectatorName.text = watched.DisplayName.ToString();
+            _spectatorName.style.color = Color.Lerp(watched.Swatch, Color.white, 0.35f);
+            _spectatorBody.text = $"{_text}Balance {watched.Balance:N0}";
+        }
+    }
+}

@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="slots-root" class="screen hidden" picking-mode="Ignore">
+        <ui:VisualElement class="bj-top" picking-mode="Ignore">
+            <ui:Label name="status-label" class="bj-phase" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement class="panel slots-paytable" picking-mode="Ignore">
+            <ui:Label text="Paytable" class="bj-settings-title" />
+            <ui:Label name="paytable-label" class="spectator-body" />
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-bottom" picking-mode="Ignore">
+            <ui:VisualElement class="bj-panel">
+                <ui:VisualElement name="bet-row" style="flex-direction: row;" />
+                <ui:Button name="spin-button" text="Spin (Space)" class="bj-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-corner">
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

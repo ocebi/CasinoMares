@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="nameplate-layer" class="screen" picking-mode="Ignore" />
+</ui:UXML>

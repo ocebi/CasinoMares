@@ -1,0 +1,972 @@
+/* Casino Mares shared UI theme: warm lounge colors on built-in UI Toolkit controls. */
+:root {
+    --cm-bg: rgba(28, 18, 24, 0.92);
+    --cm-bg-soft: rgba(28, 18, 24, 0.7);
+    --cm-border: rgb(120, 84, 52);
+    --cm-gold: rgb(232, 186, 98);
+    --cm-gold-dark: rgb(176, 130, 58);
+    --cm-text: rgb(245, 236, 222);
+    --cm-text-dim: rgb(190, 176, 160);
+    --cm-danger: rgb(222, 104, 96);
+    -unity-font-style: normal;
+    color: var(--cm-text);
+}
+
+.screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.panel {
+    background-color: var(--cm-bg);
+    border-color: var(--cm-border);
+    border-width: 2px;
+    border-radius: 14px;
+    padding: 24px 28px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Main menu */
+.menu-backdrop {
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 6, 10, 0.35);
+}
+
+.menu-panel {
+    width: 460px;
+}
+
+.title {
+    font-size: 44px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    -unity-text-align: middle-center;
+}
+
+.subtitle {
+    font-size: 16px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-center;
+    margin-bottom: 22px;
+}
+
+.field-label {
+    font-size: 15px;
+    color: var(--cm-text-dim);
+    margin: 14px 3px 6px 3px;
+}
+
+.hint {
+    font-size: 13px;
+    color: var(--cm-text-dim);
+    margin: 4px 3px 0 3px;
+}
+
+.swatch-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.swatch {
+    width: 42px;
+    height: 42px;
+    border-radius: 21px;
+    margin: 0 8px 0 3px;
+    border-width: 3px;
+    border-color: rgba(0, 0, 0, 0);
+    padding: 0;
+}
+
+.swatch--selected {
+    border-color: var(--cm-gold);
+}
+
+.status {
+    font-size: 14px;
+    min-height: 20px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+    white-space: normal;
+}
+
+.status--error {
+    color: var(--cm-danger);
+}
+
+/* Buttons */
+.primary-button {
+    height: 46px;
+    margin-top: 22px;
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(40, 24, 12);
+    background-color: var(--cm-gold);
+    border-color: var(--cm-gold-dark);
+    border-radius: 10px;
+}
+
+.primary-button:hover {
+    background-color: rgb(245, 204, 124);
+}
+
+.primary-button:disabled {
+    opacity: 0.5;
+}
+
+.secondary-button {
+    height: 34px;
+    margin-top: 10px;
+    font-size: 15px;
+    color: var(--cm-text);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--cm-border);
+    border-radius: 8px;
+}
+
+.secondary-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Text fields */
+.unity-text-field > .unity-label {
+    color: var(--cm-text-dim);
+    min-width: 60px;
+}
+
+.unity-base-text-field__input {
+    font-size: 17px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background-color: rgb(52, 38, 44);
+    border-color: var(--cm-border);
+    color: var(--cm-text);
+}
+
+/* HUD */
+.hud-chip {
+    position: absolute;
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--cm-bg-soft);
+    border-color: var(--cm-border);
+    border-width: 1px;
+    border-radius: 10px;
+    padding: 8px 14px;
+}
+
+.hud-balance {
+    left: 20px;
+    top: 20px;
+}
+
+.hud-players {
+    right: 20px;
+    top: 20px;
+}
+
+.hud-label-dim {
+    font-size: 14px;
+    color: var(--cm-text-dim);
+    margin-right: 8px;
+}
+
+.hud-value {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
+.hud-hint {
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    right: 0;
+    -unity-text-align: middle-center;
+    font-size: 13px;
+    color: rgba(245, 236, 222, 0.55);
+}
+
+/* While seated the table UI owns the bottom centre, so the hint moves to the bottom-left corner. */
+.hud-hint--seated {
+    left: 24px;
+    right: auto;
+    bottom: 30px;
+    -unity-text-align: middle-left;
+}
+
+.pause-toggle {
+    margin: 6px 0 10px 0;
+}
+
+.pause-backdrop {
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 6, 10, 0.55);
+}
+
+.pause-panel {
+    width: 380px;
+}
+
+.pause-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    -unity-text-align: middle-center;
+    margin-bottom: 12px;
+}
+
+/* Nameplates */
+.nameplate {
+    position: absolute;
+    translate: -50% -100%;
+    padding: 3px 10px;
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--cm-text);
+    background-color: rgba(20, 12, 16, 0.6);
+    border-radius: 8px;
+    border-bottom-width: 3px;
+    white-space: nowrap;
+}
+
+/* Interaction prompt & toasts */
+.prompt {
+    position: absolute;
+    bottom: 64px;
+    left: 0;
+    right: 0;
+    align-items: center;
+}
+
+.prompt-label {
+    font-size: 18px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background-color: var(--cm-bg-soft);
+    border-color: var(--cm-border);
+    border-width: 1px;
+    color: var(--cm-text);
+}
+
+.prompt-label--disabled {
+    color: var(--cm-text-dim);
+    opacity: 0.8;
+}
+
+.key {
+    color: var(--cm-gold);
+    -unity-font-style: bold;
+}
+
+.toast-stack {
+    position: absolute;
+    top: 80px;
+    left: 0;
+    right: 0;
+    align-items: center;
+}
+
+.toast {
+    font-size: 17px;
+    padding: 8px 18px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    background-color: rgba(60, 40, 20, 0.9);
+    border-color: var(--cm-gold-dark);
+    border-width: 1px;
+    color: var(--cm-text);
+}
+
+/* Leaderboard */
+.leaderboard {
+    position: absolute;
+    top: 90px;
+    right: 20px;
+    width: 320px;
+}
+
+.leaderboard-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    margin-bottom: 8px;
+}
+
+.leader-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.leader-rank {
+    width: 28px;
+    color: var(--cm-text-dim);
+    font-size: 15px;
+}
+
+.leader-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    margin-right: 8px;
+}
+
+.leader-name {
+    flex-grow: 1;
+    font-size: 16px;
+}
+
+.leader-balance {
+    font-size: 16px;
+    color: var(--cm-gold);
+    -unity-font-style: bold;
+}
+
+/* Chat */
+.chat {
+    position: absolute;
+    left: 20px;
+    bottom: 60px;
+    width: 460px;
+}
+
+.chat-log {
+    max-height: 260px;
+}
+
+.chat-line {
+    font-size: 15px;
+    white-space: normal;
+    padding: 2px 8px;
+    background-color: rgba(20, 12, 16, 0.45);
+    margin-bottom: 1px;
+}
+
+.chat-line--system {
+    color: rgb(230, 200, 140);
+    -unity-font-style: italic;
+}
+
+.chat-input {
+    margin-top: 6px;
+}
+
+/* Blackjack seat UI */
+.bj-top {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    right: 0;
+    align-items: center;
+}
+
+.bj-phase {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    padding: 6px 18px;
+    border-radius: 10px;
+    background-color: var(--cm-bg-soft);
+}
+
+.bj-timer {
+    width: 300px;
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.bj-timer-fill {
+    height: 100%;
+    border-radius: 3px;
+    background-color: var(--cm-gold);
+}
+
+.bj-bottom {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    align-items: center;
+}
+
+.bj-panel {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--cm-bg);
+    border-color: var(--cm-border);
+    border-width: 2px;
+    border-radius: 14px;
+    padding: 12px 16px;
+}
+
+.bj-chip {
+    width: 58px;
+    height: 58px;
+    border-radius: 29px;
+    margin: 0 5px;
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-width: 4px;
+    border-color: rgba(255, 255, 255, 0.75);
+    color: rgb(255, 255, 255);
+}
+
+.bj-bet {
+    font-size: 22px;
+    min-width: 120px;
+    -unity-text-align: middle-center;
+    color: var(--cm-gold);
+    -unity-font-style: bold;
+}
+
+.bj-button {
+    height: 46px;
+    min-width: 96px;
+    margin: 0 5px;
+    font-size: 17px;
+    -unity-font-style: bold;
+    border-radius: 10px;
+    color: rgb(40, 24, 12);
+    background-color: var(--cm-gold);
+    border-color: var(--cm-gold-dark);
+}
+
+.bj-button:hover {
+    background-color: rgb(245, 204, 124);
+}
+
+.bj-button:disabled {
+    opacity: 0.35;
+}
+
+.bj-button--secondary {
+    color: var(--cm-text);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--cm-border);
+}
+
+.bj-button--secondary:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.bj-corner {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    flex-direction: row;
+}
+
+.bj-settings {
+    position: absolute;
+    right: 20px;
+    bottom: 90px;
+    width: 300px;
+}
+
+.bj-settings-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    margin-bottom: 8px;
+}
+
+.bj-setting {
+    height: 36px;
+    margin: 3px 0;
+    font-size: 15px;
+    color: var(--cm-text);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--cm-border);
+    border-radius: 8px;
+}
+
+/* World labels over hands */
+.hand-label {
+    position: absolute;
+    translate: -50% -100%;
+    padding: 2px 8px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    border-radius: 7px;
+    background-color: rgba(20, 12, 16, 0.72);
+    color: var(--cm-text);
+    white-space: nowrap;
+}
+
+.hand-label--active {
+    border-color: var(--cm-gold);
+    border-width: 2px;
+}
+
+.hand-label--win {
+    background-color: rgba(40, 120, 60, 0.85);
+}
+
+.hand-label--lose {
+    background-color: rgba(140, 40, 40, 0.85);
+}
+
+.hand-label--push {
+    background-color: rgba(90, 90, 110, 0.85);
+}
+
+/* Spectator panel */
+.spectator {
+    position: absolute;
+    right: 20px;
+    top: 140px;
+    width: 330px;
+}
+
+.spectator-name {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
+.spectator-body {
+    font-size: 15px;
+    white-space: normal;
+    margin-top: 6px;
+}
+
+/* Gift dialog */
+.dialog-backdrop {
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 6, 10, 0.5);
+}
+
+.dialog {
+    width: 420px;
+}
+
+.dialog-title {
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    margin-bottom: 12px;
+}
+
+.dialog-row {
+    flex-direction: row;
+    margin-top: 10px;
+}
+
+.dialog-row > Button {
+    flex-grow: 1;
+}
+
+/* Wall leaderboard (rendered into a texture) */
+.board {
+    background-color: rgb(34, 20, 26);
+    border-color: var(--cm-gold);
+    border-width: 8px;
+    padding: 24px 40px;
+}
+
+.board-title {
+    font-size: 54px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    -unity-text-align: middle-center;
+    margin-bottom: 14px;
+}
+
+.board .leader-row {
+    padding: 6px 0;
+}
+
+.board .leader-rank {
+    width: 60px;
+    font-size: 30px;
+}
+
+.board .leader-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    margin-right: 16px;
+}
+
+.board .leader-name,
+.board .leader-balance {
+    font-size: 32px;
+}
+
+.board-empty {
+    font-size: 28px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-center;
+    margin-top: 40px;
+}
+
+/* Roulette board */
+.rl-board {
+    flex-direction: column;
+    background-color: rgba(10, 60, 36, 0.92);
+    border-color: var(--cm-gold-dark);
+    border-width: 2px;
+    border-radius: 10px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.rl-row {
+    flex-direction: row;
+}
+
+.rl-cell {
+    width: 46px;
+    height: 40px;
+    margin: 1px;
+    padding: 0;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.35);
+    border-radius: 3px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.rl-cell:hover {
+    border-color: var(--cm-gold);
+    border-width: 2px;
+}
+
+.rl-cell--red {
+    background-color: rgb(170, 30, 38);
+}
+
+.rl-cell--black {
+    background-color: rgb(28, 26, 30);
+}
+
+.rl-cell--green {
+    background-color: rgb(20, 120, 60);
+}
+
+.rl-cell--winner {
+    border-color: rgb(255, 230, 120);
+    border-width: 3px;
+}
+
+.rl-chip-badge {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    font-size: 11px;
+    padding: 0 3px;
+    border-radius: 6px;
+    background-color: var(--cm-gold);
+    color: rgb(40, 24, 12);
+}
+
+.rl-controls {
+    align-self: center;
+}
+
+.rl-history {
+    flex-direction: row;
+    margin-top: 8px;
+}
+
+.rl-history-item {
+    width: 30px;
+    height: 30px;
+    margin: 0 2px;
+    border-radius: 15px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: rgb(255, 255, 255);
+}
+
+.slots-paytable {
+    position: absolute;
+    left: 20px;
+    top: 90px;
+    width: 260px;
+}
+
+/* Baccarat */
+.bc-spots {
+    flex-direction: row;
+    margin-bottom: 8px;
+}
+
+.bc-spot {
+    width: 170px;
+    height: 84px;
+    margin: 0 6px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    white-space: normal;
+    color: rgb(255, 255, 255);
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+}
+
+.bc-spot--player {
+    background-color: rgb(40, 80, 170);
+}
+
+.bc-spot--banker {
+    background-color: rgb(160, 30, 40);
+}
+
+.bc-spot--tie {
+    background-color: rgb(20, 110, 60);
+}
+
+/* Poker */
+.pk-hand {
+    position: absolute;
+    left: 24px;
+    bottom: 110px;
+    align-items: center;
+}
+
+.pk-best {
+    margin-top: 8px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    padding: 4px 12px;
+    border-radius: 8px;
+    background-color: var(--cm-bg-soft);
+}
+
+.pk-info {
+    font-size: 17px;
+    color: var(--cm-text);
+    padding: 4px 14px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background-color: var(--cm-bg-soft);
+}
+
+.pk-raise {
+    flex-direction: row;
+    align-items: center;
+}
+
+.pk-small {
+    min-width: 44px;
+    padding: 0 8px;
+}
+
+.pk-allin {
+    background-color: rgb(210, 90, 70);
+    border-color: rgb(150, 50, 40);
+    color: rgb(255, 245, 235);
+}
+
+/* Emote wheel (hold Q) */
+.emote-root {
+    align-items: center;
+    justify-content: center;
+}
+
+.emote-wheel {
+    width: 480px;
+    height: 480px;
+    border-radius: 240px;
+    background-color: rgba(24, 14, 18, 0.72);
+    border-width: 2px;
+    border-color: rgba(232, 186, 98, 0.5);
+}
+
+.emote-options {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.emote-option {
+    position: absolute;
+    width: 132px;
+    height: 58px;
+    margin-left: -66px;
+    margin-top: -29px;
+    border-radius: 29px;
+    background-color: rgba(62, 36, 40, 0.92);
+    border-width: 2px;
+    border-color: rgba(232, 186, 98, 0.35);
+    align-items: center;
+    justify-content: center;
+    transition-duration: 0.08s;
+    transition-property: scale, background-color;
+}
+
+.emote-option--selected {
+    background-color: var(--cm-gold);
+    border-color: rgb(255, 228, 160);
+    scale: 1.1 1.1;
+}
+
+.emote-option-label {
+    color: var(--cm-text);
+    font-size: 17px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.emote-option--selected .emote-option-label {
+    color: rgb(42, 24, 20);
+}
+
+.emote-center {
+    position: absolute;
+    left: 150px;
+    top: 190px;
+    width: 180px;
+    height: 100px;
+    align-items: center;
+    justify-content: center;
+}
+
+.emote-center-title {
+    font-size: 22px;
+    color: var(--cm-gold);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.emote-center-hint {
+    font-size: 13px;
+    color: var(--cm-text-dim);
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.emote-pointer {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    margin-top: -7px;
+    border-radius: 7px;
+    background-color: rgb(255, 228, 160);
+}
+
+/* Teaching mode: coach card and rules overlay (poker, baccarat) */
+.coach {
+    position: absolute;
+    right: 20px;
+    top: 84px;
+    width: 390px;
+    padding: 14px 18px;
+}
+
+.coach-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    white-space: normal;
+}
+
+.coach-body {
+    margin-top: 6px;
+    font-size: 15px;
+    white-space: normal;
+    color: var(--cm-text);
+}
+
+.coach-meter {
+    margin-top: 10px;
+    height: 22px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.coach-meter-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(98, 176, 110, 0.75);
+}
+
+.coach-meter-label {
+    font-size: 14px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    height: 100%;
+    color: rgb(255, 255, 255);
+}
+
+.coach-tip {
+    margin-top: 10px;
+    padding: 8px 10px;
+    font-size: 16px;
+    white-space: normal;
+    color: rgb(40, 24, 12);
+    background-color: var(--cm-gold);
+    border-radius: 8px;
+}
+
+.rules-backdrop {
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 6, 10, 0.6);
+}
+
+.rules-panel {
+    width: 820px;
+    max-height: 86%;
+    padding: 20px 26px;
+}
+
+.rules-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.rules-title {
+    font-size: 28px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
+.rules-scroll {
+    flex-shrink: 1;
+}
+
+.rules-heading {
+    margin-top: 14px;
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
+.rules-body {
+    margin-top: 4px;
+    font-size: 16px;
+    white-space: normal;
+    color: var(--cm-text);
+}
+
+/* The coach's suggestion, highlighted on the matching button */
+.coach-suggested {
+    border-width: 3px;
+    border-color: rgb(120, 230, 140);
+}

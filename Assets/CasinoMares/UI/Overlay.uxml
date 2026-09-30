@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="overlay-root" class="screen" picking-mode="Ignore">
+        <ui:VisualElement name="label-layer" class="screen" picking-mode="Ignore" />
+        <ui:VisualElement name="spectator" class="panel spectator hidden" picking-mode="Ignore">
+            <ui:Label name="spectator-name" class="spectator-name" picking-mode="Ignore" />
+            <ui:Label name="spectator-body" class="spectator-body" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

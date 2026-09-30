@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="pk-root" class="screen hidden" picking-mode="Ignore">
+        <ui:VisualElement class="bj-top" picking-mode="Ignore">
+            <ui:Label name="phase-label" class="bj-phase" picking-mode="Ignore" />
+            <ui:VisualElement name="timer" class="bj-timer" picking-mode="Ignore">
+                <ui:VisualElement name="timer-fill" class="bj-timer-fill" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="pk-hand" picking-mode="Ignore">
+            <ui:VisualElement name="hole-cards" style="flex-direction: row;" picking-mode="Ignore" />
+            <ui:Label name="best-hand" class="pk-best" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-bottom" picking-mode="Ignore">
+            <ui:Label name="info-label" class="pk-info" picking-mode="Ignore" />
+            <ui:VisualElement name="action-panel" class="bj-panel hidden">
+                <ui:Button name="fold-button" text="Fold (F)" class="bj-button bj-button--secondary" />
+                <ui:Button name="call-button" text="Check (C)" class="bj-button" />
+                <ui:VisualElement class="pk-raise">
+                    <ui:Button name="minus-button" text="-" class="bj-button bj-button--secondary pk-small" />
+                    <ui:Label name="raise-label" class="bj-bet" />
+                    <ui:Button name="plus-button" text="+" class="bj-button bj-button--secondary pk-small" />
+                </ui:VisualElement>
+                <ui:Button name="min-button" text="Min" class="bj-button bj-button--secondary pk-small" />
+                <ui:Button name="half-pot-button" text="1/2 pot" class="bj-button bj-button--secondary pk-small" />
+                <ui:Button name="pot-button" text="Pot" class="bj-button bj-button--secondary pk-small" />
+                <ui:Button name="raise-button" text="Raise (R)" class="bj-button" />
+                <ui:Button name="allin-button" text="All in" class="bj-button pk-allin" />
+            </ui:VisualElement>
+            <ui:Button name="rebuy-button" text="Rebuy 500" class="bj-button hidden" />
+        </ui:VisualElement>
+        <ui:VisualElement name="settings-panel" class="panel bj-settings hidden">
+            <ui:Label text="Table settings" class="bj-settings-title" />
+            <ui:Button name="blind-button" class="bj-setting" />
+            <ui:Button name="timer-button" class="bj-setting" />
+            <ui:Button name="npc-button" class="bj-setting" />
+            <ui:Button name="coach-button" class="bj-setting" />
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-corner">
+            <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary" />
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
+            <ui:Button name="leave-button" text="Cash out (E)" class="bj-button bj-button--secondary" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="menu-root" class="screen menu-backdrop">
+        <ui:VisualElement class="panel menu-panel">
+            <ui:Label text="Casino Mares" class="title" />
+            <ui:Label text="A cozy casino for cats" class="subtitle" />
+            <ui:TextField name="name-field" label="Name" max-length="16" />
+            <ui:Label text="Fur" class="field-label" />
+            <ui:VisualElement name="fur-swatches" class="swatch-row" />
+            <ui:Label name="fur-name" class="hint" />
+            <ui:Button name="play-button" text="Play" class="primary-button" />
+            <ui:Label name="status-label" class="status" />
+            <ui:Button name="quit-button" text="Quit" class="secondary-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

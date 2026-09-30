@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement name="rl-root" class="screen hidden" picking-mode="Ignore">
+        <ui:VisualElement class="bj-top" picking-mode="Ignore">
+            <ui:Label name="phase-label" class="bj-phase" picking-mode="Ignore" />
+            <ui:VisualElement name="timer" class="bj-timer" picking-mode="Ignore">
+                <ui:VisualElement name="timer-fill" class="bj-timer-fill" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement name="history" class="rl-history" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-bottom" picking-mode="Ignore">
+            <ui:VisualElement name="board" class="rl-board" />
+            <ui:VisualElement class="bj-panel rl-controls">
+                <ui:VisualElement name="chip-row" style="flex-direction: row;" />
+                <ui:Label name="total-label" class="bj-bet" text="0" />
+                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary" />
+                <ui:Button name="done-button" text="Ready" class="bj-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="settings-panel" class="panel bj-settings hidden">
+            <ui:Label text="Table settings" class="bj-settings-title" />
+            <ui:Button name="bet-timer-button" class="bj-setting" />
+            <ui:Button name="npc-button" class="bj-setting" />
+        </ui:VisualElement>
+        <ui:VisualElement class="bj-corner">
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
