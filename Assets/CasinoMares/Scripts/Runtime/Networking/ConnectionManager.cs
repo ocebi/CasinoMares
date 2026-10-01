@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using CasinoMares.Core;
+using CasinoMares.Player;
 using Fusion;
 using Fusion.Photon.Realtime;
 using Fusion.Sockets;
@@ -27,6 +29,9 @@ namespace CasinoMares.Networking
         public const string Region = "eu";
         public const int MaxPlayers = 10;
 
+        /// <summary>How often a master client in a background tab looks for someone to hand the tables to.</summary>
+        const float HandoffInterval = 3f;
+
         [SerializeField] NetworkObject _playerPrefab;
         [SerializeField] Transform[] _spawnPoints = Array.Empty<Transform>();
         [SerializeField] float _spawnScatter = 0.6f;
@@ -41,6 +46,8 @@ namespace CasinoMares.Networking
         public static string LastError { get; private set; } = "";
 
         public event Action<ConnectionState> StateChanged;
+
+        float _nextHandoffCheck;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -57,6 +64,37 @@ namespace CasinoMares.Networking
         {
             if (Instance == this)
                 Instance = null;
+        }
+
+        void Update()
+        {
+            if (Platform.IsWeb && State == ConnectionState.Connected && Runner != null && Runner.IsRunning)
+                UpdateBackgroundTab();
+        }
+
+        /// <summary>
+        /// A browser tab in the background only runs about once a second. The master client simulates every table, so
+        /// a hidden master hands the role to a player whose game is in front, and the cat shows as away meanwhile.
+        /// </summary>
+        void UpdateBackgroundTab()
+        {
+            var hidden = Platform.PageHidden;
+            var local = PlayerCat.Local;
+            if (local != null && local.Object != null && local.Object.IsValid && local.IsAway != hidden)
+                local.IsAway = hidden;
+
+            if (!hidden || !Runner.IsSharedModeMasterClient || Time.unscaledTime < _nextHandoffCheck)
+                return;
+
+            _nextHandoffCheck = Time.unscaledTime + HandoffInterval;
+            foreach (var cat in PlayerCat.All)
+            {
+                if (cat == null || cat.IsLocal || cat.Object == null || !cat.Object.IsValid || cat.IsAway)
+                    continue;
+                Debug.Log($"[ConnectionManager] Tab hidden: handing the tables to {cat.DisplayName}");
+                Runner.SetMasterClient(cat.Owner);
+                return;
+            }
         }
 
         public async void Connect()

@@ -17,7 +17,8 @@ namespace CasinoMares.Core
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void RestoreSensibleWindow()
         {
-            if (Application.isEditor)
+            // A browser sizes the canvas itself.
+            if (Application.isEditor || Platform.IsWeb)
                 return;
 
             var args = Environment.GetCommandLineArgs();

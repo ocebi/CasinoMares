@@ -21,6 +21,10 @@ namespace CasinoMares.Social
 
         void OnEnable()
         {
+            // The panel only draws into the board's texture. Without this, UI Toolkit would still map screen clicks and
+            // touches onto it as if it covered the top-left of the screen, swallowing them over the title and rows.
+            _document.panelSettings.SetScreenToPanelSpaceFunction(_ => new Vector2(float.NaN, float.NaN));
+
             var ui = _document.rootVisualElement;
             _rows = ui.Q("board-rows");
             _empty = ui.Q<Label>("board-empty");

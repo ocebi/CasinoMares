@@ -14,7 +14,8 @@ namespace CasinoMares.Core
 
     /// <summary>
     /// The single local profile (GDD §3.2, §7.1), saved as JSON. The client is trusted, so this file is
-    /// the source of truth for the player's balance.
+    /// the source of truth for the player's balance. In a browser the file lives in IndexedDB (the page template
+    /// turns on autoSyncPersistentDataPath).
     /// </summary>
     public static class ProfileStore
     {
@@ -33,11 +34,15 @@ namespace CasinoMares.Core
         {
             get
             {
-                // "-profile name" keeps test instances (e.g. a -bot build) away from the real profile.
+                // "-profile name" keeps test instances (e.g. a -bot build) away from the real profile. In a browser,
+                // where every tab shares one storage, it's "?profile=name" in the page URL.
                 var args = Environment.GetCommandLineArgs();
                 var index = Array.IndexOf(args, "-profile");
                 if (index >= 0 && index + 1 < args.Length)
                     return $"profile_{args[index + 1]}.json";
+                var webProfile = Platform.QueryParameter("profile");
+                if (!string.IsNullOrEmpty(webProfile))
+                    return $"profile_{SafeFileName(webProfile)}.json";
 #if UNITY_EDITOR
                 // Multiplayer Play Mode virtual players share persistentDataPath with the main editor, but each
                 // runs from its own Library/VP folder. Give them separate profiles so they don't overwrite each other.
@@ -102,6 +107,13 @@ namespace CasinoMares.Core
             Current.Balance = balance;
             Save();
             Changed?.Invoke(Current);
+        }
+
+        static string SafeFileName(string name)
+        {
+            foreach (var invalid in Path.GetInvalidFileNameChars())
+                name = name.Replace(invalid, '_');
+            return name;
         }
 
         public static string SanitizeName(string name)

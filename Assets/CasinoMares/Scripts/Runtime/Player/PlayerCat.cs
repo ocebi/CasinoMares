@@ -37,6 +37,10 @@ namespace CasinoMares.Player
         [Networked]
         public NetworkBool IsSeated { get; set; }
 
+        /// <summary>Set by the owner while its browser tab is in the background, where it only runs about once a second.</summary>
+        [Networked]
+        public NetworkBool IsAway { get; set; }
+
         /// <summary>Raised on every client when the name or fur color changes.</summary>
         public event Action AppearanceChanged;
 

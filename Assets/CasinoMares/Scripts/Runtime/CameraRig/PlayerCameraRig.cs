@@ -212,13 +212,17 @@ namespace CasinoMares.CameraRig
             return Mathf.Sign(delta) * Mathf.Sin(Mathf.Abs(delta) * Mathf.Deg2Rad) * _followTurnRate * deltaTime;
         }
 
-        /// <summary>WASD (or the arrows) turns the seat camera within limits; it stays where it's left.</summary>
+        /// <summary>
+        /// WASD (or the arrows), or a drag with touch controls, turns the seat camera within limits; it stays where
+        /// it's left.
+        /// </summary>
         void UpdateSeatLook()
         {
             var move = GameInput.ReadMove();
             var step = _seatTurnSpeed * Time.deltaTime;
-            _seatLookGoal.x = Mathf.Clamp(_seatLookGoal.x + move.x * step, -_seatYaw, _seatYaw);
-            _seatLookGoal.y = Mathf.Clamp(_seatLookGoal.y - move.y * step, -_seatPitch, _seatPitch);
+            var drag = GameInput.ReadTouchLook() * Sensitivity;
+            _seatLookGoal.x = Mathf.Clamp(_seatLookGoal.x + move.x * step + drag.x, -_seatYaw, _seatYaw);
+            _seatLookGoal.y = Mathf.Clamp(_seatLookGoal.y - move.y * step - drag.y, -_seatPitch, _seatPitch);
             _seatLook = Vector2.SmoothDamp(_seatLook, _seatLookGoal, ref _seatLookVelocity, _seatLookSmoothTime);
 
             // Orbit around a point on the table rather than turning in place, so the table stays in view and the
