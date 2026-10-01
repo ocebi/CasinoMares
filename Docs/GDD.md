@@ -568,8 +568,8 @@ in-game credits screen (title, author, link, license).
   [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds), both CC0, in
   `Assets/ThirdParty/Kenney/` with their license files.
 - **Cat voices and prop sounds**: synthesized at startup (`CatVoice`): meows, a yowl, purr, hiss,
-  chirp, chatter, the paw swish, and glass clinks and thuds for knocked props. There's no CC0 cat
-  sound in these packs.
+  chirp, chatter, the paw swish, glass clinks and thuds for knocked props, and the roulette ball's
+  ticks. There's no CC0 cat sound in these packs.
 - **Furniture and props**: primitives built by the scene builder, dressed with generated textures.
   Candidates for a later art pass are the owner's PolygonPrototype / Low Poly Ultimate Pack, or CC0
   kits.
@@ -635,11 +635,35 @@ and the floating cards.
 ### 13.1 Roulette
 - **European single-zero** wheel (0-36), no en prison or la partage.
 - 6 stools and a croupier cat. There's one shared betting window (15/20/30/45 s, or shorter if
-  everyone presses Ready). Then the wheel spins for 6 s and the ball lands in the networked result.
+  everyone presses Ready). Then the wheel spins for 7.5 s and the ball lands in the networked result.
+- **The wheel** is modelled, not painted flat: a wooden bowl with a ball track, a sloped apron with
+  eight brass diamonds, and a rotor with 37 brass frets between the pockets and a four-armed turret
+  (`RouletteWheelGeometry`, lathed at runtime and painted with `RouletteWheelTexture`). A collider
+  keeps cats off the wheel, and the NavMesh routes NPCs around it.
+- **The ball** (`RouletteBallPath`) is worked out backwards from the result pocket, so every client
+  watches it land in the same one:
+  - the croupier flicks it out of the last pocket onto the track, where it circles about 8 times
+    against the rotor while slowing down;
+  - it spirals down the apron, sometimes clipping a diamond, and skids along the rotor rim;
+  - it hops across a few pockets (hop lengths follow their heights, as under gravity, slightly
+    slowed), then rattles to a stop.
+
+  The randomness comes from the round id, so it's the same everywhere. A local clock smooths the
+  networked timer, and every strike ticks (a synthesized `BallTick`).
+- **Wheel close-up**: when the spin starts, seated players' cameras blend to a camera over the
+  wheel and the betting board steps aside. The view returns 1.5 s after the result is called.
+  This is personal (*Wheel close-up* in the table settings, on by default). The seat camera's look
+  is kept while the close-up shows.
 - Bets: straight numbers (35:1), red/black, odd/even, 1-18/19-36 (1:1), dozens and columns (2:1).
   Split, street, corner and line bets aren't in yet. Minimum chip 5, max 500 per spin.
 - The UI is a clickable layout with your bets as badges, winning spots highlighted, and the last 12
   results.
+- **Everyone's bets are visible while betting**, as at a real table where each seat plays its own
+  chip colour:
+  - every other seat's bets show as a dot in that seat's colour on each spot;
+  - a legend above the layout lists each seat's colour, name (or "NPC") and total, and who is
+    ready;
+  - pointing at a spot lists who has what on it.
 
 ### 13.2 Texas Hold'em
 - 6 seats, no-limit, blinds 5/10, 10/20 or 25/50, turn timer 15-60 s. Up to 4 NPC bots play a simple

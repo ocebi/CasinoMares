@@ -21,6 +21,7 @@
             <ui:Label text="Table settings" class="bj-settings-title" />
             <ui:Button name="bet-timer-button" class="bj-setting" />
             <ui:Button name="npc-button" class="bj-setting" />
+            <ui:Button name="wheel-closeup-button" class="bj-setting" />
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />

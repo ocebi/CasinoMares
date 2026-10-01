@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CasinoMares.Audio;
 using CasinoMares.Blackjack;
+using CasinoMares.CameraRig;
 using CasinoMares.Core;
 using CasinoMares.Npc;
 using CasinoMares.Player;
@@ -13,11 +14,44 @@ namespace CasinoMares.UI
 {
     /// <summary>
     /// The seated roulette UI: a clickable betting layout (numbers, columns, dozens, even-money), chip picker,
-    /// Clear / Ready, the phase banner with timer, recent results and table settings.
+    /// Clear / Ready, the phase banner with timer, recent results and table settings. As at a real table, every seat
+    /// plays its own chip colour: the other seats' bets show as coloured dots on the layout, with a legend above it
+    /// and the amounts for whatever spot the pointer is over. During the spin the board steps aside and the camera
+    /// moves in over the wheel (a personal setting).
     /// </summary>
     public class RouletteHud : MonoBehaviour
     {
         static readonly int[] ChipValues = { 5, 10, 25, 100 };
+        const string WheelCloseUpKey = "Roulette.WheelCloseUp";
+        /// <summary>Seconds the wheel close-up stays after the result is called, before the board comes back.</summary>
+        const float WheelLinger = 1.5f;
+
+        /// <summary>Each seat's chip colour, left to right as seen from the stools. Your own bets show in gold.</summary>
+        static readonly Color[] SeatColors =
+        {
+            new(0.36f, 0.7f, 1f), // sky blue
+            new(1f, 0.45f, 0.78f), // pink
+            new(1f, 0.58f, 0.22f), // orange
+            new(0.58f, 0.9f, 0.3f), // lime
+            new(0.72f, 0.56f, 1f), // violet
+            new(0.25f, 0.86f, 0.78f), // teal
+        };
+
+        static readonly Color YouColor = new(1f, 0.82f, 0.36f);
+
+        sealed class CellView
+        {
+            public Button Cell;
+            public Label Badge;
+            public VisualElement[] Dots;
+        }
+
+        sealed class PlayerEntry
+        {
+            public VisualElement Root;
+            public VisualElement Swatch;
+            public Label Text;
+        }
 
         [SerializeField] UIDocument _document;
 
@@ -27,17 +61,30 @@ namespace CasinoMares.UI
         VisualElement _timerFill;
         VisualElement _history;
         VisualElement _settingsPanel;
+        VisualElement _bottom;
         Label _total;
+        Label _spotInfo;
         Button _doneButton;
         Button _betTimerButton;
         Button _npcButton;
-        readonly Dictionary<int, (Button cell, Label badge)> _cells = new();
+        Button _wheelCloseUpButton;
+        readonly Dictionary<int, CellView> _cells = new();
+        readonly PlayerEntry[] _players = new PlayerEntry[RouletteTable.SeatCount];
         readonly List<Button> _chipButtons = new();
+        readonly System.Text.StringBuilder _text = new();
 
         RouletteTable _table;
         int _seat = -1;
         int _chip = 10;
+        int _hoverSpot = -1;
         int _shownHistoryHead = int.MinValue;
+        bool _watchingWheel;
+
+        static bool WheelCloseUp
+        {
+            get => PlayerPrefs.GetInt(WheelCloseUpKey, 1) == 1;
+            set => PlayerPrefs.SetInt(WheelCloseUpKey, value ? 1 : 0);
+        }
 
         void OnEnable()
         {
@@ -49,10 +96,12 @@ namespace CasinoMares.UI
             _timerFill = ui.Q("timer-fill");
             _history = ui.Q("history");
             _settingsPanel = ui.Q("settings-panel");
+            _bottom = _root.Q(className: "bj-bottom");
             _total = ui.Q<Label>("total-label");
             _doneButton = ui.Q<Button>("done-button");
             _betTimerButton = ui.Q<Button>("bet-timer-button");
             _npcButton = ui.Q<Button>("npc-button");
+            _wheelCloseUpButton = ui.Q<Button>("wheel-closeup-button");
 
             BuildBoard(ui.Q("board"));
             BuildChips(ui.Q("chip-row"));
@@ -63,6 +112,7 @@ namespace CasinoMares.UI
             ui.Q<Button>("leave-button").clicked += () => _table?.RequestLeave(_seat);
             _betTimerButton.clicked += () => _table?.ChangeSettings((_table.BetTimerOption + 1) % RouletteTable.BetTimerOptions.Length, _table.NpcFill);
             _npcButton.clicked += () => _table?.ChangeSettings(_table.BetTimerOption, NpcSeating.NextOption(_table.NpcFill));
+            _wheelCloseUpButton.clicked += () => WheelCloseUp = !WheelCloseUp;
 
             SeatingController.LocalSeatChanged += OnLocalSeatChanged;
             RouletteTable.LocalRoundResult += OnLocalRoundResult;
@@ -73,10 +123,12 @@ namespace CasinoMares.UI
         {
             SeatingController.LocalSeatChanged -= OnLocalSeatChanged;
             RouletteTable.LocalRoundResult -= OnLocalRoundResult;
+            WatchWheel(false);
         }
 
         void OnLocalSeatChanged(IGameTable table, int seat)
         {
+            WatchWheel(false);
             _table = table as RouletteTable;
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
@@ -96,6 +148,26 @@ namespace CasinoMares.UI
         {
             board.Clear();
             _cells.Clear();
+
+            // Who's at the table, in their chip colours, and what's on the spot under the pointer.
+            var players = new VisualElement();
+            players.AddToClassList("rl-players");
+            board.Add(players);
+            for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
+            {
+                var entry = new PlayerEntry { Root = new VisualElement(), Swatch = new VisualElement(), Text = new Label() };
+                entry.Root.AddToClassList("rl-player");
+                entry.Swatch.AddToClassList("rl-player-swatch");
+                entry.Text.AddToClassList("rl-player-name");
+                entry.Root.Add(entry.Swatch);
+                entry.Root.Add(entry.Text);
+                players.Add(entry.Root);
+                _players[seat] = entry;
+            }
+
+            _spotInfo = new Label { pickingMode = PickingMode.Ignore };
+            _spotInfo.AddToClassList("rl-spot-info");
+            board.Add(_spotInfo);
 
             var top = new VisualElement();
             top.AddToClassList("rl-row");
@@ -161,7 +233,28 @@ namespace CasinoMares.UI
             badge.AddToClassList("rl-chip-badge");
             badge.style.display = DisplayStyle.None;
             cell.Add(badge);
-            _cells[spot] = (cell, badge);
+
+            var dots = new VisualElement { pickingMode = PickingMode.Ignore };
+            dots.AddToClassList("rl-dots");
+            cell.Add(dots);
+            var view = new CellView { Cell = cell, Badge = badge, Dots = new VisualElement[RouletteTable.SeatCount] };
+            for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
+            {
+                var dot = new VisualElement { pickingMode = PickingMode.Ignore };
+                dot.AddToClassList("rl-dot");
+                dot.style.backgroundColor = SeatColors[seat];
+                dot.style.display = DisplayStyle.None;
+                dots.Add(dot);
+                view.Dots[seat] = dot;
+            }
+
+            cell.RegisterCallback<PointerEnterEvent>(_ => _hoverSpot = spot);
+            cell.RegisterCallback<PointerLeaveEvent>(_ =>
+            {
+                if (_hoverSpot == spot)
+                    _hoverSpot = -1;
+            });
+            _cells[spot] = view;
             return cell;
         }
 
@@ -216,12 +309,18 @@ namespace CasinoMares.UI
 
             foreach (var pair in _cells)
             {
+                var view = pair.Value;
                 var amount = _table.BetAt(_seat, pair.Key);
-                pair.Value.badge.style.display = amount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-                pair.Value.badge.text = amount.ToString();
-                pair.Value.cell.SetEnabled(betting);
-                pair.Value.cell.EnableInClassList("rl-cell--winner", result >= 0 && RouletteRules.Wins(pair.Key, result));
+                view.Badge.style.display = amount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+                view.Badge.text = amount.ToString();
+                view.Cell.SetEnabled(betting);
+                view.Cell.EnableInClassList("rl-cell--winner", result >= 0 && RouletteRules.Wins(pair.Key, result));
+                for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
+                    view.Dots[seat].style.display = seat != _seat && _table.BetAt(seat, pair.Key) > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             }
+
+            UpdatePlayers(betting);
+            UpdateSpotInfo();
 
             foreach (var chip in _chipButtons)
                 chip.style.borderTopColor = chip.style.borderBottomColor = chip.style.borderLeftColor = chip.style.borderRightColor =
@@ -247,11 +346,90 @@ namespace CasinoMares.UI
 
             _betTimerButton.text = $"Betting timer: {_table.BetTimerSeconds}s";
             _npcButton.text = $"NPC players: {NpcSeating.Describe(_table.NpcFill)}";
+            _wheelCloseUpButton.text = $"Wheel close-up (just for you): {(WheelCloseUp ? "on" : "off")}";
+
+            // Watch the ball from close by, then bring the board back once the result has sunk in.
+            WatchWheel(WheelCloseUp && _table.WheelCamera != null &&
+                       (phase == RoulettePhase.Spinning || phase == RoulettePhase.Result && _table.TimeRemaining > RouletteTable.ResultDuration - WheelLinger));
 
             if (GameInput.KeyPressed(UnityEngine.InputSystem.Key.Space) && betting)
                 _table.SetDone(_seat, true);
 
             UpdateHistory();
+        }
+
+        void WatchWheel(bool watch)
+        {
+            if (watch == _watchingWheel)
+                return;
+            _watchingWheel = watch;
+            _bottom?.EnableInClassList("hidden", watch);
+            if (watch)
+                PlayerCameraRig.Instance?.SetFocus(_table.WheelCamera);
+            else
+                PlayerCameraRig.Instance?.ClearFocus();
+        }
+
+        string NameAt(int seat)
+        {
+            if (seat == _seat)
+                return "You";
+            return _table.OccupantAt(seat) switch
+            {
+                RouletteOccupant.Player => PlayerCat.NameOf(_table.PlayerAt(seat)),
+                RouletteOccupant.Npc => "NPC",
+                // Left mid-spin: their chips still ride.
+                _ => _table.RoundOwnerAt(seat) != Fusion.PlayerRef.None ? PlayerCat.NameOf(_table.RoundOwnerAt(seat)) : "Empty seat",
+            };
+        }
+
+        void UpdatePlayers(bool betting)
+        {
+            for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
+            {
+                var entry = _players[seat];
+                var total = _table.TotalBetAt(seat);
+                var occupant = _table.OccupantAt(seat);
+                var present = occupant == RouletteOccupant.Player || occupant == RouletteOccupant.Npc && _table.NpcArrivalAt(seat) <= 0f;
+                var shown = present || total > 0;
+                entry.Root.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!shown)
+                    continue;
+
+                entry.Swatch.style.backgroundColor = seat == _seat ? YouColor : SeatColors[seat];
+                var status = total > 0 ? total.ToString("N0") : betting ? "deciding" : "sitting out";
+                if (betting && total > 0 && occupant == RouletteOccupant.Player && _table.IsDoneAt(seat))
+                    status += " · ready";
+                entry.Text.text = $"{NameAt(seat)}  {status}";
+            }
+        }
+
+        void UpdateSpotInfo()
+        {
+            if (_hoverSpot < 0)
+            {
+                _spotInfo.text = "The coloured dots are the other players' chips. Point at a spot to see who bet what.";
+                return;
+            }
+
+            _text.Clear();
+            _text.Append(_hoverSpot < RouletteRules.Numbers ? $"{_hoverSpot} {RouletteRules.ColorName(_hoverSpot)}" : RouletteRules.SpotLabel(_hoverSpot));
+            _text.Append(": ");
+            var any = false;
+            for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
+            {
+                var amount = _table.BetAt(seat, _hoverSpot);
+                if (amount <= 0)
+                    continue;
+                if (any)
+                    _text.Append(" · ");
+                _text.Append(NameAt(seat)).Append(' ').Append(amount.ToString("N0"));
+                any = true;
+            }
+
+            if (!any)
+                _text.Append("no chips here yet");
+            _spotInfo.text = _text.ToString();
         }
 
         void UpdateHistory()
