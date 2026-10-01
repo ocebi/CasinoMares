@@ -117,7 +117,8 @@ namespace CasinoMares.UI
             if (_table != null && !_tutor.Panel.Enabled && PlayerPrefs.GetInt("Coach.Poker.Hinted", 0) == 0)
             {
                 PlayerPrefs.SetInt("Coach.Poker.Hinted", 1);
-                Toasts.Show("New to poker? Click Rules, or turn on the coach in Settings for live tips.");
+                PlayerPrefs.Save();
+                Toasts.Show($"New to poker? {(Platform.IsTouch ? "Tap" : "Click")} Rules, or turn on the coach in Settings for live tips.");
             }
         }
 
@@ -171,8 +172,8 @@ namespace CasinoMares.UI
                 }
 
                 _raiseTo = Mathf.Clamp(_raiseTo, Mathf.Min(_table.MinRaiseTo, maxTo), maxTo);
-                _callButton.text = toCall == 0 ? "Check (C)" : toCall >= stack ? $"Call all in {stack:N0} (C)" : $"Call {toCall:N0} (C)";
-                _raiseButton.text = _table.CurrentBet == 0 ? $"Bet {_raiseTo:N0} (R)" : $"Raise to {_raiseTo:N0} (R)";
+                _callButton.text = (toCall == 0 ? "Check" : toCall >= stack ? $"Call all in {stack:N0}" : $"Call {toCall:N0}") + KeyHints.For("C");
+                _raiseButton.text = (_table.CurrentBet == 0 ? $"Bet {_raiseTo:N0}" : $"Raise to {_raiseTo:N0}") + KeyHints.For("R");
                 _raiseButton.SetEnabled(maxTo > _table.CurrentBet);
                 _raiseLabel.text = _raiseTo.ToString("N0");
                 HandleKeys(toCall);

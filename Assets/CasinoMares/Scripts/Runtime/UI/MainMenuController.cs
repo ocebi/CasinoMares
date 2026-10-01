@@ -38,7 +38,9 @@ namespace CasinoMares.UI
             SelectFur(_palette.Clamp(profile.FurIndex));
 
             _playButton.clicked += OnPlayClicked;
-            ui.Q<Button>("quit-button").clicked += Application.Quit;
+            var quit = ui.Q<Button>("quit-button");
+            quit.clicked += Application.Quit;
+            quit.EnableInClassList("hidden", !Platform.CanQuit);
 
             ConnectionManager.Instance.StateChanged += OnConnectionStateChanged;
             OnConnectionStateChanged(ConnectionManager.Instance.State);

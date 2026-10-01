@@ -19,7 +19,10 @@ namespace CasinoMares.UI
     {
         const float ToastSeconds = 4f;
         const string WalkingHint = "WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
+        const string WebWalkingHint = "WASD move · Right-drag look · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string SeatedHint = "WASD look around · E stand up · Enter chat · Esc menu";
+        const string TouchWalkingHint = "Left thumb walks (push to the rim to run) · drag to look · tap a prompt to use it";
+        const string TouchSeatedHint = "Drag to look around the table";
 
         [SerializeField] UIDocument _document;
 
@@ -36,6 +39,7 @@ namespace CasinoMares.UI
         Slider _sensitivity;
         Slider _volume;
         Toggle _follow;
+        Button _fullscreen;
         bool _paused;
         string _shownPrompt;
         bool _shownPromptEnabled;
@@ -59,11 +63,34 @@ namespace CasinoMares.UI
             _sensitivity = ui.Q<Slider>("sensitivity-slider");
             _volume = ui.Q<Slider>("volume-slider");
             _follow = ui.Q<Toggle>("follow-toggle");
+            _fullscreen = ui.Q<Button>("fullscreen-button");
             UiSounds.Attach(ui);
 
             ui.Q<Button>("resume-button").clicked += () => SetPaused(false);
             ui.Q<Button>("leave-button").clicked += OnLeaveClicked;
-            ui.Q<Button>("quit-button").clicked += Application.Quit;
+            var quit = ui.Q<Button>("quit-button");
+            quit.clicked += Application.Quit;
+            quit.EnableInClassList("hidden", !Platform.CanQuit);
+
+            // A browser only goes full screen inside a click, and Unity makes the request when the press ends, so
+            // ask on the way down.
+            _fullscreen.EnableInClassList("hidden", !Platform.CanFullscreen);
+            ui.Q("home-screen-hint").EnableInClassList("hidden", !Platform.NeedsHomeScreenForFullscreen);
+            _fullscreen.RegisterCallback<PointerDownEvent>(_ => Screen.fullScreen = !Screen.fullScreen, TrickleDown.TrickleDown);
+
+            _hint.text = WalkingHintText;
+            if (Platform.IsTouch)
+            {
+                _sensitivity.label = "Look sensitivity";
+                // No E key: tap the prompt instead.
+                _promptLabel.pickingMode = PickingMode.Position;
+                _promptLabel.AddToClassList("prompt-label--touch");
+                _promptLabel.RegisterCallback<PointerDownEvent>(evt =>
+                {
+                    GameInput.PressTouch(GameInput.TouchButton.Interact);
+                    evt.StopPropagation();
+                });
+            }
             _volume.RegisterValueChangedCallback(evt => Sfx.MasterVolume = evt.newValue);
             _sensitivity.RegisterValueChangedCallback(evt =>
             {
@@ -102,10 +129,11 @@ namespace CasinoMares.UI
 
         void Update()
         {
-            if (InGame && GameInput.Pause.WasPressedThisFrame() && !GiftDialog.IsOpen && !ChatPanel.IsTyping && !ChatPanel.ClosedThisFrame)
+            if (InGame && GameInput.PausePressed() && !GiftDialog.IsOpen && !ChatPanel.IsTyping && !ChatPanel.ClosedThisFrame)
                 SetPaused(!_paused);
 
-            SetCursorLocked(InGame && GameInput.GameplayEnabled && !GameInput.CursorFree);
+            // In a browser the cursor stays free: the camera follows the cat, and right-drag looks around.
+            SetCursorLocked(InGame && GameInput.GameplayEnabled && !GameInput.CursorFree && !Platform.IsWeb);
             UpdatePrompt();
             UpdateHint();
             UpdateLeaderboard();
@@ -118,8 +146,10 @@ namespace CasinoMares.UI
             if (_hint.ClassListContains("hud-hint--seated") == seated)
                 return;
             _hint.EnableInClassList("hud-hint--seated", seated);
-            _hint.text = seated ? SeatedHint : WalkingHint;
+            _hint.text = seated ? Platform.IsTouch ? TouchSeatedHint : SeatedHint : WalkingHintText;
         }
+
+        static string WalkingHintText => Platform.IsTouch ? TouchWalkingHint : Platform.IsWeb ? WebWalkingHint : WalkingHint;
 
         void OnConnectionStateChanged(ConnectionState state)
         {
@@ -152,7 +182,7 @@ namespace CasinoMares.UI
             _shownPromptEnabled = enabled;
             _prompt.EnableInClassList("hidden", string.IsNullOrEmpty(prompt));
             _promptLabel.EnableInClassList("prompt-label--disabled", !enabled);
-            _promptLabel.text = enabled ? $"<b><color=#E8BA62>[E]</color></b> {prompt}" : prompt;
+            _promptLabel.text = enabled && !Platform.IsTouch ? $"<b><color=#E8BA62>[E]</color></b> {prompt}" : prompt;
         }
 
         // ---------------------------------------------------------------- Toasts
@@ -184,7 +214,7 @@ namespace CasinoMares.UI
 
         void UpdateLeaderboard()
         {
-            var show = InGame && GameInput.KeyHeld(Key.Tab);
+            var show = InGame && (GameInput.KeyHeld(Key.Tab) || GameInput.TouchLeaderboard);
             _leaderboard.EnableInClassList("hidden", !show);
             if (!show)
                 return;
@@ -233,11 +263,14 @@ namespace CasinoMares.UI
                 }
 
                 _volume.SetValueWithoutNotify(Sfx.MasterVolume);
+                _fullscreen.text = Screen.fullScreen ? "Leave full screen" : "Full screen";
                 GameInput.PushUIBlock();
             }
             else
             {
                 GameInput.PopUIBlock();
+                // Volume, sensitivity and camera follow are set here. A browser only keeps PlayerPrefs that are saved.
+                PlayerPrefs.Save();
             }
         }
 

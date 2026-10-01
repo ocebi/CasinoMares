@@ -7,7 +7,11 @@ using UnityEngine.UIElements;
 
 namespace CasinoMares.UI
 {
-    /// <summary>Text chat (GDD §8): Enter opens the input, Enter sends, Esc cancels. Old lines fade out.</summary>
+    /// <summary>
+    /// Text chat (GDD §8): Enter opens the input, Enter sends, Esc cancels. Old lines fade out. With touch controls the
+    /// Chat pill opens and closes it, there's a Send button, and the chat sits at the top, clear of the on-screen
+    /// keyboard.
+    /// </summary>
     public class ChatPanel : MonoBehaviour
     {
         const float LineVisibleSeconds = 12f;
@@ -23,6 +27,7 @@ namespace CasinoMares.UI
 
         VisualElement _root;
         ScrollView _log;
+        VisualElement _inputRow;
         TextField _input;
         float _lastMessageAt = -100f;
 
@@ -38,8 +43,14 @@ namespace CasinoMares.UI
             var ui = _document.rootVisualElement;
             _root = ui.Q("chat-root");
             _log = ui.Q<ScrollView>("chat-log");
+            _inputRow = ui.Q("chat-input-row");
             _input = ui.Q<TextField>("chat-input");
             _input.RegisterCallback<KeyDownEvent>(OnInputKeyDown, TrickleDown.TrickleDown);
+
+            var send = ui.Q<Button>("chat-send");
+            send.clicked += Send;
+            send.EnableInClassList("hidden", !Platform.IsTouch);
+            ui.Q(className: "chat").EnableInClassList("chat--touch", Platform.IsTouch);
 
             foreach (var message in ChatLog.Messages)
                 AddLine(message);
@@ -61,8 +72,10 @@ namespace CasinoMares.UI
                 return;
 
             // The Enter that sends a message must not reopen the input in the same frame.
-            if (!IsTyping && !ClosedThisFrame && GameInput.GameplayEnabled && GameInput.Chat.WasPressedThisFrame())
+            if (!IsTyping && !ClosedThisFrame && GameInput.GameplayEnabled && GameInput.ChatPressed())
                 OpenInput();
+            else if (IsTyping && GameInput.TouchPressed(GameInput.TouchButton.Chat))
+                CloseInput();
 
             // Keep the log readable while typing, fade it away when idle.
             var idle = Time.unscaledTime - _lastMessageAt;
@@ -73,7 +86,7 @@ namespace CasinoMares.UI
         {
             IsTyping = true;
             GameInput.PushUIBlock();
-            _input.RemoveFromClassList("hidden");
+            _inputRow.RemoveFromClassList("hidden");
             _input.value = "";
             _input.schedule.Execute(() => _input.Focus());
         }
@@ -83,7 +96,7 @@ namespace CasinoMares.UI
             IsTyping = false;
             _closedFrame = Time.frameCount;
             GameInput.PopUIBlock();
-            _input.AddToClassList("hidden");
+            _inputRow.AddToClassList("hidden");
             _input.Blur();
         }
 
@@ -91,10 +104,7 @@ namespace CasinoMares.UI
         {
             if (evt.keyCode is KeyCode.Return or KeyCode.KeypadEnter)
             {
-                var text = _input.value;
-                CloseInput();
-                if (PlayerCat.Local != null && !string.IsNullOrWhiteSpace(text))
-                    PlayerCat.Local.SendChat(text);
+                Send();
                 evt.StopImmediatePropagation();
             }
             else if (evt.keyCode == KeyCode.Escape)
@@ -102,6 +112,14 @@ namespace CasinoMares.UI
                 CloseInput();
                 evt.StopImmediatePropagation();
             }
+        }
+
+        void Send()
+        {
+            var text = _input.value;
+            CloseInput();
+            if (PlayerCat.Local != null && !string.IsNullOrWhiteSpace(text))
+                PlayerCat.Local.SendChat(text);
         }
 
         void OnMessageAdded(ChatLog.Message message)

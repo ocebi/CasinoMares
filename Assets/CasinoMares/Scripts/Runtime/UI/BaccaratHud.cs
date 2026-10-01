@@ -120,7 +120,8 @@ namespace CasinoMares.UI
             if (_table != null && !_tutor.Panel.Enabled && PlayerPrefs.GetInt("Coach.Baccarat.Hinted", 0) == 0)
             {
                 PlayerPrefs.SetInt("Coach.Baccarat.Hinted", 1);
-                Toasts.Show("New to baccarat? Click Rules, or turn on the coach in Settings for live tips.");
+                PlayerPrefs.Save();
+                Toasts.Show($"New to baccarat? {(Platform.IsTouch ? "Tap" : "Click")} Rules, or turn on the coach in Settings for live tips.");
             }
         }
 

@@ -53,6 +53,7 @@ namespace CasinoMares.UI
             set
             {
                 PlayerPrefs.SetInt(_prefsKey, value ? 1 : 0);
+                PlayerPrefs.Save();
                 Refresh();
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using CasinoMares.Core;
 using CasinoMares.Poker;
 using CasinoMares.Rules;
 using UnityEngine.UIElements;
@@ -11,11 +12,13 @@ namespace CasinoMares.UI
     /// <summary>
     /// The poker coach (teaching mode): what's happening at the table, how strong your cards are, your chance to
     /// win and what a sensible beginner would do about it. Only uses what the local player can see: their own hole
-    /// cards and the shared ones. The win chance is simulated off the main thread.
+    /// cards and the shared ones. The win chance is simulated off the main thread, or in small slices per frame in a
+    /// browser, which has no worker threads.
     /// </summary>
     public class PokerTutor
     {
         const int Iterations = 2500;
+        const int WebSliceIterations = 250;
 
         static readonly string[] CategoryNames =
         {
@@ -26,6 +29,7 @@ namespace CasinoMares.UI
         readonly StringBuilder _text = new();
         (int hand, int board, int opponents) _equityKey = (-1, -1, -1);
         Task<float> _equityTask;
+        WebEquityJob _webJob;
         int _equityHand = -1;
         float _equity = -1f;
 
@@ -137,7 +141,18 @@ namespace CasinoMares.UI
             }
 
             var key = (table.HandId, (int)table.CommunityCount, opponents);
-            if (key == _equityKey || _equityTask != null)
+            if (_webJob != null)
+            {
+                if (_webJob.Key != key)
+                    _webJob = null;
+                else if (_webJob.Step(WebSliceIterations, Iterations))
+                {
+                    _equity = _webJob.Equity;
+                    _webJob = null;
+                }
+            }
+
+            if (key == _equityKey || _equityTask != null || _webJob != null)
                 return;
 
             _equityKey = key;
@@ -145,7 +160,45 @@ namespace CasinoMares.UI
             for (var i = 0; i < board.Length; i++)
                 board[i] = table.CommunityAt(i);
             var seed = Random.Range(1, int.MaxValue);
-            _equityTask = Task.Run(() => PokerCoach.Equity(a, b, board, opponents, Iterations, seed));
+            if (Platform.IsWeb)
+                _webJob = new WebEquityJob(key, a, b, board, opponents, seed);
+            else
+                _equityTask = Task.Run(() => PokerCoach.Equity(a, b, board, opponents, Iterations, seed));
+        }
+
+        /// <summary>The win-chance simulation run a slice at a time on the main thread.</summary>
+        sealed class WebEquityJob
+        {
+            readonly byte _a;
+            readonly byte _b;
+            readonly byte[] _board;
+            readonly int _opponents;
+            readonly int _seed;
+            int _done;
+            double _wins;
+
+            public WebEquityJob((int, int, int) key, byte a, byte b, byte[] board, int opponents, int seed)
+            {
+                Key = key;
+                _a = a;
+                _b = b;
+                _board = board;
+                _opponents = opponents;
+                _seed = seed;
+            }
+
+            public (int hand, int board, int opponents) Key { get; }
+
+            public float Equity => _done > 0 ? (float)(_wins / _done) : 0f;
+
+            /// <summary>Runs one slice; true once all <paramref name="total"/> run-outs are done.</summary>
+            public bool Step(int slice, int total)
+            {
+                slice = Math.Min(slice, total - _done);
+                _wins += PokerCoach.Equity(_a, _b, _board, _opponents, slice, _seed + _done) * slice;
+                _done += slice;
+                return _done >= total;
+            }
         }
 
         string HandDescription(PokerTable table, byte a, byte b)

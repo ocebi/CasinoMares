@@ -3,7 +3,10 @@
     <ui:VisualElement name="chat-root" class="screen hidden" picking-mode="Ignore">
         <ui:VisualElement class="chat" picking-mode="Ignore">
             <ui:ScrollView name="chat-log" class="chat-log" picking-mode="Ignore" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
-            <ui:TextField name="chat-input" class="chat-input hidden" max-length="140" />
+            <ui:VisualElement name="chat-input-row" class="chat-input-row hidden">
+                <ui:TextField name="chat-input" class="chat-input" max-length="140" />
+                <ui:Button name="chat-send" text="Send" class="chat-send hidden" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

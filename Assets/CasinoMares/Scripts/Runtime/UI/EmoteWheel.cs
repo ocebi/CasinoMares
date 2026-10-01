@@ -10,6 +10,7 @@ namespace CasinoMares.UI
     /// <summary>
     /// Hold Q to open the emote wheel, move the mouse toward an emote, release Q (or click) to play it. The cursor
     /// stays locked: mouse movement drives a pointer on the wheel, and the cat can keep walking meanwhile.
+    /// With touch controls the Emote button opens it; tap an emote to play it, or anywhere else to close.
     /// </summary>
     public class EmoteWheel : MonoBehaviour
     {
@@ -60,7 +61,25 @@ namespace CasinoMares.UI
                 _options.Add(option);
             }
 
+            if (Platform.IsTouch)
+            {
+                _hint.text = "Tap an emote";
+                _root.pickingMode = PickingMode.Position;
+                foreach (var option in _options)
+                    option.pickingMode = PickingMode.Position;
+                _root.RegisterCallback<PointerDownEvent>(OnTouchDown);
+            }
+
             Close(false);
+        }
+
+        void OnTouchDown(PointerDownEvent evt)
+        {
+            var index = _options.IndexOf(evt.target as VisualElement);
+            if (index >= 0)
+                Select(index);
+            Close(index >= 0);
+            evt.StopPropagation();
         }
 
         void OnDisable()
@@ -86,9 +105,16 @@ namespace CasinoMares.UI
                 return;
             }
 
-            if (!CanEmote() || GameInput.Pause.WasPressedThisFrame())
+            if (!CanEmote() || GameInput.PausePressed())
             {
                 Close(false);
+                return;
+            }
+
+            if (Platform.IsTouch)
+            {
+                if (GameInput.TouchPressed(GameInput.TouchButton.Emote))
+                    Close(false);
                 return;
             }
 
@@ -132,7 +158,7 @@ namespace CasinoMares.UI
             }
 
             _title.text = _selected >= 0 ? CatEmotes.Label(CatEmotes.Wheel[_selected]) : "Emotes";
-            _hint.text = _selected >= 0 ? "Release Q to play" : "Move the mouse, release Q";
+            _hint.text = Platform.IsTouch ? "Tap an emote" : _selected >= 0 ? "Release Q to play" : "Move the mouse, release Q";
         }
 
         void Open()
@@ -142,6 +168,7 @@ namespace CasinoMares.UI
             Select(-1);
             _pointer.style.left = WheelSize / 2f;
             _pointer.style.top = WheelSize / 2f;
+            _pointer.EnableInClassList("hidden", Platform.IsTouch);
             _root.RemoveFromClassList("hidden");
             _unblockFrame = -1;
             SetLookBlocked(true);

@@ -83,7 +83,11 @@ namespace CasinoMares.UI
         static bool WheelCloseUp
         {
             get => PlayerPrefs.GetInt(WheelCloseUpKey, 1) == 1;
-            set => PlayerPrefs.SetInt(WheelCloseUpKey, value ? 1 : 0);
+            set
+            {
+                PlayerPrefs.SetInt(WheelCloseUpKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
         }
 
         void OnEnable()
@@ -408,7 +412,9 @@ namespace CasinoMares.UI
         {
             if (_hoverSpot < 0)
             {
-                _spotInfo.text = "The coloured dots are the other players' chips. Point at a spot to see who bet what.";
+                _spotInfo.text = Platform.IsTouch
+                    ? "The coloured dots are the other players' chips."
+                    : "The coloured dots are the other players' chips. Point at a spot to see who bet what.";
                 return;
             }
 

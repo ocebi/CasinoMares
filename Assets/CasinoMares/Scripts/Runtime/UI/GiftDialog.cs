@@ -54,7 +54,7 @@ namespace CasinoMares.UI
         {
             if (_target == null)
                 return;
-            if (GameInput.Pause.WasPressedThisFrame() || _target.Object == null || !_target.Object.IsValid)
+            if (GameInput.PausePressed() || _target.Object == null || !_target.Object.IsValid)
                 Hide();
         }
 

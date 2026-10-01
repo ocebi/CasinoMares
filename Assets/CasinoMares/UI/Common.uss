@@ -206,6 +206,12 @@
     margin: 6px 0 10px 0;
 }
 
+.pause-hint {
+    white-space: normal;
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+}
+
 .pause-backdrop {
     align-items: center;
     justify-content: center;
@@ -1024,4 +1030,184 @@
 .coach-suggested {
     border-width: 3px;
     border-color: rgb(120, 230, 140);
+}
+
+/* Touch controls (phones and tablets) */
+.touch-stick {
+    position: absolute;
+    left: 70px;
+    bottom: 70px;
+    width: 156px;
+    height: 156px;
+    border-radius: 78px;
+    border-width: 3px;
+    border-color: rgba(245, 236, 222, 0.35);
+    background-color: rgba(20, 12, 16, 0.25);
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+}
+
+.touch-stick--active {
+    translate: -50% -50%;
+    opacity: 1;
+}
+
+.touch-stick-knob {
+    width: 68px;
+    height: 68px;
+    border-radius: 34px;
+    background-color: rgba(245, 236, 222, 0.75);
+    border-width: 2px;
+    border-color: rgba(20, 12, 16, 0.5);
+}
+
+.touch-stick-knob--run {
+    background-color: var(--cm-gold);
+}
+
+.touch-button {
+    position: absolute;
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+    border-width: 3px;
+    border-color: rgba(232, 186, 98, 0.8);
+    background-color: rgba(28, 18, 24, 0.6);
+    align-items: center;
+    justify-content: center;
+}
+
+.touch-button--pressed {
+    background-color: rgba(232, 186, 98, 0.55);
+    scale: 0.94 0.94;
+}
+
+.touch-button--jump {
+    right: 40px;
+    bottom: 40px;
+    width: 124px;
+    height: 124px;
+    border-radius: 62px;
+}
+
+.touch-button--paw {
+    right: 186px;
+    bottom: 34px;
+}
+
+.touch-button--emote {
+    right: 52px;
+    bottom: 186px;
+}
+
+.touch-button-label {
+    font-size: 19px;
+    -unity-font-style: bold;
+    color: var(--cm-text);
+    padding: 0;
+}
+
+.touch-pills {
+    position: absolute;
+    left: 20px;
+    top: 82px;
+    flex-direction: row;
+}
+
+.touch-pill {
+    height: 46px;
+    min-width: 76px;
+    margin: 0 8px 0 0;
+    padding: 0 16px;
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: var(--cm-text);
+    background-color: var(--cm-bg-soft);
+    border-color: var(--cm-border);
+    border-width: 1px;
+    border-radius: 23px;
+}
+
+.touch-pill--active {
+    color: rgb(40, 24, 12);
+    background-color: var(--cm-gold);
+    border-color: var(--cm-gold-dark);
+}
+
+/* Tap the interaction prompt to use it. */
+.prompt-label--touch {
+    font-size: 22px;
+    padding: 12px 26px;
+    border-color: var(--cm-gold);
+    border-width: 2px;
+    border-radius: 26px;
+}
+
+/* Chat with touch controls: at the top, clear of the on-screen keyboard, newest input first. */
+.chat-input-row {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+.chat-input-row > .chat-input {
+    flex-grow: 1;
+    margin: 0;
+}
+
+.chat-send {
+    margin: 0 0 0 6px;
+    padding: 0 18px;
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: rgb(40, 24, 12);
+    background-color: var(--cm-gold);
+    border-color: var(--cm-gold-dark);
+    border-radius: 8px;
+}
+
+.chat--touch {
+    top: 140px;
+    bottom: auto;
+    width: 330px;
+    flex-direction: column-reverse;
+}
+
+.chat--touch .chat-input-row {
+    margin: 0 0 6px 0;
+}
+
+.chat--touch .chat-log {
+    max-height: 200px;
+}
+
+/* Touch layout: every document root gets .touch. The table corner (settings, stand up) moves to the top right, where
+   the bottom panel can't run into it on a narrow screen. */
+.touch .bj-corner {
+    top: 82px;
+    bottom: auto;
+}
+
+.touch .bj-settings {
+    top: 146px;
+    bottom: auto;
+}
+
+.touch .hud-hint--seated {
+    display: none;
+}
+
+/* Toasts go below the top row (pills, phase banner, corner buttons) and stay clear of the chat on the left. */
+.touch .toast-stack {
+    top: 150px;
+}
+
+.touch .toast {
+    max-width: 520px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.touch .slots-paytable {
+    top: 146px;
 }

@@ -71,7 +71,7 @@ namespace CasinoMares.UI
             }
             else if (!table.IsDoneAt(seat))
             {
-                tip = "Happy with your bet? Press <b>Ready</b> (Space) so the cards can come out sooner.";
+                tip = $"Happy with your bet? Press <b>Ready</b>{KeyHints.For("Space")} so the cards can come out sooner.";
             }
             else
             {
