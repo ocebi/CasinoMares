@@ -1794,23 +1794,47 @@ namespace CasinoMares.Editor
             Box("Rim", t, new Vector3(0f, 0.53f, 0f), new Vector3(2.9f, 0.04f, 1.4f), m.Wood, collider: false);
             Box("Felt", t, new Vector3(0f, 0.55f, 0f), new Vector3(2.8f, 0.04f, 1.3f), m.Felt);
 
-            // The wheel sits in a wooden bowl at the east end; the rotor spins, the ball is placed by the view.
-            var wheelCenter = new Vector3(0.95f, 0f, 0.1f);
-            Cylinder("WheelBowl", t, wheelCenter + Vector3.up * 0.62f, new Vector3(0.72f, 0.05f, 0.72f), m.DarkWood, collider: false);
-            var rotor = Child(t, "Rotor", wheelCenter + Vector3.up * 0.672f);
+            // The wheel sits in a wooden bowl at the east end; the rotor spins, the ball is placed by the view. Bowl
+            // and rotor meshes are lathed at runtime (RouletteWheelGeometry), with frets, diamonds and turret in brass.
+            var wheelCenter = new Vector3(0.95f, feltTop, 0.1f);
+            var bowl = new GameObject("WheelBowl");
+            bowl.transform.SetParent(t, false);
+            bowl.transform.localPosition = wheelCenter;
+            var bowlMesh = bowl.AddComponent<MeshFilter>();
+            bowl.AddComponent<MeshRenderer>().sharedMaterials = new[] { m.Wood, m.DarkWood, m.Brass };
+            // Something solid for cats to bump into; NPCs path around it rather than over the wheel.
+            var wheelBlock = Cylinder("WheelCollider", t, wheelCenter + Vector3.up * 0.0675f, new Vector3(0.84f, 0.0675f, 0.84f), m.DarkWood);
+            Object.DestroyImmediate(wheelBlock.GetComponent<MeshRenderer>());
+            Object.DestroyImmediate(wheelBlock.GetComponent<MeshFilter>());
+            var blockArea = wheelBlock.AddComponent<NavMeshModifier>();
+            blockArea.overrideArea = true;
+            blockArea.area = 1; // Not Walkable
+
+            var rotor = Child(t, "Rotor", wheelCenter);
             var face = new GameObject("WheelFace");
             face.transform.SetParent(rotor, false);
             face.AddComponent<MeshFilter>();
             var faceRenderer = face.AddComponent<MeshRenderer>();
-            faceRenderer.sharedMaterial = m.Wheel;
-            Cylinder("Spindle", rotor, new Vector3(0f, 0.03f, 0f), new Vector3(0.05f, 0.03f, 0.05f), m.Brass, collider: false);
+            faceRenderer.sharedMaterials = new[] { m.Wheel, m.Brass };
 
             var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             ball.name = "Ball";
             Object.DestroyImmediate(ball.GetComponent<Collider>());
             ball.transform.SetParent(t, false);
-            ball.transform.localScale = Vector3.one * 0.035f;
+            ball.transform.localScale = Vector3.one * (RouletteWheelGeometry.BallRadius * 2f);
             ball.GetComponent<MeshRenderer>().sharedMaterial = m.Ball;
+
+            // Seated players watch the spin from here: over the players' side of the wheel, looking down into the bowl.
+            var wheelWorld = t.TransformPoint(wheelCenter);
+            var wheelCamera = new GameObject("WheelCamera").AddComponent<CinemachineCamera>();
+            wheelCamera.transform.SetParent(t, false);
+            var wheelCameraPosition = t.TransformPoint(wheelCenter + new Vector3(-0.3f, 0.86f, -0.7f));
+            var wheelFocus = t.TransformPoint(wheelCenter + new Vector3(0f, 0.03f, 0.04f));
+            wheelCamera.transform.SetPositionAndRotation(wheelCameraPosition, Quaternion.LookRotation(wheelFocus - wheelCameraPosition, Vector3.up));
+            wheelCamera.Lens = LensSettings.Default;
+            wheelCamera.Lens.FieldOfView = 44f;
+            wheelCamera.Lens.NearClipPlane = 0.05f;
+            wheelCamera.Priority = 0;
 
             Cylinder("CroupierStool", t, new Vector3(0.1f, 0.17f, 1.02f), new Vector3(0.42f, 0.17f, 0.42f), m.Velvet);
             var croupier = (NpcCatVisual)PrefabUtility.InstantiatePrefab(npcPrefab, t);
@@ -1822,7 +1846,6 @@ namespace CasinoMares.Editor
             var seatAnchors = new Transform[RouletteTable.SeatCount];
             var seatCameras = new CinemachineCamera[RouletteTable.SeatCount];
             var chipSpots = new Transform[RouletteTable.SeatCount];
-            var wheelWorld = t.TransformPoint(wheelCenter + Vector3.up * feltTop);
 
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
             {
@@ -1853,9 +1876,11 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
+            SetFields(table, ("_wheelCamera", wheelCamera));
             SetString(table, "_displayName", name);
             SetFields(view,
                 ("_table", table),
+                ("_bowl", bowlMesh),
                 ("_rotor", rotor),
                 ("_wheelFace", faceRenderer),
                 ("_ball", ball.transform),

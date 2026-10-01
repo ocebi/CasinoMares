@@ -38,8 +38,9 @@ namespace CasinoMares.Roulette
         public const int HistoryLength = 12;
 
         public static readonly byte[] BetTimerOptions = { 15, 20, 30, 45 };
-        public const float SpinDuration = 6f;
-        const float ResultDuration = 5f;
+        /// <summary>From the croupier's push to the ball at rest; the result is called <see cref="GameTables.ResultPause"/> later.</summary>
+        public const float SpinDuration = RouletteBallPath.Duration;
+        public const float ResultDuration = 5f;
 
         public static readonly List<RouletteTable> All = new();
 
@@ -49,6 +50,7 @@ namespace CasinoMares.Roulette
         [SerializeField] string _displayName = "Roulette";
         [SerializeField] Transform[] _seatAnchors = Array.Empty<Transform>();
         [SerializeField] CinemachineCamera[] _seatCameras = Array.Empty<CinemachineCamera>();
+        [SerializeField] CinemachineCamera _wheelCamera;
 
         [Networked] NetworkBool Initialized { get; set; }
         [Networked] public RoulettePhase Phase { get; set; }
@@ -100,17 +102,19 @@ namespace CasinoMares.Roulette
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
 
+        /// <summary>Close-up of the wheel that seated players watch the spin through.</summary>
+        public CinemachineCamera WheelCamera => _wheelCamera;
+
         /// <summary>Most recent results, newest first (-1 = empty).</summary>
         public int HistoryAt(int index) => History[index];
 
         public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
 
-        /// <summary>0..1 through the current spin (1 once the ball has landed).</summary>
         /// <summary>
-        /// 0..1 through the spin animation. The spin phase lasts <see cref="GameTables.ResultPause"/> longer than the
-        /// animation, so the ball rests in its pocket for a moment before the result is called.
+        /// Seconds since the croupier spun the wheel. The spin phase lasts <see cref="GameTables.ResultPause"/>
+        /// longer than the ball runs, so it rests in its pocket for a moment before the result is called.
         /// </summary>
-        public float SpinProgress => Phase == RoulettePhase.Spinning ? 1f - Mathf.Clamp01((TimeRemaining - GameTables.ResultPause) / SpinDuration) : 1f;
+        public float SpinElapsed => Phase == RoulettePhase.Spinning && TimeRemaining >= 0f ? Mathf.Max(0f, SpinDuration + GameTables.ResultPause - TimeRemaining) : 0f;
 
         /// <summary>The number the ball is heading for; the view needs it during the spin to land in the right pocket.</summary>
         public int LandingNumber => Phase == RoulettePhase.Spinning ? PendingResult : Result;

@@ -11,7 +11,8 @@ namespace CasinoMares.CameraRig
     /// The orbit follows a smoothed anchor instead of the cat itself, so a jump barely moves the view. While the
     /// cat walks, the orbit slowly swings behind it (turn off in the pause menu). At a table, A/D swing the seat
     /// camera a little way around the table (to see the other players' cards) and W/S tilt it; the view stays where
-    /// it's left until the next time you sit down.
+    /// it's left until the next time you sit down. A table can briefly hand the view to a focus camera (the roulette
+    /// wheel during a spin) and take it back without losing that seated look.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public class PlayerCameraRig : MonoBehaviour
@@ -20,6 +21,7 @@ namespace CasinoMares.CameraRig
         const string AutoFollowKey = "CameraAutoFollow";
         const int ActivePriority = 20;
         const int OverridePriority = 30;
+        const int FocusPriority = 40;
         const int InactivePriority = 0;
 
         [SerializeField] CinemachineCamera _menuCamera;
@@ -54,6 +56,7 @@ namespace CasinoMares.CameraRig
         Transform _anchor;
         CatMovement _movement;
         CinemachineCamera _override;
+        CinemachineCamera _focus;
         Vector3 _overrideBasePosition;
         Quaternion _overrideBaseRotation;
 
@@ -128,6 +131,7 @@ namespace CasinoMares.CameraRig
 
         public void ClearOverride()
         {
+            ClearFocus();
             if (_override != null)
             {
                 _override.transform.SetPositionAndRotation(_overrideBasePosition, _overrideBaseRotation);
@@ -135,6 +139,24 @@ namespace CasinoMares.CameraRig
             }
 
             _override = null;
+        }
+
+        /// <summary>Show this camera for a moment (seated only); the seat view comes back as it was on <see cref="ClearFocus"/>.</summary>
+        public void SetFocus(CinemachineCamera camera)
+        {
+            if (_focus == camera)
+                return;
+            ClearFocus();
+            _focus = camera;
+            if (_focus != null)
+                _focus.Priority = FocusPriority;
+        }
+
+        public void ClearFocus()
+        {
+            if (_focus != null)
+                _focus.Priority = InactivePriority;
+            _focus = null;
         }
 
         public void Release()
@@ -150,7 +172,8 @@ namespace CasinoMares.CameraRig
         {
             if (_override != null)
             {
-                UpdateSeatLook();
+                if (_focus == null)
+                    UpdateSeatLook();
                 return;
             }
 

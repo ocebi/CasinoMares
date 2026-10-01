@@ -7,16 +7,15 @@ using UnityEngine;
 namespace CasinoMares.Roulette
 {
     /// <summary>
-    /// Renders a <see cref="RouletteTable"/> on every client: the spinning wheel and ball (landing in the networked
-    /// result pocket), chip stacks per seat, the croupier and NPC seat cats, and reactions to the result.
+    /// Renders a <see cref="RouletteTable"/> on every client: the wheel (bowl, rotor, frets), the ball running the
+    /// spin's <see cref="RouletteBallPath"/> into the networked result pocket, chip stacks per seat, the croupier and
+    /// NPC seat cats, and reactions to the result.
     /// </summary>
     public class RouletteView : MonoBehaviour
     {
-        const float IdleRotorSpeed = 12f;
-        const float RimRadius = 0.25f;
-        const float PocketRadius = 0.19f;
-
         [SerializeField] RouletteTable _table;
+        [Tooltip("The wheel's frame: centre of the bowl, on the felt.")]
+        [SerializeField] MeshFilter _bowl;
         [SerializeField] Transform _rotor;
         [SerializeField] MeshRenderer _wheelFace;
         [SerializeField] Transform _ball;
@@ -30,23 +29,24 @@ namespace CasinoMares.Roulette
         SeatCats _seatCats;
 
         float _rotorAngle;
-        float _spinStartRotor;
-        float _ballAngle;
-        RoulettePhase _lastPhase;
+        RouletteBallPath _path;
+        int _pathRound = -1;
+        float _spinClock;
+        int _contacts;
         int _lastSettled;
-        bool _ballDropped;
         bool _initialized;
 
         public RouletteTable Table => _table;
-        public Vector3 ResultLabelPosition => _rotor.position + Vector3.up * 0.45f;
+        public Vector3 ResultLabelPosition => _rotor.position + Vector3.up * 0.55f;
 
         void Awake()
         {
-            var face = _wheelFace.GetComponent<MeshFilter>();
-            face.sharedMesh = RouletteWheelTexture.DiscMesh(0.3f);
-            var material = new Material(_wheelFace.sharedMaterial) { name = "RouletteWheel (runtime)" };
-            material.SetTexture("_BaseMap", RouletteWheelTexture.Texture);
-            _wheelFace.sharedMaterial = material;
+            _bowl.sharedMesh = RouletteWheelGeometry.Bowl;
+            _wheelFace.GetComponent<MeshFilter>().sharedMesh = RouletteWheelGeometry.Rotor;
+            var materials = _wheelFace.sharedMaterials;
+            materials[0] = new Material(materials[0]) { name = "RouletteWheel (runtime)" };
+            materials[0].SetTexture("_BaseMap", RouletteWheelTexture.Texture);
+            _wheelFace.sharedMaterials = materials;
             _seatCats = new SeatCats(_npcCatPrefab, transform, RouletteTable.SeatCount, _table.GetSeatAnchor);
         }
 
@@ -62,19 +62,11 @@ namespace CasinoMares.Roulette
             if (!_initialized)
             {
                 _initialized = true;
-                _lastPhase = phase;
                 _lastSettled = _table.SettledRoundId;
             }
 
-            if (phase == RoulettePhase.Spinning && _lastPhase != RoulettePhase.Spinning)
-            {
-                _spinStartRotor = _rotorAngle;
-                _ballDropped = false;
-                Sfx.PlayAt(SoundId.WheelSpin, _rotor.position);
-            }
-
             if (phase == RoulettePhase.Spinning)
-                AnimateSpin(_table.SpinProgress, _table.LandingNumber);
+                AnimateSpin();
             else
                 IdleSpin();
 
@@ -85,54 +77,67 @@ namespace CasinoMares.Roulette
                     OnLanded();
             }
 
-            _lastPhase = phase;
             UpdateStacks(phase);
             UpdateCats();
         }
 
         void IdleSpin()
         {
-            _rotorAngle += IdleRotorSpeed * Time.deltaTime;
+            _rotorAngle += RouletteBallPath.RotorIdleSpeed * Time.deltaTime;
             _rotor.localRotation = Quaternion.Euler(0f, _rotorAngle, 0f);
 
             // Between spins the ball rests in the last result's pocket and rides the rotor.
             var last = _table.Object != null && _table.Object.IsValid ? _table.HistoryAt(0) : -1;
             _ball.gameObject.SetActive(last >= 0);
             if (last >= 0)
-                PlaceBall(_rotorAngle + RouletteWheelTexture.PocketAngle(last), PocketRadius, 0f);
+            {
+                var radius = RouletteWheelGeometry.PocketRadius;
+                var local = RouletteWheelGeometry.OnCircle(_rotorAngle + RouletteWheelTexture.PocketAngle(last), radius, RouletteWheelGeometry.RestingHeight(radius));
+                _ball.position = _bowl.transform.TransformPoint(local);
+            }
         }
 
-        void AnimateSpin(float progress, int landing)
+        void AnimateSpin()
         {
-            // Rotor decelerates through 1.5 turns; the ball counter-rotates, then drops into the landing pocket.
-            var eased = 1f - (1f - progress) * (1f - progress);
-            _rotorAngle = _spinStartRotor + 540f * eased;
-            _rotor.localRotation = Quaternion.Euler(0f, _rotorAngle, 0f);
-
-            var finalRotor = _spinStartRotor + 540f;
-            var finalBall = finalRotor + RouletteWheelTexture.PocketAngle(Mathf.Max(0, landing));
-            var ballEase = 1f - Mathf.Pow(1f - progress, 3f);
-            _ballAngle = finalBall - 1440f * (1f - ballEase);
-
-            var drop = Mathf.InverseLerp(0.62f, 0.95f, progress);
-            var radius = Mathf.Lerp(RimRadius, PocketRadius, drop);
-            var bounce = drop > 0f && drop < 1f ? Mathf.Abs(Mathf.Sin(drop * Mathf.PI * 4f)) * 0.02f * (1f - drop) : 0f;
-            // The click of the ball settling; the result is only called a moment later (GameTables.ResultPause).
-            if (drop >= 1f && !_ballDropped)
+            var elapsed = _table.SpinElapsed;
+            if (_path == null || _pathRound != _table.RoundId)
             {
-                _ballDropped = true;
-                Sfx.PlayAt(SoundId.BallDrop, _rotor.position);
+                // A new spin, or one already under way when we arrived: keep the rotor where it is and pick up the
+                // ball's path from here.
+                _pathRound = _table.RoundId;
+                _spinClock = elapsed;
+                _path = new RouletteBallPath(_table.RoundId, _table.HistoryAt(0), _table.LandingNumber, _rotorAngle - RouletteBallPath.RotorTurn(elapsed));
+                _contacts = _path.ContactsBefore(elapsed);
+                if (elapsed < 0.5f)
+                    Sfx.PlayAt(SoundId.WheelSpin, _rotor.position);
+            }
+            else
+            {
+                // The networked timer moves in ticks; run a local clock and ease it toward the network so the
+                // fast-moving ball stays smooth.
+                _spinClock += Time.deltaTime;
+                var error = elapsed - _spinClock;
+                if (Mathf.Abs(error) > 0.3f)
+                    _spinClock = elapsed;
+                else
+                    _spinClock += error * Mathf.Min(1f, 4f * Time.deltaTime);
             }
 
+            _rotorAngle = _path.RotorAngleAt(_spinClock);
+            _rotor.localRotation = Quaternion.Euler(0f, _rotorAngle, 0f);
             _ball.gameObject.SetActive(true);
-            PlaceBall(_ballAngle, radius, bounce);
-        }
+            _ball.position = _bowl.transform.TransformPoint(_path.PositionAt(_spinClock));
 
-        void PlaceBall(float angle, float radius, float lift)
-        {
-            var radians = angle * Mathf.Deg2Rad;
-            var local = new Vector3(Mathf.Sin(radians) * radius, 0.025f + lift, Mathf.Cos(radians) * radius);
-            _ball.position = _rotor.parent.TransformPoint(local);
+            // A tick for every strike on the rotor, a fret or a diamond; the last one is the ball settling. The
+            // result is only called a moment later (GameTables.ResultPause).
+            var contacts = _path.ContactsBefore(_spinClock);
+            for (; _contacts < contacts; _contacts++)
+            {
+                if (_path.IsLastContact(_contacts))
+                    Sfx.PlayAt(SoundId.BallDrop, _ball.position, 0.6f);
+                else
+                    Sfx.PlayAt(SoundId.BallTick, _ball.position, _path.ContactVolume(_contacts));
+            }
         }
 
         void OnLanded()

@@ -56,6 +56,7 @@ namespace CasinoMares.Audio
             _synthesized[SoundId.Swish] = (new[] { CatVoice.Swish(0) }, 0.35f, new Vector2(0.9f, 1.15f));
             _synthesized[SoundId.PropClink] = (new[] { CatVoice.Clink(0), CatVoice.Clink(1) }, 0.45f, new Vector2(0.9f, 1.1f));
             _synthesized[SoundId.PropThud] = (new[] { CatVoice.Thud(0) }, 0.6f, new Vector2(0.85f, 1.15f));
+            _synthesized[SoundId.BallTick] = (new[] { CatVoice.BallTick(0), CatVoice.BallTick(1) }, 0.5f, new Vector2(0.9f, 1.15f));
         }
 
         void OnDestroy()
@@ -276,6 +277,26 @@ namespace CasinoMares.Audio
             }
 
             return Clip($"Clink_{seed}", samples);
+        }
+
+        /// <summary>A roulette ball striking a fret or a diamond: a sharp click with a short metallic ring.</summary>
+        public static AudioClip BallTick(int seed)
+        {
+            var samples = new float[(int)(SampleRate * 0.08f)];
+            var random = new System.Random(seed);
+            var partials = seed == 0 ? new[] { 3150f, 4870f, 6920f } : new[] { 2860f, 4410f, 7330f };
+
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var time = i / (float)SampleRate;
+                var value = 0f;
+                for (var p = 0; p < partials.Length; p++)
+                    value += Mathf.Sin(2f * Mathf.PI * partials[p] * time) * Mathf.Exp(-time * (70f + p * 30f)) / (p + 1);
+                var click = Noise(random) * Mathf.Exp(-time * 900f);
+                samples[i] = (value * 0.45f + click * 0.6f) * 0.8f;
+            }
+
+            return Clip($"BallTick_{seed}", samples);
         }
 
         /// <summary>A soft thud: a falling low tone plus a muffled noise hit.</summary>
