@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#140b0e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Casino Mares">
+    <title>Casino Mares</title>
+    <link rel="manifest" href="TemplateData/manifest.webmanifest">
+    <link rel="icon" href="TemplateData/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="TemplateData/icon-180.png">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="game">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="loading">
+        <div class="loading-title">Casino Mares</div>
+        <div class="loading-subtitle">A cozy casino for cats</div>
+        <div class="loading-bar"><div id="loading-fill"></div></div>
+        <div id="loading-status">Loading…</div>
+        <div id="home-screen-hint" class="hidden">On iPhone: tap Share, then <b>Add to Home Screen</b> to play full screen.</div>
+      </div>
+      <div id="rotate">
+        <div class="rotate-phone"></div>
+        <div>Turn your phone sideways to play</div>
+      </div>
+      <div id="error" class="hidden"></div>
+    </div>
+    <script>
+      var touch = window.matchMedia("(pointer: coarse)").matches ||
+        (navigator.maxTouchPoints > 0 && window.matchMedia("(hover: none)").matches);
+      if (touch)
+        document.body.classList.add("touch");
+
+      var standalone = window.matchMedia("(display-mode: standalone)").matches ||
+        window.matchMedia("(display-mode: fullscreen)").matches || navigator.standalone;
+      var iPhone = /iPhone|iPod/.test(navigator.userAgent);
+      if (iPhone && !standalone)
+        document.getElementById("home-screen-hint").classList.remove("hidden");
+
+      // Safari's pinch zoom ignores user-scalable=no.
+      document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+
+      function showError(message) {
+        var box = document.getElementById("error");
+        box.textContent = message;
+        box.classList.remove("hidden");
+      }
+
+      // Phones and tablets go full screen and lock to landscape on a tap, where the browser allows it (Android, iPad;
+      // iPhone Safari has no fullscreen API, hence the home screen hint). It keeps trying on each tap until it works
+      // once; after that, leaving full screen is the player's choice (the pause menu has a button to go back).
+      var game = document.getElementById("game");
+      var wantFullscreen = touch && !standalone;
+      function goFullscreen() {
+        var request = game.requestFullscreen || game.webkitRequestFullscreen;
+        if (!wantFullscreen || !request || document.fullscreenElement || document.webkitFullscreenElement)
+          return;
+        var result = request.call(game, { navigationUI: "hide" });
+        if (result && result.then)
+          result.then(function () {
+            wantFullscreen = false;
+            if (screen.orientation && screen.orientation.lock)
+              screen.orientation.lock("landscape").catch(function () {});
+          }).catch(function () {});
+        else
+          wantFullscreen = false;
+      }
+      // Capture phase, so the game's own touch handlers can't keep the tap from reaching this.
+      document.addEventListener("touchend", goFullscreen, true);
+
+      var buildUrl = "Build";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_WASM
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        // The chip balance lives in a file in persistentDataPath (IndexedDB); keep it across visits.
+        autoSyncPersistentDataPath: true,
+        showBanner: function (message, type) {
+          if (type == "error")
+            showError(message);
+          else
+            console.warn(message);
+        },
+        // Unity's default is a blocking alert(); show errors in the page instead.
+        errorHandler: function (error, url, line) {
+          showError("Something went wrong: " + String(error && error.message || error) + "\nReload the page to play again.");
+          return true;
+        },
+      };
+
+      // Phone screens have up to 3 pixels per CSS pixel. Two is plenty for the UI, and the 3D view is scaled down
+      // further by the render pipeline.
+      if (touch)
+        config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+      // Desktop builds use DXT textures. Phones and tablets can't decode those in hardware, so the build script adds
+      // a second data file with ASTC textures; load it where only ASTC is supported.
+      function textureVariant() {
+        var gl = document.createElement("canvas").getContext("webgl2");
+        if (!gl)
+          return "desktop";
+        if (gl.getExtension("WEBGL_compressed_texture_s3tc"))
+          return "desktop";
+        return gl.getExtension("WEBGL_compressed_texture_astc") ? "mobile" : "desktop";
+      }
+
+      function pickDataUrl() {
+        var mobileUrl = config.dataUrl.replace(/\.data/, "_Mobile.data");
+        if (textureVariant() != "mobile")
+          return Promise.resolve(config.dataUrl);
+        // A desktop-only build has no mobile data file.
+        return fetch(mobileUrl, { method: "HEAD" })
+          .then(function (response) { return response.ok ? mobileUrl : config.dataUrl; })
+          .catch(function () { return config.dataUrl; });
+      }
+
+      var canvas = document.getElementById("unity-canvas");
+      // The right mouse button turns the camera, so no context menu over the game.
+      canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+      var fill = document.getElementById("loading-fill");
+      var status = document.getElementById("loading-status");
+
+      pickDataUrl().then(function (dataUrl) {
+        config.dataUrl = dataUrl;
+        var script = document.createElement("script");
+        script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+        script.onload = function () {
+          createUnityInstance(canvas, config, function (progress) {
+            fill.style.width = (100 * progress) + "%";
+            status.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Shuffling the cards…";
+          }).then(function (instance) {
+            window.unityInstance = instance;
+            document.getElementById("loading").classList.add("hidden");
+          }).catch(function (message) {
+            showError(message);
+          });
+        };
+        script.onerror = function () { showError("Could not load the game files."); };
+        document.body.appendChild(script);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "Casino Mares",
+  "short_name": "Casino Mares",
+  "description": "A cozy multiplayer casino for cats.",
+  "start_url": "../index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#140b0e",
+  "theme_color": "#140b0e",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
