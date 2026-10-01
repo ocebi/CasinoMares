@@ -57,6 +57,34 @@ and slots use **Space** for ready/spin. Everything also has buttons. Poker and b
   - Player Settings "Run In Background" is on, so alt-tabbed players stay in sync.
   - Enter Play Mode Options: domain reload on, scene reload off.
 
+## Web build (experimental)
+
+The game also runs in a browser, on desktop and on phones and tablets held sideways. Browser players
+join the same room as the desktop builds. Details are in GDD §15.
+
+1. Install the **WebGL Build Support** module for Unity 6000.6.3f1 in Unity Hub. Restart the editor if
+   it was open.
+2. Run **Casino Mares ▸ Web ▸ Build (Desktop and Mobile)**. It switches the project to WebGL and writes
+   `Builds/WebGL`. **Build Desktop Only (Faster)** skips the phone textures.
+3. Serve it and open it on a phone on the same Wi-Fi:
+   ```sh
+   python3 Tools/serve_webgl.py
+   ```
+   Any static host works too (GitHub Pages, itch.io, Netlify...): upload the contents of `Builds/WebGL`.
+
+In a desktop browser the cursor stays free. The camera swings behind the cat as it walks; hold the right
+mouse button to look around.
+
+On phones and tablets the game shows touch controls:
+- The left thumb walks with a joystick; push it to the rim to run.
+- Drag anywhere else to look.
+- Tap the prompt to sit down.
+- Menu, Chat and Top cats are pills at the top-left.
+
+Add `?touch=1` to the URL to try the touch controls with a mouse, or `?profile=name` to play a second cat
+in another tab. To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
+Controls**. Turn it off and switch the build target back to macOS before making a desktop build.
+
 ## Credits
 
 See [`CREDITS.md`](CREDITS.md).

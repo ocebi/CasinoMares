@@ -2371,6 +2371,10 @@ namespace CasinoMares.Editor
 
             var emotes = CreateDocument("UI_EmoteWheel", "EmoteWheel.uxml", panelSettings, 8);
             SetFields(emotes.gameObject.AddComponent<EmoteWheel>(), ("_document", emotes));
+
+            // Below every other document: its look/move surface only gets the touches no button or panel wants.
+            var touch = CreateDocument("UI_Touch", "TouchControls.uxml", panelSettings, -10);
+            SetFields(touch.gameObject.AddComponent<TouchControls>(), ("_document", touch));
         }
 
         static UIDocument CreateDocument(string name, string uxml, PanelSettings panelSettings, int sortOrder)

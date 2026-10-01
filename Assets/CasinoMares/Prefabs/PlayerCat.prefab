@@ -183,6 +183,8 @@ MonoBehaviour:
   _Balance: 0
   _IsSeated:
     RawValue: 0
+  _IsAway:
+    RawValue: 0
 --- !u!114 &8127478801960297046
 MonoBehaviour:
   m_ObjectHideFlags: 0

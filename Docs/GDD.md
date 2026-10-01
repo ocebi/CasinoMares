@@ -6,7 +6,7 @@
 | **Last updated** | 2026-09-30 |
 | **Engine** | Unity 6000.6.3f1, URP |
 | **Networking** | Photon Fusion 2.1.3, Shared Mode |
-| **Platforms** | Windows, macOS (keyboard + mouse) |
+| **Platforms** | Windows, macOS (keyboard + mouse); web browsers on desktop, phones and tablets (WebGL, experimental, §15) |
 
 ---
 
@@ -735,3 +735,64 @@ and the floating cards.
 - Profiles: **one per machine**.
 - Chat history for late joiners: **no**.
 - Asset purchases: **none**. Free assets only.
+
+---
+
+## 15. Web build (WebGL, experimental)
+
+The `webgl` branch runs the game in a browser, including phones and tablets held sideways. Browser
+players join the same room as the desktop builds.
+
+### 15.1 Build and hosting
+- **Casino Mares ▸ Web ▸ Build (Desktop and Mobile)** (`WebBuild`) switches to WebGL and builds
+  `Builds/WebGL` twice:
+  - once with DXT textures for desktop browsers;
+  - once with ASTC textures, which phones decode in hardware. It ships as a second data file
+    (`*_Mobile.data*`).
+- The page template (`Assets/WebGLTemplates/CasinoMares`) picks the data file when it loads. It also:
+  - fills the window and shows a casino loading screen;
+  - shows a "turn your phone sideways" screen in portrait;
+  - goes full screen on the first tap where the browser allows it (Android; iPhone Safari can't, so it
+    suggests Add to Home Screen);
+  - keeps the profile file in IndexedDB (`autoSyncPersistentDataPath`).
+- Files are gzipped with decompression fallback, so any static host works. `Tools/serve_webgl.py`
+  serves the build on the local network for testing on a phone.
+
+### 15.2 What changes in a browser (`Platform`)
+- **Quality:** desktop browsers use the PC quality level, phones and tablets the Mobile one.
+- **No Quit buttons.** The pause menu gets a Full screen button where the browser supports it.
+- **PlayerPrefs** (volume, sensitivity, coach) are saved explicitly, since a closed tab never quits
+  cleanly.
+- **No worker threads**, so the poker coach's win-chance simulation runs in slices of 250 run-outs per
+  frame.
+- **No mouse lock.** The cursor stays free: the camera swings behind the cat as it walks, and holding
+  the right mouse button turns it (the page blocks the context menu). Unity errors show in the page
+  instead of a blocking `alert()`.
+- **Background tabs** only get about one frame a second. A hidden tab marks its cat `IsAway`. If it's
+  the master client (which runs every table), it hands that role to a player whose game is in front,
+  so the tables don't stall for everyone. A phone that switches apps is frozen. After about 10 s
+  Photon drops it, and it comes back to the menu with the disconnect message.
+- **URL options:** `?profile=name` keeps a separate profile (two tabs share one storage); `?touch=1`
+  forces the touch controls (`?touch=0` turns them off).
+
+### 15.3 Touch controls (`TouchControls`, `Platform.IsTouch`)
+Phones and tablets get on-screen controls, detected from a coarse pointer, since iPadOS reports a
+desktop browser. Everything feeds `GameInput`, so gameplay code reads touch and keyboard the same way.
+
+| Control | Action |
+|---|---|
+| Finger on the left part of the screen | Joystick appears under it; push to the rim to run |
+| Finger anywhere else | Drag to look (also while seated, where it swings the seat camera) |
+| Jump / Paw / Emote buttons | Jump, paw swipe, open the emote wheel (tap an emote, or anywhere else to close) |
+| The interaction prompt | Tap it to sit down, use the cashier or gift chips |
+| Menu / Chat / Top cats pills | Pause menu, chat (with a Send button, shown at the top clear of the keyboard), leaderboard toggle |
+
+- The touch document sits below every other UI document. Its full-screen surface only gets the
+  touches no button or panel wants.
+- The whole UI is scaled to the screen's physical size: about 560 UI pixels tall on a phone, against
+  1080 on a desktop.
+- Keyboard hints such as "(Space)" are dropped from button labels.
+- The table corner buttons (Settings, Stand up) and toasts move to the top, clear of the bottom
+  panels.
+- **Testing in the editor:** turn on **Casino Mares ▸ Web ▸ Simulate Touch Controls** and set the
+  Game view to a phone-shaped size. The Game view counts as a screen with 2 pixels per CSS pixel.
