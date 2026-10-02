@@ -20,7 +20,7 @@ namespace CasinoMares.UI
         const float ToastSeconds = 4f;
         const string WalkingHint = "WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string WebWalkingHint = "WASD move · Right-drag look · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
-        const string SeatedHint = "WASD look around · E stand up · Enter chat · Esc menu";
+        const string SeatedHint = "WASD or right-drag look around · E stand up · Enter chat · Esc menu";
         const string TouchWalkingHint = "Left thumb walks (push to the rim to run) · drag to look · tap a prompt to use it";
         const string TouchSeatedHint = "Drag to look around the table";
 
@@ -37,10 +37,13 @@ namespace CasinoMares.UI
         Label _players;
         Label _hint;
         Slider _sensitivity;
+        Slider _distance;
         Slider _volume;
         Toggle _follow;
         Button _fullscreen;
+        Button _emotesButton;
         bool _paused;
+        bool _overPills;
         string _shownPrompt;
         bool _shownPromptEnabled;
         readonly List<(VisualElement element, float expiresAt)> _toasts = new();
@@ -61,10 +64,26 @@ namespace CasinoMares.UI
             _players = ui.Q<Label>("players-label");
             _hint = ui.Q<Label>("hint-label");
             _sensitivity = ui.Q<Slider>("sensitivity-slider");
+            _distance = ui.Q<Slider>("distance-slider");
+            _distance.lowValue = PlayerCameraRig.MinDistance;
+            _distance.highValue = PlayerCameraRig.MaxDistance;
             _volume = ui.Q<Slider>("volume-slider");
             _follow = ui.Q<Toggle>("follow-toggle");
             _fullscreen = ui.Q<Button>("fullscreen-button");
             UiSounds.Attach(ui);
+
+            // Desktop pills: Settings opens the pause menu, Chat opens and closes the chat, Emotes the wheel (pick with
+            // the pointer). A click on them mustn't also swipe a paw, so the paw stays down while the pointer is over one.
+            ui.Q("desktop-pills").EnableInClassList("hidden", Platform.IsTouch);
+            _emotesButton = ui.Q<Button>("emotes-button");
+            ui.Q<Button>("settings-button").clicked += () => SetPaused(!_paused);
+            ui.Q<Button>("chat-button").clicked += ChatPanel.Toggle;
+            _emotesButton.clicked += () => FindFirstObjectByType<EmoteWheel>()?.OpenForClicks();
+            ui.Q("desktop-pills").Query<Button>().ForEach(button =>
+            {
+                button.RegisterCallback<PointerEnterEvent>(_ => SetOverPills(true));
+                button.RegisterCallback<PointerLeaveEvent>(_ => SetOverPills(false));
+            });
 
             ui.Q<Button>("resume-button").clicked += () => SetPaused(false);
             ui.Q<Button>("leave-button").clicked += OnLeaveClicked;
@@ -97,6 +116,11 @@ namespace CasinoMares.UI
                 if (PlayerCameraRig.Instance != null)
                     PlayerCameraRig.Instance.Sensitivity = evt.newValue;
             });
+            _distance.RegisterValueChangedCallback(evt =>
+            {
+                if (PlayerCameraRig.Instance != null)
+                    PlayerCameraRig.Instance.Distance = evt.newValue;
+            });
             _follow.RegisterValueChangedCallback(evt =>
             {
                 if (PlayerCameraRig.Instance != null)
@@ -124,6 +148,7 @@ namespace CasinoMares.UI
 
             if (_paused)
                 GameInput.PopUIBlock();
+            SetOverPills(false);
             SetCursorLocked(false);
         }
 
@@ -140,9 +165,21 @@ namespace CasinoMares.UI
             ExpireToasts();
         }
 
+        void SetOverPills(bool over)
+        {
+            if (over == _overPills)
+                return;
+            _overPills = over;
+            if (over)
+                GameInput.PushLookBlock();
+            else
+                GameInput.PopLookBlock();
+        }
+
         void UpdateHint()
         {
             var seated = SeatingController.LocalTable != null;
+            _emotesButton.SetEnabled(!seated);
             if (_hint.ClassListContains("hud-hint--seated") == seated)
                 return;
             _hint.EnableInClassList("hud-hint--seated", seated);
@@ -259,6 +296,7 @@ namespace CasinoMares.UI
                 if (PlayerCameraRig.Instance != null)
                 {
                     _sensitivity.SetValueWithoutNotify(PlayerCameraRig.Instance.Sensitivity);
+                    _distance.SetValueWithoutNotify(PlayerCameraRig.Instance.Distance);
                     _follow.SetValueWithoutNotify(PlayerCameraRig.Instance.AutoFollow);
                 }
 
@@ -269,7 +307,7 @@ namespace CasinoMares.UI
             else
             {
                 GameInput.PopUIBlock();
-                // Volume, sensitivity and camera follow are set here. A browser only keeps PlayerPrefs that are saved.
+                // Volume, sensitivity and the camera settings are set here. A browser only keeps PlayerPrefs that are saved.
                 PlayerPrefs.Save();
             }
         }

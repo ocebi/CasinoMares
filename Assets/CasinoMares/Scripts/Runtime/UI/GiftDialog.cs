@@ -35,6 +35,7 @@ namespace CasinoMares.UI
             _title = ui.Q<Label>("gift-title");
             _amount = ui.Q<IntegerField>("gift-amount");
             _status = ui.Q<Label>("gift-status");
+            WebTextInput.Attach("gift", _amount, cancelled: Hide);
 
             foreach (var preset in new[] { 50, 100, 250, 500 })
                 ui.Q<Button>($"gift-{preset}").clicked += () => _amount.value = preset;
@@ -82,6 +83,7 @@ namespace CasinoMares.UI
 
         void Send()
         {
+            WebTextInput.Pull(_amount);
             var amount = _amount.value;
             var balance = ProfileStore.Current.Balance;
             string error = null;

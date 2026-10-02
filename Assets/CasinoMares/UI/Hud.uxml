@@ -5,6 +5,12 @@
             <ui:Label text="Chips" class="hud-label-dim" />
             <ui:Label name="balance-label" text="0" class="hud-value" />
         </ui:VisualElement>
+        <!-- Desktop only: phones have the same in their touch pills and Emote button. -->
+        <ui:VisualElement name="desktop-pills" class="hud-pills" picking-mode="Ignore">
+            <ui:Button name="settings-button" text="Settings (Esc)" class="hud-pill" />
+            <ui:Button name="chat-button" text="Chat (Enter)" class="hud-pill" />
+            <ui:Button name="emotes-button" text="Emotes (Q)" class="hud-pill" />
+        </ui:VisualElement>
         <ui:VisualElement class="hud-chip hud-players" picking-mode="Ignore">
             <ui:Label text="Cats online" class="hud-label-dim" />
             <ui:Label name="players-label" text="1/10" class="hud-value" />
@@ -23,6 +29,7 @@
                 <ui:Label text="Paused" class="pause-title" />
                 <ui:Slider name="volume-slider" label="Volume" low-value="0" high-value="1" />
                 <ui:Slider name="sensitivity-slider" label="Mouse sensitivity" low-value="0.02" high-value="0.4" />
+                <ui:Slider name="distance-slider" label="Camera distance" low-value="1" high-value="3.5" />
                 <ui:Toggle name="follow-toggle" label="Camera turns with the cat" class="pause-toggle" />
                 <ui:Button name="resume-button" text="Resume" class="primary-button" />
                 <ui:Button name="fullscreen-button" text="Full screen" class="secondary-button" />

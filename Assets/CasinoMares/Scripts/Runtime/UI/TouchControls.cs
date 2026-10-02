@@ -38,6 +38,9 @@ namespace CasinoMares.UI
 
         [SerializeField] UIDocument _document;
 
+        /// <summary>The Chat pill, for <see cref="ChatPanel"/>; null without touch controls.</summary>
+        public static Button ChatButton { get; private set; }
+
         VisualElement _root;
         VisualElement _surface;
         VisualElement _stick;
@@ -84,7 +87,8 @@ namespace CasinoMares.UI
             HoldButton(ui.Q("paw-button"), GameInput.TouchButton.Paw);
             HoldButton(ui.Q("emote-button"), GameInput.TouchButton.Emote);
             ui.Q<Button>("menu-button").clicked += () => GameInput.PressTouch(GameInput.TouchButton.Pause);
-            ui.Q<Button>("chat-button").clicked += () => GameInput.PressTouch(GameInput.TouchButton.Chat);
+            ChatButton = ui.Q<Button>("chat-button");
+            ChatButton.clicked += () => GameInput.PressTouch(GameInput.TouchButton.Chat);
             _leadersButton.clicked += () =>
             {
                 GameInput.TouchLeaderboard = !GameInput.TouchLeaderboard;
@@ -114,6 +118,7 @@ namespace CasinoMares.UI
             if (!Platform.IsTouch || _root == null)
                 return;
 
+            ChatButton = null;
             ReleaseStick();
             ReleaseLook();
             GameInput.TouchLeaderboard = false;

@@ -34,6 +34,7 @@ namespace CasinoMares.UI
             var profile = ProfileStore.Current;
             _nameField.value = profile.DisplayName;
             _nameField.maxLength = ProfileStore.MaxNameLength;
+            WebTextInput.Attach("name", _nameField);
             BuildSwatches(ui.Q("fur-swatches"));
             SelectFur(_palette.Clamp(profile.FurIndex));
 
@@ -79,6 +80,7 @@ namespace CasinoMares.UI
 
         void OnPlayClicked()
         {
+            WebTextInput.Pull(_nameField);
             ProfileStore.SetIdentity(_nameField.value, _furIndex);
             _nameField.value = ProfileStore.Current.DisplayName;
             ConnectionManager.Instance.Connect();
