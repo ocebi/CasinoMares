@@ -22,7 +22,10 @@
         <div class="loading-subtitle">A cozy casino for cats</div>
         <div class="loading-bar"><div id="loading-fill"></div></div>
         <div id="loading-status">Loading…</div>
-        <div id="home-screen-hint" class="hidden">On iPhone: tap Share, then <b>Add to Home Screen</b> to play full screen.</div>
+        <div id="home-screen-hint" class="hidden">
+          <div class="hint-title">Play full screen</div>
+          <div>Tap <svg class="share-icon" viewBox="0 0 20 24" aria-label="Share"><path d="M10 2v13M5.5 6.5 10 2l4.5 4.5M6 10H3.5v11.5h13V10H14"/></svg> Share in Safari, then <b>Add to Home Screen</b>, and open Casino Mares from there.</div>
+        </div>
       </div>
       <div id="rotate">
         <div class="rotate-phone"></div>
@@ -38,9 +41,22 @@
 
       var standalone = window.matchMedia("(display-mode: standalone)").matches ||
         window.matchMedia("(display-mode: fullscreen)").matches || navigator.standalone;
-      var iPhone = /iPhone|iPod/.test(navigator.userAgent);
-      if (iPhone && !standalone)
+      // iPhones, and iPads without the fullscreen API (iPadOS Safari says it's a Mac): there the home screen is the
+      // only way to play without the browser bars.
+      var canFullscreen = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+      var iOS = /iPhone|iPod/.test(navigator.userAgent) ||
+        (/iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1 && !canFullscreen);
+      if (iOS && !standalone)
         document.getElementById("home-screen-hint").classList.remove("hidden");
+
+      // The title screen stays up at least this long, so there's time to read it (a cached game loads in a moment).
+      var splashUntil = performance.now() + 5000;
+      function hideSplash() {
+        var loading = document.getElementById("loading");
+        loading.classList.add("fading");
+        document.body.classList.add("ready");
+        setTimeout(function () { loading.classList.add("hidden"); }, 600);
+      }
 
       // Safari's pinch zoom ignores user-scalable=no.
       document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
@@ -72,6 +88,40 @@
       }
       // Capture phase, so the game's own touch handlers can't keep the tap from reaching this.
       document.addEventListener("touchend", goFullscreen, true);
+
+      // Phones resume a page rather than reload it when it comes back to the front (a home screen web app stays
+      // suspended like any app), so it would keep running whatever build it first loaded. Each build rewrites this page,
+      // so when the page comes back and the server has a newer one, start over with it.
+      function pageStamp() {
+        return fetch(location.pathname, { method: "HEAD", cache: "no-store" })
+          .then(function (r) { return r.ok ? r.headers.get("ETag") || r.headers.get("Last-Modified") : null; })
+          .catch(function () { return null; });
+      }
+      var loadedStamp = null;
+      pageStamp().then(function (stamp) { loadedStamp = stamp; });
+      function reloadIfRebuilt() {
+        if (document.visibilityState != "visible" || !loadedStamp)
+          return;
+        pageStamp().then(function (stamp) {
+          if (stamp && stamp != loadedStamp)
+            location.reload();
+        });
+      }
+      document.addEventListener("visibilitychange", reloadIfRebuilt);
+      window.addEventListener("pageshow", function (e) { if (e.persisted) reloadIfRebuilt(); });
+
+      // Keys typed into the page's text boxes (WebTextInput.cs) are theirs: the game listens to keys page-wide and
+      // would cancel them. Added before the game starts, so this runs before its own listeners. Key releases still
+      // reach the game, so a key pressed before the box took the keyboard doesn't stay down there. Esc cancels the box.
+      ["keydown", "keypress"].forEach(function (type) {
+        window.addEventListener(type, function (e) {
+          if (!e.target || !e.target.classList || !e.target.classList.contains("cm-text-input"))
+            return;
+          e.stopImmediatePropagation();
+          if (type == "keydown" && e.key == "Escape")
+            e.target.dispatchEvent(new Event("cm-cancel"));
+        }, true);
+      });
 
       var buildUrl = "Build";
       var config = {
@@ -109,14 +159,18 @@
         config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
       // Desktop builds use DXT textures. Phones and tablets can't decode those in hardware, so the build script adds
-      // a second data file with ASTC textures; load it where only ASTC is supported.
+      // a second data file with ASTC textures; load it where only ASTC is supported. ?astc=1 loads it wherever the GPU
+      // can decode ASTC (an Apple Silicon Mac can), to compare the two on one machine.
       function textureVariant() {
         var gl = document.createElement("canvas").getContext("webgl2");
         if (!gl)
           return "desktop";
+        var astc = !!gl.getExtension("WEBGL_compressed_texture_astc");
+        if (astc && new URLSearchParams(location.search).get("astc") == "1")
+          return "mobile";
         if (gl.getExtension("WEBGL_compressed_texture_s3tc"))
           return "desktop";
-        return gl.getExtension("WEBGL_compressed_texture_astc") ? "mobile" : "desktop";
+        return astc ? "mobile" : "desktop";
       }
 
       function pickDataUrl() {
@@ -133,19 +187,22 @@
       // The right mouse button turns the camera, so no context menu over the game.
       canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
       var fill = document.getElementById("loading-fill");
-      var status = document.getElementById("loading-status");
+      var statusLabel = document.getElementById("loading-status");
 
       pickDataUrl().then(function (dataUrl) {
         config.dataUrl = dataUrl;
+        window.cmTextureFormat = dataUrl.indexOf("_Mobile.data") >= 0 ? "ASTC" : "DXT";
         var script = document.createElement("script");
         script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
         script.onload = function () {
           createUnityInstance(canvas, config, function (progress) {
             fill.style.width = (100 * progress) + "%";
-            status.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Shuffling the cards…";
+            statusLabel.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Shuffling the cards…";
           }).then(function (instance) {
             window.unityInstance = instance;
-            document.getElementById("loading").classList.add("hidden");
+            fill.style.width = "100%";
+            statusLabel.textContent = "Shuffling the cards…";
+            setTimeout(hideSplash, Math.max(0, splashUntil - performance.now()));
           }).catch(function (message) {
             showError(message);
           });
