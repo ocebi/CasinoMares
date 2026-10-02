@@ -31,17 +31,19 @@ namespace CasinoMares.Editor
     /// <summary>
     /// Builds every generated asset (fur palette, cat animator, player and NPC prefabs, materials, UI panel
     /// settings) and the whole Casino scene from code, so the setup is reproducible and reviewable.
-    /// Re-running overwrites the generated assets and the scene.
+    /// Re-running overwrites the generated assets and the scene. The seaside casino is the same building with its
+    /// own look and a terrace over the sea (CasinoSceneBuilder.Sea.cs); it has its own scene and themed assets, so
+    /// rebuilding one never changes the other.
     /// </summary>
-    public static class CasinoSceneBuilder
+    public static partial class CasinoSceneBuilder
     {
         const string Root = "Assets/CasinoMares";
         const string CatPack = "Assets/ThirdParty/BlackCatAnimated";
         const string CatModelPath = CatPack + "/Animations/cat@idle.FBX";
         const string CatRigRoot = "GeneralController";
         const string FurTextureFolder = Root + "/Art/Textures";
-        const string ScenePath = Root + "/Scenes/Casino.unity";
-        const string NavMeshPath = Root + "/Scenes/Casino_NavMesh.asset";
+        static string ScenePath => _sea ? SeaScenePath : ClassicScenePath;
+        static string NavMeshPath => _sea ? Root + "/Scenes/CasinoSea_NavMesh.asset" : Root + "/Scenes/Casino_NavMesh.asset";
         const string PlayerPrefabPath = Root + "/Prefabs/PlayerCat.prefab";
         const string NpcPrefabPath = Root + "/Prefabs/NpcCat.prefab";
         const string ControllerPath = Root + "/Art/Animation/Cat.controller";
@@ -49,7 +51,7 @@ namespace CasinoMares.Editor
         const string PanelSettingsPath = Root + "/Settings/PanelSettings.asset";
         const string BoardPanelSettingsPath = Root + "/Settings/BoardPanelSettings.asset";
         const string BoardTexturePath = Root + "/Settings/LeaderboardBoard.renderTexture";
-        const string VolumeProfilePath = Root + "/Settings/CasinoVolumeProfile.asset";
+        static string VolumeProfilePath => _sea ? Root + "/Settings/CasinoSeaVolumeProfile.asset" : Root + "/Settings/CasinoVolumeProfile.asset";
         const string SoundBankPath = Root + "/Settings/SoundBank.asset";
         const string KenneyCasino = "Assets/ThirdParty/Kenney/CasinoAudio";
         const string KenneyInterface = "Assets/ThirdParty/Kenney/InterfaceSounds";
@@ -73,13 +75,26 @@ namespace CasinoMares.Editor
         const float DoorHeight = 2.4f;
         const float CeilingHeight = 3.5f;
         const string ConeMeshPath = Root + "/Art/Meshes/LightCone.asset";
-        const string ReflectionPath = Root + "/Scenes/Casino_Reflection.exr";
+        /// <summary>
+        /// Invisible colliders only the follow camera runs into (the entrance doorway, the ceiling). Cats, props and the
+        /// NavMesh pass through them; they keep a far-out camera from ending up behind the curtain or above the roof.
+        /// </summary>
+        const int CameraBlockerLayer = 6;
+        const string CameraBlockerLayerName = "CameraBlocker";
+        /// <summary>
+        /// The opposite: invisible walls that stop cats (and props) but not the follow camera, which can swing out
+        /// past them (the terrace railing).
+        /// </summary>
+        const int CatBarrierLayer = 7;
+        const string CatBarrierLayerName = "CatBarrier";
+        static string ReflectionPath => _sea ? Root + "/Scenes/CasinoSea_Reflection.exr" : Root + "/Scenes/Casino_Reflection.exr";
 
         [MenuItem("Casino Mares/Setup/Rebuild Casino (Assets and Scene)")]
         public static void RebuildAll()
         {
             ConfigureCatImport();
             ConfigureRendering();
+            ConfigureLayers();
             var palette = BuildFurPalette();
             var controller = BuildCatController();
             BuildNpcPrefab(palette, controller);
@@ -162,6 +177,18 @@ namespace CasinoMares.Editor
                     }
                 }
             }
+        }
+
+        static void ConfigureLayers()
+        {
+            var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            var layers = tagManager.FindProperty("layers");
+            foreach (var (index, name) in new[] { (CameraBlockerLayer, CameraBlockerLayerName), (CatBarrierLayer, CatBarrierLayerName) })
+                layers.GetArrayElementAtIndex(index).stringValue = name;
+            tagManager.ApplyModifiedPropertiesWithoutUndo();
+
+            for (var other = 0; other < 32; other++)
+                Physics.IgnoreLayerCollision(CameraBlockerLayer, other, true);
         }
 
         /// <summary>Stronger, wider ambient occlusion on the PC renderer so the props and cats sit in their pools of light.</summary>
@@ -694,6 +721,8 @@ namespace CasinoMares.Editor
             grain.type.Override(FilmGrainLookup.Thin1);
             grain.intensity.Override(0.12f);
             grain.response.Override(0.85f);
+            if (_sea)
+                TuneSeaVolume(color, splitToning, vignette, bloom);
 
             foreach (var component in profile.components)
                 AssetDatabase.AddObjectToAsset(component, profile);
@@ -810,20 +839,25 @@ namespace CasinoMares.Editor
             SetArray(connection, "_spawnPoints", spawnPoints);
 
             BuildUI(panelSettings, palette);
+            if (_sea)
+                BuildSeaside(hall, materials);
             BakeNavMesh(hall);
             BakeReflectionProbe();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            UpdateBuildScenes();
         }
 
         class Materials
         {
-            public readonly Material Floor = Lit("Graybox_Floor", Color.white, 0.18f);
-            public readonly Material Wall = Lit("Graybox_Wall", Color.white, 0.08f);
-            public readonly Material WallShort = Lit("Graybox_WallShort", Color.white, 0.08f);
+            // The room's surfaces have a seaside version (Themed), so each scene keeps its own look.
+            public readonly Material Floor = Lit(Themed("Graybox_Floor"), Color.white, 0.18f);
+            public readonly Material Wall = Lit(Themed("Graybox_Wall"), Color.white, 0.08f);
+            public readonly Material WallShort = Lit(Themed("Graybox_WallShort"), Color.white, 0.08f);
             public readonly Material Wood = Lit("Graybox_Wood", Color.white, 0.45f);
-            public readonly Material DarkWood = Lit("Graybox_DarkWood", new Color(0.55f, 0.5f, 0.5f), 0.4f);
+            public readonly Material DarkWood = Lit(Themed("Graybox_DarkWood"), _sea ? new Color(0.85f, 0.78f, 0.72f) : new Color(0.55f, 0.5f, 0.5f), 0.4f);
+            /// <summary>The seaside hall's plaster ceiling (the lounge's is dark wood).</summary>
+            public readonly Material Ceiling = _sea ? Lit("Sea_Ceiling", new Color(0.93f, 0.88f, 0.8f), 0.1f) : null;
             public readonly Material Felt = Lit("Graybox_Felt", new Color(0.1f, 0.4f, 0.24f), 0.05f);
             public readonly Material Velvet = Lit("Graybox_Velvet", new Color(0.55f, 0.1f, 0.14f), 0.15f);
             public readonly Material Brass = Lit("Graybox_Brass", new Color(0.8f, 0.62f, 0.32f), 0.75f, 0.9f);
@@ -872,10 +906,21 @@ namespace CasinoMares.Editor
 
             public Materials()
             {
-                SetTexture(Floor, CarpetTexture(), new Vector2(HallWidth / 2.4f, HallDepth / 2.4f));
-                var wallpaper = WallpaperTexture();
-                SetTexture(Wall, wallpaper, new Vector2(HallWidth / 1.2f, CeilingHeight / 1.2f));
-                SetTexture(WallShort, wallpaper, new Vector2(HallDepth / 1.2f, CeilingHeight / 1.2f));
+                SetTexture(Floor, _sea ? SeaCarpetTexture() : CarpetTexture(), new Vector2(HallWidth / 2.4f, HallDepth / 2.4f));
+                var wallpaper = _sea ? SeaWallpaperTexture() : WallpaperTexture();
+                if (_sea)
+                {
+                    // Seaside walls are cut up around windows: their boxes carry metre UVs instead (WorldUvCube).
+                    SetTexture(Wall, wallpaper, Vector2.one);
+                    SetTexture(WallShort, wallpaper, Vector2.one);
+                    WorldUvTiles[Wall] = WallpaperTile;
+                    WorldUvTiles[WallShort] = WallpaperTile;
+                }
+                else
+                {
+                    SetTexture(Wall, wallpaper, new Vector2(HallWidth / 1.2f, CeilingHeight / 1.2f));
+                    SetTexture(WallShort, wallpaper, new Vector2(HallDepth / 1.2f, CeilingHeight / 1.2f));
+                }
                 var wood = WoodTexture();
                 SetTexture(Wood, wood, Vector2.one);
                 SetTexture(DarkWood, wood, new Vector2(2f, 2f));
@@ -898,7 +943,8 @@ namespace CasinoMares.Editor
             var material = Lit(name, color, 0.3f);
             material.SetColor("_EmissionColor", emission);
             material.EnableKeyword("_EMISSION");
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            // URP turns _EMISSION back off whenever it validates a material whose GI flags say "not emissive".
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             EditorUtility.SetDirty(material);
             return material;
         }
@@ -947,7 +993,7 @@ namespace CasinoMares.Editor
 
         /// <summary>Writes a PNG built from a per-pixel function (u, v in 0..1) into Art/Textures and imports it.</summary>
         static Texture2D GeneratedTexture(string name, int width, int height, System.Func<float, float, Color> pixel,
-            TextureWrapMode wrap = TextureWrapMode.Repeat)
+            TextureWrapMode wrap = TextureWrapMode.Repeat, System.Action<TextureImporter> configure = null)
         {
             if (!AssetDatabase.IsValidFolder(FurTextureFolder))
                 AssetDatabase.CreateFolder(Root + "/Art", "Textures");
@@ -972,6 +1018,7 @@ namespace CasinoMares.Editor
             importer.anisoLevel = 4;
             importer.alphaIsTransparency = true;
             importer.maxTextureSize = Mathf.Max(width, height);
+            configure?.Invoke(importer);
             importer.SaveAndReimport();
             return Load<Texture2D>(path);
         }
@@ -1227,6 +1274,12 @@ namespace CasinoMares.Editor
 
         static void BuildLighting()
         {
+            if (_sea)
+            {
+                BuildSeaLighting();
+                return;
+            }
+
             var sun = new GameObject("Key Light").AddComponent<Light>();
             sun.type = LightType.Directional;
             // A dim fill from above (the ceiling doesn't cast shadows); the lamps do the real lighting.
@@ -1266,9 +1319,18 @@ namespace CasinoMares.Editor
             const float wallHeight = CeilingHeight;
             var hall = new GameObject("Hall").transform;
             Box("Floor", hall, new Vector3(0f, -0.05f, 0f), new Vector3(HallWidth, 0.1f, HallDepth), m.Floor);
-            Box("Wall_North", hall, new Vector3(0f, wallHeight / 2f, HallDepth / 2f), new Vector3(HallWidth, wallHeight, 0.3f), m.Wall);
-            BuildEntrance(hall, m);
-            Box("Wall_East", hall, new Vector3(HallWidth / 2f, wallHeight / 2f, 0f), new Vector3(0.3f, wallHeight, HallDepth), m.WallShort);
+            if (_sea)
+            {
+                BuildSeaWalls(hall, m);
+                BuildEntrance(hall, m);
+            }
+            else
+            {
+                Box("Wall_North", hall, new Vector3(0f, wallHeight / 2f, HallDepth / 2f), new Vector3(HallWidth, wallHeight, 0.3f), m.Wall);
+                BuildEntrance(hall, m);
+                Box("Wall_East", hall, new Vector3(HallWidth / 2f, wallHeight / 2f, 0f), new Vector3(0.3f, wallHeight, HallDepth), m.WallShort);
+            }
+
             Box("Wall_West", hall, new Vector3(-HallWidth / 2f, wallHeight / 2f, 0f), new Vector3(0.3f, wallHeight, HallDepth), m.WallShort);
             BuildCeiling(hall, m);
 
@@ -1280,18 +1342,28 @@ namespace CasinoMares.Editor
                          ("Trim_South_West", new Vector3((-HallWidth / 2f + DoorX - DoorWidth / 2f - 0.1f) / 2f, 0.45f, -HallDepth / 2f + 0.17f), new Vector3(HallWidth / 2f + DoorX - DoorWidth / 2f - 0.1f, 0.9f, 0.05f)),
                          ("Trim_South_East", new Vector3((HallWidth / 2f + DoorX + DoorWidth / 2f + 0.1f) / 2f, 0.45f, -HallDepth / 2f + 0.17f), new Vector3(HallWidth / 2f - DoorX - DoorWidth / 2f - 0.1f, 0.9f, 0.05f)),
                          ("Trim_East", new Vector3(HallWidth / 2f - 0.17f, 0.45f, 0f), new Vector3(0.05f, 0.9f, HallDepth)),
+                         // By the sea the east wall has the terrace door; Trim_East is left out and split around it.
+                         ("Trim_East_South", new Vector3(HallWidth / 2f - 0.17f, 0.45f, (-HallDepth / 2f + SeaDoorFrom - 0.1f) / 2f), new Vector3(0.05f, 0.9f, SeaDoorFrom - 0.1f + HallDepth / 2f)),
+                         ("Trim_East_North", new Vector3(HallWidth / 2f - 0.17f, 0.45f, (HallDepth / 2f + SeaDoorTo + 0.1f) / 2f), new Vector3(0.05f, 0.9f, HallDepth / 2f - SeaDoorTo - 0.1f)),
                          ("Trim_West", new Vector3(-HallWidth / 2f + 0.17f, 0.45f, 0f), new Vector3(0.05f, 0.9f, HallDepth)),
                      })
             {
-                Box(name, hall, position, size, m.DarkWood, collider: false);
+                if (_sea ? name == "Trim_East" : name.StartsWith("Trim_East_"))
+                    continue;
+                // White-painted panelling by the sea, which keeps the room bright.
+                Box(name, hall, position, size, _sea ? SeaTrim() : m.DarkWood, collider: false);
             }
 
             // Carpet runner from the entrance.
             Box("Carpet", hall, new Vector3(4.8f, 0.005f, -4.4f), new Vector3(2.2f, 0.01f, 4.4f), m.Velvet, collider: false);
 
-            // Soft fill between the pools of lamp light (BuildLamps) and the wall sconces.
-            PointLight("Fill_Entrance", new Vector3(5f, 2.9f, -5f), 7f, 1.6f, new Color(1f, 0.78f, 0.55f), hall);
-            PointLight("Fill_Center", new Vector3(0f, 3f, 0.8f), 12f, 1.4f, new Color(1f, 0.75f, 0.5f), hall);
+            // Soft fill between the pools of lamp light (BuildLamps) and the wall sconces. The seaside hall is lit by
+            // its brighter ambient and the sunset instead (and the terrace needs the light slots).
+            if (!_sea)
+            {
+                PointLight("Fill_Entrance", new Vector3(5f, 2.9f, -5f), 7f, 1.6f, new Color(1f, 0.78f, 0.55f), hall);
+                PointLight("Fill_Center", new Vector3(0f, 3f, 0.8f), 12f, 1.4f, new Color(1f, 0.75f, 0.5f), hall);
+            }
             BuildSconces(hall, m);
             BuildNeonSign(hall, m);
 
@@ -1326,6 +1398,7 @@ namespace CasinoMares.Editor
             Box("Wall_South_West", hall, new Vector3((west + doorLeft) / 2f, height / 2f, wallZ), new Vector3(doorLeft - west, height, 0.3f), m.Wall);
             Box("Wall_South_East", hall, new Vector3((doorRight + east) / 2f, height / 2f, wallZ), new Vector3(east - doorRight, height, 0.3f), m.Wall);
             Box("Wall_South_Lintel", hall, new Vector3(DoorX, (DoorHeight + height) / 2f, wallZ), new Vector3(DoorWidth, height - DoorHeight, 0.3f), m.Wall);
+            CameraBlocker("Doorway_CameraBlocker", hall, new Vector3(DoorX, DoorHeight / 2f, wallZ), new Vector3(DoorWidth, DoorHeight, 0.3f));
 
             var entrance = Child(hall, "Entrance", new Vector3(DoorX, 0f, wallZ));
             // The frame sits proud of the wall (and of the trim beside it), so no faces share a plane.
@@ -1352,12 +1425,20 @@ namespace CasinoMares.Editor
 
         // ---------------------------------------------------------------- Ceiling, lamps and decor
 
-        /// <summary>A dark wood ceiling with beams and a brass crown molding. It doesn't cast shadows, so the dim fill light still reaches in.</summary>
+        /// <summary>
+        /// A dark wood ceiling (plaster by the sea) with beams and a brass crown molding. In the lounge it doesn't cast
+        /// shadows, so the dim fill light still reaches in.
+        /// </summary>
         static void BuildCeiling(Transform hall, Materials m)
         {
             var ceiling = new GameObject("Ceiling").transform;
             ceiling.SetParent(hall, false);
-            NoShadows(Box("Panel", ceiling, new Vector3(0f, CeilingHeight + 0.05f, 0f), new Vector3(HallWidth, 0.1f, HallDepth), m.DarkWood, collider: false));
+            // Just under the molding, so a camera pulled in by it never shows the beams from above.
+            CameraBlocker("Ceiling_CameraBlocker", ceiling, new Vector3(0f, CeilingHeight - 0.3f, 0f), new Vector3(HallWidth, 0.1f, HallDepth));
+            var panel = Box("Panel", ceiling, new Vector3(0f, CeilingHeight + 0.05f, 0f), new Vector3(HallWidth, 0.1f, HallDepth), _sea ? m.Ceiling : m.DarkWood, collider: false);
+            // By the sea the sun is real: the roof keeps it out, so it only comes in through the windows.
+            if (!_sea)
+                NoShadows(panel);
             for (var x = -HallWidth / 2f + 2.75f; x < HallWidth / 2f; x += 2.75f)
                 NoShadows(Box("Beam", ceiling, new Vector3(x, CeilingHeight - 0.1f, 0f), new Vector3(0.22f, 0.2f, HallDepth), m.Wood, collider: false));
             foreach (var (position, size) in new[]
@@ -1380,13 +1461,15 @@ namespace CasinoMares.Editor
             const float inset = HallDepth / 2f - 0.16f;
             const float side = HallWidth / 2f - 0.16f;
             var spots = new List<(Vector3 position, Vector3 facing)>();
-            foreach (var x in new[] { -9.6f, -1.4f, 1.8f, 8.9f })
+            // The seaside hall has windows in the north corners instead of the two outer sconces.
+            foreach (var x in _sea ? new[] { -1.4f, 1.8f } : new[] { -9.6f, -1.4f, 1.8f, 8.9f })
                 spots.Add((new Vector3(x, 2.15f, inset), Vector3.back));
             foreach (var x in new[] { -9.2f, -3.2f, 0.8f, 7.6f })
                 spots.Add((new Vector3(x, 2.15f, -inset), Vector3.forward));
             foreach (var z in new[] { 1.2f, 4.6f })
                 spots.Add((new Vector3(side, 2.15f, z), Vector3.left));
-            foreach (var z in new[] { -3.8f, 2.6f })
+            // The seaside hall's west wall has the cat wall instead, with lamps of its own (BuildCatWall).
+            foreach (var z in _sea ? new float[0] : new[] { -3.8f, 2.6f })
                 spots.Add((new Vector3(-side, 2.15f, z), Vector3.right));
 
             for (var i = 0; i < spots.Count; i++)
@@ -1552,21 +1635,25 @@ namespace CasinoMares.Editor
         /// Cube map of the finished room for the brass, glass and glossy wood reflections (realtime probes are off
         /// in the quality settings, so it's baked here).
         /// </summary>
-        static void BakeReflectionProbe()
+        static void BakeReflectionProbe() =>
+            BakeReflectionProbe("ReflectionProbe", new Vector3(0f, 1.4f, 0f), new Vector3(HallWidth, CeilingHeight, HallDepth),
+                new Vector3(0f, CeilingHeight / 2f - 1.4f, 0f), true, 256, ReflectionPath);
+
+        static void BakeReflectionProbe(string name, Vector3 position, Vector3 size, Vector3 center, bool boxProjection, int resolution, string path)
         {
-            var probe = new GameObject("ReflectionProbe").AddComponent<ReflectionProbe>();
-            probe.transform.position = new Vector3(0f, 1.4f, 0f);
-            probe.size = new Vector3(HallWidth, CeilingHeight, HallDepth);
-            probe.center = new Vector3(0f, CeilingHeight / 2f - 1.4f, 0f);
-            probe.boxProjection = true;
-            probe.resolution = 256;
+            var probe = new GameObject(name).AddComponent<ReflectionProbe>();
+            probe.transform.position = position;
+            probe.size = size;
+            probe.center = center;
+            probe.boxProjection = boxProjection;
+            probe.resolution = resolution;
             probe.hdr = true;
             probe.mode = ReflectionProbeMode.Custom;
-            AssetDatabase.DeleteAsset(ReflectionPath);
-            if (Lightmapping.BakeReflectionProbe(probe, ReflectionPath))
+            AssetDatabase.DeleteAsset(path);
+            if (Lightmapping.BakeReflectionProbe(probe, path))
             {
-                AssetDatabase.ImportAsset(ReflectionPath);
-                probe.customBakedTexture = Load<Cubemap>(ReflectionPath);
+                AssetDatabase.ImportAsset(path);
+                probe.customBakedTexture = Load<Cubemap>(path);
             }
         }
 
@@ -2214,17 +2301,8 @@ namespace CasinoMares.Editor
 
         static void BuildPatronSpots(BlackjackTable[] tables)
         {
-            var root = new GameObject("PatronSpots").transform;
-
-            void Spot(string name, Vector3 position, float yaw, bool sit, Vector2? stay = null)
-            {
-                var spot = Child(root, name, position, Quaternion.Euler(0f, yaw, 0f)).gameObject.AddComponent<PatronSpot>();
-                var serialized = new SerializedObject(spot);
-                serialized.FindProperty("_sit").boolValue = sit;
-                if (stay.HasValue)
-                    serialized.FindProperty("_stayRange").vector2Value = stay.Value;
-                serialized.ApplyModifiedPropertiesWithoutUndo();
-            }
+            var root = new GameObject(PatronSpotsName).transform;
+            void Spot(string name, Vector3 position, float yaw, bool sit, Vector2? stay = null) => AddPatronSpot(root, name, position, yaw, sit, stay);
 
             for (var i = 0; i < 4; i++)
                 Spot($"BarStool_{i + 1}", new Vector3(-6.9f + i * 1.1f, 0.4f, 4.45f), 0f, true, new Vector2(10f, 25f));
@@ -2245,6 +2323,19 @@ namespace CasinoMares.Editor
             Spot("Cashier_Queue", new Vector3(-4f, 0f, -4.2f), -110f, false);
             Spot("Watch_Roulette_A", new Vector3(-2.2f, 0f, 3.2f), 60f, false);
             Spot("Watch_Roulette_B", new Vector3(2.4f, 0f, 3.0f), -60f, false);
+        }
+
+        const string PatronSpotsName = "PatronSpots";
+
+        static PatronSpot AddPatronSpot(Transform root, string name, Vector3 position, float yaw, bool sit, Vector2? stay = null)
+        {
+            var spot = Child(root, name, position, Quaternion.Euler(0f, yaw, 0f)).gameObject.AddComponent<PatronSpot>();
+            var serialized = new SerializedObject(spot);
+            serialized.FindProperty("_sit").boolValue = sit;
+            if (stay.HasValue)
+                serialized.FindProperty("_stayRange").vector2Value = stay.Value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return spot;
         }
 
         static void BuildPatrons(NpcCatVisual npcPrefab)
@@ -2284,7 +2375,7 @@ namespace CasinoMares.Editor
             var camera = mainCamera.AddComponent<Camera>();
             camera.nearClipPlane = 0.05f;
             camera.farClipPlane = 200f;
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.clearFlags = _sea ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.07f, 0.05f, 0.06f);
             mainCamera.AddComponent<AudioListener>();
             var cameraData = mainCamera.AddComponent<UniversalAdditionalCameraData>();
@@ -2316,6 +2407,7 @@ namespace CasinoMares.Editor
             composer.Damping = new Vector2(0.1f, 0.1f);
             var deoccluder = followCamera.gameObject.AddComponent<CinemachineDeoccluder>();
             deoccluder.IgnoreTag = "Player";
+            deoccluder.CollideAgainst = 1 | (1 << CameraBlockerLayer);
             deoccluder.MinimumDistanceFromTarget = 0.3f;
             deoccluder.AvoidObstacles.Enabled = true;
             deoccluder.AvoidObstacles.CameraRadius = 0.12f;
@@ -2390,6 +2482,7 @@ namespace CasinoMares.Editor
         {
             var surface = hall.gameObject.AddComponent<NavMeshSurface>();
             surface.collectObjects = CollectObjects.All;
+            surface.layerMask = ~(1 << CameraBlockerLayer);
             surface.useGeometry = UnityEngine.AI.NavMeshCollectGeometry.PhysicsColliders;
             surface.BuildNavMesh();
 
@@ -2408,6 +2501,8 @@ namespace CasinoMares.Editor
             box.transform.localPosition = position;
             box.transform.localScale = size;
             box.GetComponent<MeshRenderer>().sharedMaterial = material;
+            if (material != null && WorldUvTiles.TryGetValue(material, out var tile))
+                box.GetComponent<MeshFilter>().sharedMesh = WorldUvCube(size, tile);
             if (!collider)
                 Object.DestroyImmediate(box.GetComponent<Collider>());
             GameObjectUtility.SetStaticEditorFlags(box, StaticEditorFlags.BatchingStatic);
@@ -2436,6 +2531,13 @@ namespace CasinoMares.Editor
             }
 
             return cylinder;
+        }
+
+        static void CameraBlocker(string name, Transform parent, Vector3 position, Vector3 size)
+        {
+            var blocker = Child(parent, name, position);
+            blocker.gameObject.layer = CameraBlockerLayer;
+            blocker.gameObject.AddComponent<BoxCollider>().size = size;
         }
 
         /// <summary>

@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Common.uss" />
+    <ui:VisualElement class="screen" picking-mode="Ignore">
+        <ui:VisualElement class="climb-row" picking-mode="Ignore">
+            <ui:VisualElement name="climb-root" class="climb hidden" picking-mode="Ignore">
+                <ui:Label name="climb-title" text="Cat wall" class="hud-label-dim" picking-mode="Ignore" />
+                <ui:Label name="climb-time" text="0.0 s" class="hud-value climb-time" picking-mode="Ignore" />
+                <ui:Label name="climb-best" text="" class="climb-best" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

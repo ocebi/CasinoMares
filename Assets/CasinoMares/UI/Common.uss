@@ -184,6 +184,39 @@
     color: var(--cm-gold);
 }
 
+/* The cat wall's clock (CatWallHud), top middle between the chips. */
+.climb-row {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    align-items: center;
+}
+
+.climb {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--cm-bg-soft);
+    border-color: var(--cm-border);
+    border-width: 1px;
+    border-radius: 10px;
+    padding: 8px 14px;
+}
+
+.climb--done {
+    border-color: var(--cm-gold);
+}
+
+.climb-time {
+    min-width: 64px;
+}
+
+.climb-best {
+    font-size: 14px;
+    color: var(--cm-text-dim);
+    margin-left: 10px;
+}
+
 .hud-hint {
     position: absolute;
     bottom: 18px;
@@ -762,6 +795,65 @@
     width: 260px;
 }
 
+/* Roulette: your own bets, on a card at the side while the camera watches the wheel */
+.rl-my-bets {
+    position: absolute;
+    right: 20px;
+    top: 28%;
+    width: 250px;
+    padding: 14px 18px;
+}
+
+.rl-my-bet {
+    flex-direction: row;
+    align-items: center;
+    margin: 2px 0;
+}
+
+.rl-my-bet-spot {
+    min-width: 44px;
+    padding: 1px 8px;
+    border-radius: 6px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.rl-my-bet-amount {
+    flex-grow: 1;
+    padding: 0 0 0 10px;
+    font-size: 15px;
+    -unity-text-align: middle-right;
+    color: var(--cm-text);
+}
+
+.rl-my-bet--won .rl-my-bet-amount {
+    -unity-font-style: bold;
+    color: rgb(140, 230, 140);
+}
+
+.rl-my-bet--lost {
+    opacity: 0.45;
+}
+
+.rl-my-bets-more {
+    font-size: 13px;
+    color: var(--cm-text-dim);
+    padding: 2px 0 0 0;
+}
+
+.rl-my-bets-total {
+    margin-top: 8px;
+    padding: 6px 0 0 0;
+    border-top-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
 /* Baccarat */
 .bc-spots {
     flex-direction: row;
@@ -1108,14 +1200,14 @@
     padding: 0;
 }
 
-.touch-pills {
+.touch-pills, .hud-pills {
     position: absolute;
     left: 20px;
     top: 82px;
     flex-direction: row;
 }
 
-.touch-pill {
+.touch-pill, .hud-pill {
     height: 46px;
     min-width: 76px;
     margin: 0 8px 0 0;
@@ -1127,6 +1219,19 @@
     border-color: var(--cm-border);
     border-width: 1px;
     border-radius: 23px;
+}
+
+/* The desktop pills are smaller: there's a mouse pointer to aim with. */
+.hud-pill {
+    height: 36px;
+    min-width: 0;
+    padding: 0 14px;
+    font-size: 15px;
+    border-radius: 18px;
+}
+
+.hud-pill:hover {
+    border-color: var(--cm-gold);
 }
 
 .touch-pill--active {
@@ -1210,4 +1315,16 @@
 
 .touch .slots-paytable {
     top: 146px;
+}
+
+.touch .rl-my-bets {
+    top: 146px;
+    width: 200px;
+    padding: 10px 12px;
+}
+
+.touch .rl-my-bet-spot,
+.touch .rl-my-bet-amount,
+.touch .rl-my-bets-total {
+    font-size: 13px;
 }
