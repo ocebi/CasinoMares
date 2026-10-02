@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CasinoMares.Audio;
 using CasinoMares.Blackjack;
 using CasinoMares.Player;
 using Fusion;
@@ -11,17 +12,33 @@ namespace CasinoMares.Npc
     /// An ambient patron cat (GDD §4.4). Networked scene object simulated by the master client: it walks NavMesh
     /// paths between <see cref="PatronSpot"/>s inside FixedUpdateNetwork, idles or sits there, and every client
     /// shows the same cat in the same place. Nearby big wins make it hop, and <see cref="WinnerCrowd"/> can send it
-    /// over to watch a player on a winning streak.
+    /// over to watch a player on a winning streak. A player who paws it gets hissed at, and the cat trots off to
+    /// somewhere on the far side of them.
     /// </summary>
     public class PatronBrain : NetworkBehaviour, IStateAuthorityChanged
     {
         const float ArriveDistance = 0.15f;
         const float BigWinReactRange = 6f;
+        /// <summary>How close a pawing player must really be (the paw reaches about a metre; this allows for lag).</summary>
+        const float PawRange = 1.8f;
+        /// <summary>Seconds before the hiss: the walk has to settle into a stand, and a sitting cat has to get up.</summary>
+        const float HissDelayStanding = 0.35f;
+        const float HissDelaySitting = 0.8f;
+        /// <summary>Seconds from the hiss to trotting off, about the length of the hiss animation.</summary>
+        const float HissDuration = 1.2f;
+        /// <summary>Seconds a pawed cat ignores more paws and winning streaks.</summary>
+        const float SpookedSeconds = 20f;
+        const float FleeMinDistance = 4f;
+        /// <summary>Metres per second a walking cat's height follows the NavMesh (up a step, down off a seat).</summary>
+        const float StepSpeed = 2f;
+        /// <summary>Another cat this close to a spot (across the floor) is on it.</summary>
+        const float SpotTakenDistance = 0.45f;
 
         public static readonly List<PatronBrain> All = new();
 
         [SerializeField] NpcCatVisual _visual;
         [SerializeField] float _walkSpeed = 1.1f;
+        [SerializeField] float _fleeSpeed = 2.2f;
         [SerializeField] float _turnSpeed = 360f;
 
         [Networked] public NetworkBool Sitting { get; set; }
@@ -32,6 +49,11 @@ namespace CasinoMares.Npc
         [Networked] byte EmoteCount { get; set; }
         [Networked] TickTimer EmoteTimer { get; set; }
         [Networked] TickTimer CheerTimer { get; set; }
+        [Networked] TickTimer SpookTimer { get; set; }
+        [Networked] TickTimer HissTimer { get; set; }
+        [Networked] TickTimer FleeTimer { get; set; }
+        [Networked] Vector3 SpookedBy { get; set; }
+        [Networked] byte HissCount { get; set; }
 
         static readonly CatEmote[] IdleEmotes = { CatEmote.Meow, CatEmote.Groom, CatEmote.Wiggle, CatEmote.Purr, CatEmote.Pounce };
 
@@ -41,7 +63,11 @@ namespace CasinoMares.Npc
         Vector3 _simPosition;
         int _pathIndex;
         int _seenEmoteCount = -1;
+        int _seenHissCount = -1;
         bool _watching;
+        bool _fleeing;
+        /// <summary>This client has been simulating the cat since it took authority (see <see cref="TakeOver"/>).</summary>
+        bool _simulating;
         Vector3 _watchSpot;
         Vector3 _watchFocus;
 
@@ -61,6 +87,7 @@ namespace CasinoMares.Npc
                     transform.position = _simPosition = hit.position;
                 Fur = (byte)Random.Range(0, 6);
                 WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(0.5f, 4f));
+                _simulating = true;
             }
 
             BlackjackTable.BigWin += OnBigWin;
@@ -75,21 +102,160 @@ namespace CasinoMares.Npc
 
         void IStateAuthorityChanged.StateAuthorityChanged()
         {
-            // The master client left and we inherited this cat: carry on from where it is.
+            // Another client simulates the cat from now on, or this one has just taken over (TakeOver, next tick).
+            _simulating = false;
+            _path.Clear();
+            _watching = false;
+            _fleeing = false;
+            ReleaseTarget();
+        }
+
+        /// <summary>
+        /// This client just became the master (the last one left, or handed over from a background tab) and carries
+        /// on with the cat from where it is. Which cat had claimed which spot lived on the old master only, so a cat
+        /// sitting on a spot claims it again here and stays for the rest of its time. Otherwise the others would see
+        /// the seat as free and sit down on top of it.
+        /// </summary>
+        void TakeOver()
+        {
+            _simulating = true;
             _simPosition = transform.position;
             _path.Clear();
             _watching = false;
+            _fleeing = false;
             ReleaseTarget();
-            if (HasStateAuthority)
-                WaitTimer = TickTimer.CreateFromSeconds(Runner, 1f);
+
+            var spot = SpotAt(transform.position);
+            if (spot != null && spot.ClaimedBy == null && !spot.TakenByPlayer)
+            {
+                _target = spot;
+                spot.ClaimedBy = this;
+                if (WaitTimer.ExpiredOrNotRunning(Runner))
+                    WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(1f, 4f));
+                return;
+            }
+
+            // Walking somewhere (the path stayed behind with the old master), or a seat someone else has.
+            Sitting = false;
+            WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(0.5f, 1.5f));
+        }
+
+        /// <summary>The spot this cat is on, if any.</summary>
+        static PatronSpot SpotAt(Vector3 position)
+        {
+            foreach (var spot in PatronSpot.All)
+            {
+                var offset = spot.transform.position - position;
+                if (Mathf.Abs(offset.y) < 0.5f && new Vector2(offset.x, offset.z).sqrMagnitude < 0.3f * 0.3f)
+                    return spot;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Somebody else has this spot: a cat claimed it, a player sits there, or another cat is on it right now
+        /// (whatever the claims say).
+        /// </summary>
+        bool SpotTaken(PatronSpot spot)
+        {
+            if ((spot.ClaimedBy != null && spot.ClaimedBy != this) || spot.TakenByPlayer)
+                return true;
+            var position = spot.transform.position;
+            foreach (var other in All)
+            {
+                if (other == this || other == null)
+                    continue;
+                var offset = other.transform.position - position;
+                if (Mathf.Abs(offset.y) < 0.5f && new Vector2(offset.x, offset.z).sqrMagnitude < SpotTakenDistance * SpotTakenDistance)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>True for a while after a player pawed this cat: it won't come over to watch anyone.</summary>
+        public bool IsSpooked => Object != null && Object.IsValid && SpookTimer.IsRunning && !SpookTimer.Expired(Runner);
+
+        /// <summary>The patron within paw reach in front of a cat, or null.</summary>
+        public static PatronBrain FindInReach(Transform cat, float reach, float maxAngle)
+        {
+            PatronBrain best = null;
+            var bestDistance = float.MaxValue;
+            foreach (var patron in All)
+            {
+                if (patron == null || !PawSwipe.InReach(cat, patron.transform.position + Vector3.up * 0.2f, reach, maxAngle, out var distance))
+                    continue;
+                if (distance < bestDistance)
+                {
+                    best = patron;
+                    bestDistance = distance;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>A player pawed this cat: it stops what it's doing, turns to hiss at them, then trots off.</summary>
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        public void RPC_Pawed(RpcInfo info = default)
+        {
+            var cat = PlayerCat.Find(info.Source);
+            if (cat == null || IsSpooked || (cat.transform.position - transform.position).sqrMagnitude > PawRange * PawRange)
+                return;
+
+            WinnerCrowd.Release(this);
+            _watching = false;
+            _fleeing = false;
+            ReleaseTarget();
+            _path.Clear();
+            WaitTimer = TickTimer.None;
+            EmoteTimer = TickTimer.None;
+            CheerTimer = TickTimer.None;
+
+            var hissDelay = Sitting ? HissDelaySitting : HissDelayStanding;
+            Sitting = false;
+            SpookedBy = cat.transform.position;
+            SpookTimer = TickTimer.CreateFromSeconds(Runner, SpookedSeconds);
+            HissTimer = TickTimer.CreateFromSeconds(Runner, hissDelay);
+            FleeTimer = TickTimer.CreateFromSeconds(Runner, hissDelay + HissDuration);
         }
 
         public override void FixedUpdateNetwork()
         {
             if (!HasStateAuthority)
                 return;
+            if (!_simulating)
+                TakeOver();
 
             WinnerCrowd.Tick(Runner);
+            if (FleeTimer.IsRunning)
+            {
+                FaceTowards(SpookedBy, Runner.DeltaTime);
+                if (HissTimer.Expired(Runner))
+                {
+                    HissTimer = TickTimer.None;
+                    HissCount++;
+                }
+
+                if (FleeTimer.Expired(Runner))
+                {
+                    FleeTimer = TickTimer.None;
+                    Flee();
+                }
+
+                return;
+            }
+
+            // A player sat down where this cat was sitting (or heading): make room.
+            if (_target != null && _target.TakenByPlayer)
+            {
+                ReleaseTarget();
+                _path.Clear();
+                Sitting = false;
+                WaitTimer = TickTimer.None;
+            }
+
             if (CheerTimer.IsRunning && CheerTimer.Expired(Runner))
             {
                 CheerTimer = TickTimer.None;
@@ -135,6 +301,20 @@ namespace CasinoMares.Npc
                 _seenEmoteCount = EmoteCount;
                 _visual.Reactions?.PlayEmote((CatEmote)EmoteId);
             }
+
+            if (_seenHissCount < 0)
+                _seenHissCount = HissCount;
+            if (HissCount != _seenHissCount)
+            {
+                _seenHissCount = HissCount;
+                // The hiss emote needs a cat standing still; one that's still turning swats back instead.
+                var reactions = _visual.Reactions;
+                if (reactions == null || !reactions.PlayEmote(CatEmote.Hiss))
+                {
+                    reactions?.PlayAngry();
+                    Sfx.PlayAt(SoundId.Hiss, transform.position + Vector3.up * 0.3f);
+                }
+            }
         }
 
         // ---------------------------------------------------------------- Watching a winner (master client)
@@ -152,18 +332,13 @@ namespace CasinoMares.Npc
             Sitting = false;
             WaitTimer = TickTimer.None;
             EmoteTimer = TickTimer.None;
-            _path.Clear();
-            if (NavMesh.CalculatePath(_simPosition, spot, NavMesh.AllAreas, _navPath) && _navPath.status == NavMeshPathStatus.PathComplete)
+            if (!TryPathTo(spot))
             {
-                _path.AddRange(_navPath.corners);
-            }
-            else
-            {
+                _path.Clear();
                 _path.Add(_simPosition);
                 _path.Add(spot);
+                _pathIndex = 1;
             }
-
-            _pathIndex = 1;
         }
 
         /// <summary>The streak is over (or this cat isn't needed any more): wander off after a moment.</summary>
@@ -211,6 +386,66 @@ namespace CasinoMares.Npc
             EmoteCount++;
         }
 
+        /// <summary>Trot to a free spot on the far side from whoever pawed us, or at least a few metres away.</summary>
+        void Flee()
+        {
+            var away = transform.position - SpookedBy;
+            away.y = 0f;
+            away = away.sqrMagnitude > 0.0001f ? away.normalized : -transform.forward;
+
+            // Best first: straight away from the player, and not across the whole room.
+            PatronSpot best = null;
+            var bestScore = float.MinValue;
+            foreach (var spot in PatronSpot.All)
+            {
+                if (SpotTaken(spot))
+                    continue;
+                var offset = spot.transform.position - transform.position;
+                offset.y = 0f;
+                var distance = offset.magnitude;
+                if (distance < FleeMinDistance)
+                    continue;
+                var score = Vector3.Dot(offset / distance, away) - distance * 0.02f;
+                if (score > 0f && score > bestScore && TryPathTo(spot.transform.position))
+                {
+                    best = spot;
+                    bestScore = score;
+                }
+            }
+
+            if (best != null && TryPathTo(best.transform.position))
+            {
+                _target = best;
+                best.ClaimedBy = this;
+            }
+            else if (!NavMesh.SamplePosition(transform.position + away * FleeMinDistance, out var hit, 2f, NavMesh.AllAreas) ||
+                     !TryPathTo(hit.position))
+            {
+                WaitTimer = TickTimer.CreateFromSeconds(Runner, 1f);
+                return;
+            }
+
+            _fleeing = true;
+        }
+
+        /// <summary>
+        /// Sets the walking path to <paramref name="destination"/> if the NavMesh gets there, or else to the NavMesh
+        /// right next to it (a chair is off the NavMesh; <see cref="Arrive"/> puts a sitting cat onto it).
+        /// </summary>
+        bool TryPathTo(Vector3 destination)
+        {
+            if (!PathTo(destination) &&
+                (!NavMesh.SamplePosition(destination, out var near, 1.2f, NavMesh.AllAreas) || !PathTo(near.position)))
+                return false;
+            _path.Clear();
+            _path.AddRange(_navPath.corners);
+            _pathIndex = 1;
+            return true;
+        }
+
+        bool PathTo(Vector3 destination) =>
+            NavMesh.CalculatePath(_simPosition, destination, NavMesh.AllAreas, _navPath) && _navPath.status == NavMeshPathStatus.PathComplete;
+
         void PickNextSpot()
         {
             ReleaseTarget();
@@ -225,18 +460,11 @@ namespace CasinoMares.Npc
             for (var attempt = 0; attempt < 6; attempt++)
             {
                 var spot = candidates[Random.Range(0, candidates.Count)];
-                if (spot.ClaimedBy != null)
-                    continue;
-
-                if (!NavMesh.CalculatePath(_simPosition, spot.transform.position, NavMesh.AllAreas, _navPath) ||
-                    _navPath.status != NavMeshPathStatus.PathComplete)
+                if (SpotTaken(spot) || !TryPathTo(spot.transform.position))
                     continue;
 
                 _target = spot;
                 spot.ClaimedBy = this;
-                _path.Clear();
-                _path.AddRange(_navPath.corners);
-                _pathIndex = 1;
                 return;
             }
 
@@ -254,7 +482,7 @@ namespace CasinoMares.Npc
             var waypoint = _path[_pathIndex];
             var toWaypoint = waypoint - _simPosition;
             toWaypoint.y = 0f;
-            var step = _walkSpeed * deltaTime;
+            var step = (_fleeing ? _fleeSpeed : _walkSpeed) * deltaTime;
 
             if (toWaypoint.magnitude <= Mathf.Max(step, ArriveDistance))
             {
@@ -266,9 +494,10 @@ namespace CasinoMares.Npc
                 _simPosition += toWaypoint.normalized * step;
             }
 
-            // Stay glued to the NavMesh height.
-            if (NavMesh.SamplePosition(_simPosition, out var hit, 0.5f, NavMesh.AllAreas))
-                _simPosition.y = hit.position.y;
+            // Follow the NavMesh's height, easing down off a chair (which is kept off the NavMesh) rather than
+            // walking away at seat height.
+            if (NavMesh.SamplePosition(_simPosition, out var hit, 1f, NavMesh.AllAreas))
+                _simPosition.y = Mathf.MoveTowards(_simPosition.y, hit.position.y, StepSpeed * deltaTime);
 
             transform.position = _simPosition;
             if (toWaypoint.sqrMagnitude > 0.0001f)
@@ -281,11 +510,23 @@ namespace CasinoMares.Npc
         void Arrive()
         {
             _path.Clear();
+            _fleeing = false;
             EmoteTimer = default;
             if (_watching)
                 return;
+            if (_target != null && _target.Sit && SpotTaken(_target))
+            {
+                // Someone got there first: find somewhere else in a moment rather than sitting in their lap.
+                ReleaseTarget();
+                WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(0.5f, 1.5f));
+                return;
+            }
+
             if (_target != null)
             {
+                // A seat is an exact place: settle onto it, not wherever the NavMesh's rough heights near it ended.
+                if (_target.Sit)
+                    transform.position = _simPosition = _target.transform.position;
                 transform.rotation = _target.transform.rotation;
                 Sitting = _target.Sit;
                 WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(_target.StayRange.x, _target.StayRange.y));
