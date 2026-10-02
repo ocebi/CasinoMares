@@ -37,6 +37,9 @@ namespace CasinoMares.Core
         /// <summary>True while the browser tab is in the background.</summary>
         public static bool PageHidden => IsWeb && CM_IsPageHidden() != 0;
 
+        /// <summary>The compressed texture set the page loaded: "DXT" (desktop) or "ASTC" (phones, or <c>?astc=1</c>).</summary>
+        public static string TextureFormat => IsWeb ? CM_TextureFormat() : "native";
+
         /// <summary>
         /// The screen height in CSS pixels, which follows the device's physical size (a phone held sideways is about
         /// 390). Outside a browser it's the height in pixels.
@@ -51,7 +54,8 @@ namespace CasinoMares.Core
 
         /// <summary>
         /// Browsers start on WebGL's default quality level (Mobile). Desktop browsers get the PC level; phones and
-        /// tablets stay on Mobile (no extra light shadows, lower render scale).
+        /// tablets stay on Mobile, which renders the same way at full resolution but skips SSAO and uses smaller
+        /// shadow maps.
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void ApplyQualityLevel()
@@ -107,12 +111,14 @@ namespace CasinoMares.Core
         [DllImport("__Internal")] static extern int CM_IsPageHidden();
         [DllImport("__Internal")] static extern int CM_CanFullscreen();
         [DllImport("__Internal")] static extern int CM_IsStandalone();
+        [DllImport("__Internal")] static extern string CM_TextureFormat();
 #else
         static float CM_CanvasCssHeight() => Screen.height;
         static int CM_PrefersTouch() => 0;
         static int CM_IsPageHidden() => 0;
         static int CM_CanFullscreen() => 0;
         static int CM_IsStandalone() => 0;
+        static string CM_TextureFormat() => "native";
 #endif
     }
 }

@@ -20,6 +20,9 @@ Shader "CasinoMares/CatRim"
             Blend One One
             ZWrite Off
             ZTest LEqual
+            // This pass redraws the fur's own surface. WebGL doesn't promise two shaders the same depth for the same
+            // vertex, so without a nudge toward the camera the rim z-fights the fur in dark patches.
+            Offset -1, -1
             Cull Back
 
             HLSLPROGRAM
