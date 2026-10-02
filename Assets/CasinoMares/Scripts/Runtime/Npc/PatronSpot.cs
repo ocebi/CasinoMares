@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CasinoMares.Social;
 using UnityEngine;
 
 namespace CasinoMares.Npc
@@ -11,9 +12,15 @@ namespace CasinoMares.Npc
         [Tooltip("Patrons sit down here instead of standing around.")]
         [SerializeField] bool _sit;
         [SerializeField] Vector2 _stayRange = new(6f, 16f);
+        [Tooltip("A seat players can take too (terrace chairs): patrons leave it to them.")]
+        [SerializeField] TerraceTable _playerTable;
+        [SerializeField] int _playerSeat = -1;
 
         public bool Sit => _sit;
         public Vector2 StayRange => _stayRange;
+
+        /// <summary>A player is sitting here, so no patron should be.</summary>
+        public bool TakenByPlayer => _playerTable != null && _playerTable.IsTaken(_playerSeat);
 
         /// <summary>Set by the patron that claimed the spot so two cats don't stack on one cushion.</summary>
         public PatronBrain ClaimedBy { get; set; }

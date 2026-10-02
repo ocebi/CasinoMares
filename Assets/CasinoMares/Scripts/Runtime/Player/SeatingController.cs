@@ -73,7 +73,7 @@ namespace CasinoMares.Player
                 _movement.MovementLocked = true;
                 _movement.RequestTeleport(anchor.position, anchor.rotation);
                 _cat.IsSeated = true;
-                PlayerCameraRig.Instance?.SetOverride(table.GetSeatCamera(seat));
+                PlayerCameraRig.Instance?.SetOverride(table.GetSeatCamera(seat), anchor);
                 if (!_cursorFreed)
                 {
                     GameInput.PushCursorFree();

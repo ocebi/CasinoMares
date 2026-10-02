@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/CasinoMares/Scenes/CasinoSea.unity
+    guid: 7ad680cff022b48ab97fb3107d9d299c
+  - enabled: 1
     path: Assets/CasinoMares/Scenes/Casino.unity
     guid: 7e41e1e5f1a2f4650a4a3019643a1152
   m_configObjects:

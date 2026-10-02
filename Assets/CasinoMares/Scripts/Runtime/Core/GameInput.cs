@@ -204,7 +204,17 @@ namespace CasinoMares.Core
         /// <summary>An on-screen button pressed this frame, regardless of UI focus.</summary>
         public static bool TouchPressed(TouchButton button) => TouchPressedFrame[(int)button] == Time.frameCount;
 
-        /// <summary>This frame's drag on the look surface in mouse counts, also while seated (where the cursor is free).</summary>
-        public static Vector2 ReadTouchLook() => GameplayEnabled ? _touchLook : Vector2.zero;
+        /// <summary>
+        /// Look input while seated, where the cursor is out for the table UI: a drag on the touch look surface, or the
+        /// mouse moved with the right button held. In mouse counts.
+        /// </summary>
+        public static Vector2 ReadSeatDrag()
+        {
+            if (!GameplayEnabled)
+                return Vector2.zero;
+            if (Platform.IsTouch)
+                return _touchLook;
+            return Mouse.current != null && Mouse.current.rightButton.isPressed ? Look.ReadValue<Vector2>() : Vector2.zero;
+        }
     }
 }

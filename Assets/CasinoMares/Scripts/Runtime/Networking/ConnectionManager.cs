@@ -25,7 +25,68 @@ namespace CasinoMares.Networking
     [DefaultExecutionOrder(-100)]
     public class ConnectionManager : MonoBehaviour, INetworkRunnerCallbacks
     {
-        public const string SessionName = "CasinoMares-Main";
+        /// <summary>
+        /// Each casino scene is its own room, so players in the original lounge and the seaside casino never meet in
+        /// half-loaded worlds, and each build's version of it is too (see <see cref="WorldFingerprint"/>).
+        /// <c>?room=name</c> in the page URL (in the editor: the <see cref="TestRoomKey"/> editor pref) makes a
+        /// separate room for testing.
+        /// </summary>
+        public static string SessionName
+        {
+            get
+            {
+                var scene = SceneManager.GetActiveScene().name;
+                var name = (SceneSelect.IsClassic(scene) ? "CasinoMares-Main" : $"CasinoMares-{scene}") + "-" + WorldFingerprint();
+                var room = Platform.QueryParameter("room");
+#if UNITY_EDITOR
+                if (string.IsNullOrEmpty(room))
+                    room = UnityEditor.EditorPrefs.GetString(TestRoomKey, "");
+#endif
+                return string.IsNullOrEmpty(room) ? name : $"{name}-{room}";
+            }
+        }
+
+        /// <summary>
+        /// A short code for this build's networked world: where the scene sits in the build, and every networked
+        /// object in it (and the player's cat), behaviour by behaviour. Builds that differ there can't share a room:
+        /// a newcomer loads whichever scene the room's build has at that index, and Fusion stops on objects that
+        /// don't match. With the code in the room name, a tab left open on an old build keeps a room of its own.
+        /// </summary>
+        static string WorldFingerprint()
+        {
+            const uint offset = 2166136261;
+            const uint prime = 16777619;
+            static uint Hash(uint hash, string text)
+            {
+                foreach (var c in text)
+                    hash = (hash ^ c) * prime;
+                return (hash ^ '|') * prime;
+            }
+
+            static uint Behaviours(NetworkObject networkObject)
+            {
+                var hash = offset;
+                foreach (var behaviour in networkObject.NetworkedBehaviours)
+                    hash = Hash(hash, behaviour != null ? behaviour.GetType().FullName : "-");
+                return hash;
+            }
+
+            var scene = SceneManager.GetActiveScene();
+            var world = Hash(Hash(offset, scene.buildIndex.ToString()), SceneManager.sceneCountInBuildSettings.ToString());
+            // Summed, as the objects come back in no particular order.
+            uint objects = 0;
+            foreach (var networkObject in FindObjectsByType<NetworkObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (networkObject.gameObject.scene == scene)
+                    objects += Behaviours(networkObject);
+            }
+
+            if (Instance != null && Instance._playerPrefab != null)
+                world = Hash(world, Behaviours(Instance._playerPrefab).ToString());
+            return ((world ^ objects) & 0xffffff).ToString("x6");
+        }
+
+        public const string TestRoomKey = "CasinoMares.TestRoom";
         public const string Region = "eu";
         public const int MaxPlayers = 10;
 
@@ -117,10 +178,12 @@ namespace CasinoMares.Networking
             var appSettings = PhotonAppSettings.Global.AppSettings.GetCopy();
             appSettings.FixedRegion = Region;
 
+            var session = SessionName;
+            Debug.Log($"[ConnectionManager] Joining room {session}");
             var result = await Runner.StartGame(new StartGameArgs
             {
                 GameMode = GameMode.Shared,
-                SessionName = SessionName,
+                SessionName = session,
                 PlayerCount = MaxPlayers,
                 Scene = SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex),
                 SceneManager = sceneManager,

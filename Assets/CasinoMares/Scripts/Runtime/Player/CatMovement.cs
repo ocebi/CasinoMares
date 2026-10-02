@@ -14,6 +14,9 @@ namespace CasinoMares.Player
     [RequireComponent(typeof(NetworkCharacterController))]
     public class CatMovement : NetworkBehaviour
     {
+        /// <summary>A cat below this has fallen out of the world (off the seaside terrace, say) and goes back to its spawn.</summary>
+        const float FallOutHeight = -2f;
+
         /// <summary>Set while seated or otherwise not allowed to walk around.</summary>
         public bool MovementLocked { get; set; }
 
@@ -25,6 +28,8 @@ namespace CasinoMares.Player
         bool _teleportRequested;
         Vector3 _teleportPosition;
         Quaternion _teleportRotation;
+        Vector3 _spawnPosition;
+        Quaternion _spawnRotation;
 
         /// <summary>Move the cat instantly (sitting down, standing up). Applied on the next network tick.</summary>
         public void RequestTeleport(Vector3 position, Quaternion rotation)
@@ -39,6 +44,12 @@ namespace CasinoMares.Player
             _character = GetComponent<NetworkCharacterController>();
         }
 
+        public override void Spawned()
+        {
+            _spawnPosition = transform.position;
+            _spawnRotation = transform.rotation;
+        }
+
         void Update()
         {
             // Ticks don't run every frame, so remember a jump press until the next tick consumes it.
@@ -50,6 +61,9 @@ namespace CasinoMares.Player
         {
             if (!HasStateAuthority)
                 return;
+
+            if (!_teleportRequested && transform.position.y < FallOutHeight)
+                RequestTeleport(_spawnPosition, _spawnRotation);
 
             if (_teleportRequested)
             {
