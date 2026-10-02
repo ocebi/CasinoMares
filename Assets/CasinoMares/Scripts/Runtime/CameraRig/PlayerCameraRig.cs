@@ -7,18 +7,24 @@ namespace CasinoMares.CameraRig
 {
     /// <summary>
     /// Owns the local player's cameras (GDD §3.5): an overview camera for the menu and a third-person orbit camera
-    /// that follows the local cat. Mouse look is fed straight into the orbital axes.
+    /// that follows the local cat. Mouse look is fed straight into the orbital axes, and the orbit's distance is a
+    /// setting (phones start closer, where the cat would otherwise look small).
     /// The orbit follows a smoothed anchor instead of the cat itself, so a jump barely moves the view. While the
-    /// cat walks, the orbit slowly swings behind it (turn off in the pause menu). At a table, A/D swing the seat
-    /// camera a little way around the table (to see the other players' cards) and W/S tilt it; the view stays where
-    /// it's left until the next time you sit down. A table can briefly hand the view to a focus camera (the roulette
-    /// wheel during a spin) and take it back without losing that seated look.
+    /// cat walks, the orbit slowly swings behind it (turn off in the pause menu). Up near the ceiling (the cat wall)
+    /// the orbit tips down to stay under it, rather than being pulled in to the cat by the ceiling's camera blocker. At a table, A/D (or a right-drag)
+    /// swing the seat camera a little way around the table (to see the other players' cards) and W/S tilt it; the
+    /// view stays where it's left until the next time you sit down. A seat camera with its own orbit (the terrace
+    /// café tables) goes all the way round the table instead, starting behind your seat. A table can briefly hand
+    /// the view to a focus camera (the roulette wheel during a spin) and take it back without losing that seated look.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public class PlayerCameraRig : MonoBehaviour
     {
         const string SensitivityKey = "MouseSensitivity";
         const string AutoFollowKey = "CameraAutoFollow";
+        const string DistanceKey = "CameraDistance";
+        public const float MinDistance = 1f;
+        public const float MaxDistance = 3.5f;
         const int ActivePriority = 20;
         const int OverridePriority = 30;
         const int FocusPriority = 40;
@@ -28,10 +34,22 @@ namespace CasinoMares.CameraRig
         [SerializeField] CinemachineCamera _followCamera;
         [SerializeField] float _defaultSensitivity = 0.12f;
 
+        [Header("Distance")]
+        [Tooltip("Metres between the follow camera and the cat, until the player picks their own in the pause menu.")]
+        [SerializeField] float _defaultDistance = 2.2f;
+        [Tooltip("The same on phones and tablets: closer, so the cat isn't tiny on a small screen.")]
+        [SerializeField] float _touchDefaultDistance = 1.6f;
+
         [Header("Jumps")]
         [Tooltip("How much of a jump's height the camera follows (0 = none, 1 = all of it).")]
         [SerializeField] float _jumpFollow = 0.15f;
         [SerializeField] float _heightSmoothTime = 0.18f;
+
+        [Header("Ceiling")]
+        [Tooltip("Metres the follow camera keeps below a ceiling's camera blocker.")]
+        [SerializeField] float _ceilingClearance = 0.2f;
+        [Tooltip("Degrees per second the orbit tips down (or back up) for a ceiling.")]
+        [SerializeField] float _ceilingTipSpeed = 120f;
 
         [Header("Auto follow")]
         [Tooltip("Degrees per second the orbit turns toward a cat walking sideways.")]
@@ -48,6 +66,8 @@ namespace CasinoMares.CameraRig
         [Tooltip("The seat camera swings around a point this far ahead of it, roughly the middle of the felt.")]
         [SerializeField] float _seatPivotDistance = 1.8f;
         [SerializeField] float _seatLookSmoothTime = 0.12f;
+        [Tooltip("Degrees per second A/D turn an orbiting seat camera round its table.")]
+        [SerializeField] float _seatOrbitSpeed = 90f;
 
         public static PlayerCameraRig Instance { get; private set; }
 
@@ -56,6 +76,7 @@ namespace CasinoMares.CameraRig
         Transform _anchor;
         CatMovement _movement;
         CinemachineCamera _override;
+        CinemachineOrbitalFollow _overrideOrbit;
         CinemachineCamera _focus;
         Vector3 _overrideBasePosition;
         Quaternion _overrideBaseRotation;
@@ -65,6 +86,10 @@ namespace CasinoMares.CameraRig
         float _anchorHeightVelocity;
         Vector3 _lastAnchorPosition;
         float _lastManualLook = -10f;
+        /// <summary>The pitch the player chose; the orbit's own is lower under a ceiling.</summary>
+        float _pitch;
+        float _ceilingPitch = 90f;
+        int _ceilingMask;
         Vector2 _seatLook;
         Vector2 _seatLookGoal;
         Vector2 _seatLookVelocity;
@@ -72,10 +97,24 @@ namespace CasinoMares.CameraRig
         /// <summary>True while a seat camera (or other fixed view) has taken over from the follow camera.</summary>
         public bool HasOverride => _override != null;
 
+        /// <summary>In game: the cameras belong to the local cat (walking about or seated), not the menu.</summary>
+        public bool IsFollowing => _target != null;
+
         public float Sensitivity
         {
             get => PlayerPrefs.GetFloat(SensitivityKey, _defaultSensitivity);
             set => PlayerPrefs.SetFloat(SensitivityKey, value);
+        }
+
+        /// <summary>How far the follow camera orbits from the cat, in metres.</summary>
+        public float Distance
+        {
+            get => Mathf.Clamp(PlayerPrefs.GetFloat(DistanceKey, Platform.IsTouch ? _touchDefaultDistance : _defaultDistance), MinDistance, MaxDistance);
+            set
+            {
+                PlayerPrefs.SetFloat(DistanceKey, Mathf.Clamp(value, MinDistance, MaxDistance));
+                _orbital.Radius = Distance;
+            }
         }
 
         /// <summary>The orbit swings behind the cat while it walks, so WASD alone can steer (on by default).</summary>
@@ -89,10 +128,12 @@ namespace CasinoMares.CameraRig
         {
             Instance = this;
             _orbital = _followCamera.GetComponent<CinemachineOrbitalFollow>();
+            _orbital.Radius = Distance;
             _menuCamera.Priority = ActivePriority;
             _followCamera.Priority = InactivePriority;
             _anchor = new GameObject("CameraAnchor").transform;
             _anchor.SetParent(transform, false);
+            _ceilingMask = LayerMask.GetMask("CameraBlocker");
         }
 
         void OnDestroy()
@@ -113,17 +154,29 @@ namespace CasinoMares.CameraRig
 
             // Start behind the cat.
             _orbital.HorizontalAxis.Value = target.eulerAngles.y;
+            _pitch = _orbital.VerticalAxis.Value;
+            _ceilingPitch = 90f;
             _followCamera.Priority = ActivePriority;
             _menuCamera.Priority = InactivePriority;
         }
 
-        /// <summary>Blend to a fixed camera, e.g. the seat view at a table (GDD §3.5).</summary>
-        public void SetOverride(CinemachineCamera camera)
+        /// <summary>
+        /// Blend to a fixed camera, e.g. the seat view at a table (GDD §3.5). An orbiting seat camera starts behind
+        /// <paramref name="seat"/>, looking the way the seat faces.
+        /// </summary>
+        public void SetOverride(CinemachineCamera camera, Transform seat = null)
         {
             ClearOverride();
             _override = camera;
             if (_override == null)
                 return;
+            _overrideOrbit = _override.GetComponent<CinemachineOrbitalFollow>();
+            if (_overrideOrbit != null)
+            {
+                _overrideOrbit.HorizontalAxis.Value = (seat != null ? seat : _override.transform).eulerAngles.y;
+                _overrideOrbit.VerticalAxis.Value = _overrideOrbit.VerticalAxis.Center;
+            }
+
             _override.transform.GetPositionAndRotation(out _overrideBasePosition, out _overrideBaseRotation);
             _seatLook = _seatLookGoal = _seatLookVelocity = Vector2.zero;
             _override.Priority = OverridePriority;
@@ -134,11 +187,14 @@ namespace CasinoMares.CameraRig
             ClearFocus();
             if (_override != null)
             {
-                _override.transform.SetPositionAndRotation(_overrideBasePosition, _overrideBaseRotation);
+                // An orbiting camera places itself; a fixed one goes back to where the table put it.
+                if (_overrideOrbit == null)
+                    _override.transform.SetPositionAndRotation(_overrideBasePosition, _overrideBaseRotation);
                 _override.Priority = InactivePriority;
             }
 
             _override = null;
+            _overrideOrbit = null;
         }
 
         /// <summary>Show this camera for a moment (seated only); the seat view comes back as it was on <see cref="ClearFocus"/>.</summary>
@@ -172,7 +228,11 @@ namespace CasinoMares.CameraRig
         {
             if (_override != null)
             {
-                if (_focus == null)
+                if (_focus != null)
+                    return;
+                if (_overrideOrbit != null)
+                    UpdateSeatOrbit();
+                else
                     UpdateSeatLook();
                 return;
             }
@@ -187,7 +247,7 @@ namespace CasinoMares.CameraRig
             ref var horizontal = ref _orbital.HorizontalAxis;
             ref var vertical = ref _orbital.VerticalAxis;
             horizontal.Value = horizontal.ClampValue(horizontal.Value + look.x + AutoFollowTurn(horizontal.Value));
-            vertical.Value = vertical.ClampValue(vertical.Value - look.y);
+            _pitch = vertical.ClampValue(_pitch - look.y);
         }
 
         /// <summary>
@@ -220,7 +280,7 @@ namespace CasinoMares.CameraRig
         {
             var move = GameInput.ReadMove();
             var step = _seatTurnSpeed * Time.deltaTime;
-            var drag = GameInput.ReadTouchLook() * Sensitivity;
+            var drag = GameInput.ReadSeatDrag() * Sensitivity;
             _seatLookGoal.x = Mathf.Clamp(_seatLookGoal.x + move.x * step + drag.x, -_seatYaw, _seatYaw);
             _seatLookGoal.y = Mathf.Clamp(_seatLookGoal.y - move.y * step - drag.y, -_seatPitch, _seatPitch);
             _seatLook = Vector2.SmoothDamp(_seatLook, _seatLookGoal, ref _seatLookVelocity, _seatLookSmoothTime);
@@ -232,6 +292,18 @@ namespace CasinoMares.CameraRig
             var position = pivot + orbit * (_overrideBasePosition - pivot);
             var rotation = orbit * _overrideBaseRotation * Quaternion.Euler(_seatLook.y, 0f, 0f);
             _override.transform.SetPositionAndRotation(position, rotation);
+        }
+
+        /// <summary>A/D (or a drag) take the seat camera round the table; W/S (or a drag) raise and lower it.</summary>
+        void UpdateSeatOrbit()
+        {
+            var move = GameInput.ReadMove();
+            var step = _seatOrbitSpeed * Time.deltaTime;
+            var drag = GameInput.ReadSeatDrag() * Sensitivity;
+            ref var horizontal = ref _overrideOrbit.HorizontalAxis;
+            ref var vertical = ref _overrideOrbit.VerticalAxis;
+            horizontal.Value = horizontal.ClampValue(horizontal.Value + move.x * step + drag.x);
+            vertical.Value = vertical.ClampValue(vertical.Value - move.y * step * 0.5f - drag.y);
         }
 
         /// <summary>Moves the orbit anchor: glued to the cat sideways, but only a little of each jump goes up into the view.</summary>
@@ -272,6 +344,24 @@ namespace CasinoMares.CameraRig
             }
 
             _anchor.position = new Vector3(targetPosition.x, _anchorHeight, targetPosition.z);
+            UpdateCeilingPitch();
+        }
+
+        /// <summary>
+        /// Lowers the orbit while the camera would otherwise rise into a ceiling's camera blocker: it orbits at
+        /// <see cref="CinemachineOrbitalFollow.Radius"/> from the anchor, so its height is the radius times the sine of
+        /// its pitch.
+        /// </summary>
+        void UpdateCeilingPitch()
+        {
+            ref var vertical = ref _orbital.VerticalAxis;
+            var radius = Mathf.Max(_orbital.Radius, 0.1f);
+            var limit = 90f;
+            if (Physics.Raycast(_anchor.position, Vector3.up, out var hit, radius + 1f, _ceilingMask, QueryTriggerInteraction.Ignore))
+                limit = Mathf.Asin(Mathf.Clamp((hit.distance - _ceilingClearance) / radius, -1f, 1f)) * Mathf.Rad2Deg;
+            // Eased, but from no higher than it needs to start: a pitch that's already under the limit changes nothing.
+            _ceilingPitch = Mathf.MoveTowards(Mathf.Min(_ceilingPitch, Mathf.Max(limit, _pitch)), limit, _ceilingTipSpeed * Time.deltaTime);
+            vertical.Value = vertical.ClampValue(Mathf.Min(_pitch, _ceilingPitch));
         }
     }
 }
