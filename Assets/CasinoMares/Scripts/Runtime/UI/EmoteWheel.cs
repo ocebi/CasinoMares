@@ -10,7 +10,8 @@ namespace CasinoMares.UI
     /// <summary>
     /// Hold Q to open the emote wheel, move the mouse toward an emote, release Q (or click) to play it. The cursor
     /// stays locked: mouse movement drives a pointer on the wheel, and the cat can keep walking meanwhile.
-    /// With touch controls the Emote button opens it; tap an emote to play it, or anywhere else to close.
+    /// With touch controls the Emote button opens it, and on desktop the HUD's Emotes button does
+    /// (<see cref="OpenForClicks"/>): tap or click an emote to play it, or anywhere else to close.
     /// </summary>
     public class EmoteWheel : MonoBehaviour
     {
@@ -28,6 +29,8 @@ namespace CasinoMares.UI
         Label _title;
         Label _hint;
         bool _open;
+        /// <summary>Options are picked with the pointer (touch, or the desktop Emotes button) instead of Q and the mouse.</summary>
+        bool _clickMode;
         bool _lookBlocked;
         int _unblockFrame = -1;
         Vector2 _pointerOffset;
@@ -61,19 +64,18 @@ namespace CasinoMares.UI
                 _options.Add(option);
             }
 
-            if (Platform.IsTouch)
-            {
-                _hint.text = "Tap an emote";
-                _root.pickingMode = PickingMode.Position;
-                foreach (var option in _options)
-                    option.pickingMode = PickingMode.Position;
-                _root.RegisterCallback<PointerDownEvent>(OnTouchDown);
-            }
-
+            _root.RegisterCallback<PointerDownEvent>(OnPointerDown);
             Close(false);
         }
 
-        void OnTouchDown(PointerDownEvent evt)
+        /// <summary>The desktop HUD's Emotes button: the wheel opens for a click on an emote.</summary>
+        public void OpenForClicks()
+        {
+            if (!_open && CanEmote())
+                Open(true);
+        }
+
+        void OnPointerDown(PointerDownEvent evt)
         {
             var index = _options.IndexOf(evt.target as VisualElement);
             if (index >= 0)
@@ -101,7 +103,7 @@ namespace CasinoMares.UI
             if (!_open)
             {
                 if (GameInput.EmotePressed() && CanEmote())
-                    Open();
+                    Open(Platform.IsTouch);
                 return;
             }
 
@@ -111,9 +113,9 @@ namespace CasinoMares.UI
                 return;
             }
 
-            if (Platform.IsTouch)
+            if (_clickMode)
             {
-                if (GameInput.TouchPressed(GameInput.TouchButton.Emote))
+                if (GameInput.TouchPressed(GameInput.TouchButton.Emote) || GameInput.Emote.WasPressedThisFrame())
                     Close(false);
                 return;
             }
@@ -144,9 +146,9 @@ namespace CasinoMares.UI
             return Mathf.RoundToInt(angle / (360f / count)) % count;
         }
 
-        void Select(int index)
+        void Select(int index, bool force = false)
         {
-            if (index == _selected)
+            if (index == _selected && !force)
                 return;
             if (_selected >= 0)
                 _options[_selected].RemoveFromClassList("emote-option--selected");
@@ -158,17 +160,23 @@ namespace CasinoMares.UI
             }
 
             _title.text = _selected >= 0 ? CatEmotes.Label(CatEmotes.Wheel[_selected]) : "Emotes";
-            _hint.text = Platform.IsTouch ? "Tap an emote" : _selected >= 0 ? "Release Q to play" : "Move the mouse, release Q";
+            _hint.text = _clickMode ? Platform.IsTouch ? "Tap an emote" : "Click an emote" : _selected >= 0 ? "Release Q to play" : "Move the mouse, release Q";
         }
 
-        void Open()
+        void Open(bool clickMode)
         {
             _open = IsOpen = true;
+            _clickMode = clickMode;
+            var picking = clickMode ? PickingMode.Position : PickingMode.Ignore;
+            _root.pickingMode = picking;
+            foreach (var option in _options)
+                option.pickingMode = picking;
             _pointerOffset = Vector2.zero;
-            Select(-1);
+            // Forced: the hint depends on how the wheel was opened.
+            Select(-1, true);
             _pointer.style.left = WheelSize / 2f;
             _pointer.style.top = WheelSize / 2f;
-            _pointer.EnableInClassList("hidden", Platform.IsTouch);
+            _pointer.EnableInClassList("hidden", clickMode);
             _root.RemoveFromClassList("hidden");
             _unblockFrame = -1;
             SetLookBlocked(true);
