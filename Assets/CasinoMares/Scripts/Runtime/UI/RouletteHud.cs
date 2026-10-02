@@ -17,7 +17,7 @@ namespace CasinoMares.UI
     /// Clear / Ready, the phase banner with timer, recent results and table settings. As at a real table, every seat
     /// plays its own chip colour: the other seats' bets show as coloured dots on the layout, with a legend above it
     /// and the amounts for whatever spot the pointer is over. During the spin the board steps aside and the camera
-    /// moves in over the wheel (a personal setting).
+    /// moves in over the wheel (a personal setting); a card at the side keeps your own bets in view.
     /// </summary>
     public class RouletteHud : MonoBehaviour
     {
@@ -38,6 +38,10 @@ namespace CasinoMares.UI
         };
 
         static readonly Color YouColor = new(1f, 0.82f, 0.36f);
+
+        static readonly Color GreenPocket = new(0.08f, 0.47f, 0.24f);
+        static readonly Color RedPocket = new(0.67f, 0.12f, 0.15f);
+        static readonly Color BlackPocket = new(0.11f, 0.1f, 0.12f);
 
         sealed class CellView
         {
@@ -68,9 +72,13 @@ namespace CasinoMares.UI
         Button _betTimerButton;
         Button _npcButton;
         Button _wheelCloseUpButton;
+        VisualElement _myBets;
+        VisualElement _myBetsRows;
+        Label _myBetsTotal;
         readonly Dictionary<int, CellView> _cells = new();
         readonly PlayerEntry[] _players = new PlayerEntry[RouletteTable.SeatCount];
         readonly List<Button> _chipButtons = new();
+        readonly List<int> _mySpots = new();
         readonly System.Text.StringBuilder _text = new();
 
         RouletteTable _table;
@@ -78,6 +86,7 @@ namespace CasinoMares.UI
         int _chip = 10;
         int _hoverSpot = -1;
         int _shownHistoryHead = int.MinValue;
+        int _shownMyBets = int.MinValue;
         bool _watchingWheel;
 
         static bool WheelCloseUp
@@ -106,6 +115,9 @@ namespace CasinoMares.UI
             _betTimerButton = ui.Q<Button>("bet-timer-button");
             _npcButton = ui.Q<Button>("npc-button");
             _wheelCloseUpButton = ui.Q<Button>("wheel-closeup-button");
+            _myBets = ui.Q("my-bets");
+            _myBetsRows = ui.Q("my-bets-rows");
+            _myBetsTotal = ui.Q<Label>("my-bets-total");
 
             BuildBoard(ui.Q("board"));
             BuildChips(ui.Q("chip-row"));
@@ -138,6 +150,7 @@ namespace CasinoMares.UI
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
             _shownHistoryHead = int.MinValue;
+            _shownMyBets = int.MinValue;
         }
 
         void OnLocalRoundResult(RouletteTable table, int net)
@@ -359,6 +372,7 @@ namespace CasinoMares.UI
             if (GameInput.KeyPressed(UnityEngine.InputSystem.Key.Space) && betting)
                 _table.SetDone(_seat, true);
 
+            UpdateMyBets(result);
             UpdateHistory();
         }
 
@@ -373,6 +387,85 @@ namespace CasinoMares.UI
             else
                 PlayerCameraRig.Instance?.ClearFocus();
         }
+
+        /// <summary>
+        /// The board is out of sight while the camera watches the wheel, so a card lists your bets there. Once the ball
+        /// has landed it puts the winners first with what each one pays and dims the rest.
+        /// </summary>
+        void UpdateMyBets(int result)
+        {
+            var total = _table.TotalBetAt(_seat);
+            var shown = _watchingWheel && total > 0 && _settingsPanel.ClassListContains("hidden");
+            _myBets.EnableInClassList("hidden", !shown);
+            if (!shown)
+                return;
+
+            var key = System.HashCode.Combine(_table.RoundId, result, total);
+            if (key == _shownMyBets)
+                return;
+            _shownMyBets = key;
+
+            _mySpots.Clear();
+            for (var spot = 0; spot < RouletteRules.SpotCount; spot++)
+            {
+                if (_table.BetAt(_seat, spot) > 0)
+                    _mySpots.Add(spot);
+            }
+
+            if (result >= 0)
+                _mySpots.Sort((a, b) => RouletteRules.Wins(b, result).CompareTo(RouletteRules.Wins(a, result)));
+
+            _myBetsRows.Clear();
+            var maxRows = Platform.IsTouch ? 5 : 8;
+            var paidBack = 0;
+            for (var i = 0; i < _mySpots.Count; i++)
+            {
+                var spot = _mySpots[i];
+                var amount = _table.BetAt(_seat, spot);
+                var payout = result >= 0 ? RouletteRules.Payout(spot, amount, result) : 0;
+                paidBack += payout;
+                if (i < maxRows)
+                    _myBetsRows.Add(MyBetRow(spot, amount, result, payout));
+            }
+
+            if (_mySpots.Count > maxRows)
+            {
+                var more = new Label($"+{_mySpots.Count - maxRows} more") { pickingMode = PickingMode.Ignore };
+                more.AddToClassList("rl-my-bets-more");
+                _myBetsRows.Add(more);
+            }
+
+            var net = paidBack - total;
+            _myBetsTotal.text = result < 0 ? $"Total {total:N0}"
+                : net > 0 ? $"You win {net:N0}"
+                : net < 0 ? $"You lose {-net:N0}"
+                : "You break even";
+        }
+
+        static VisualElement MyBetRow(int spot, int amount, int result, int payout)
+        {
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.AddToClassList("rl-my-bet");
+            row.EnableInClassList("rl-my-bet--won", payout > 0);
+            row.EnableInClassList("rl-my-bet--lost", result >= 0 && payout == 0);
+
+            var name = new Label(RouletteRules.SpotLabel(spot)) { pickingMode = PickingMode.Ignore };
+            name.AddToClassList("rl-my-bet-spot");
+            if (spot < RouletteRules.Numbers)
+                name.style.backgroundColor = PocketColor(spot);
+            else if (spot == RouletteRules.Red)
+                name.style.backgroundColor = RedPocket;
+            else if (spot == RouletteRules.Black)
+                name.style.backgroundColor = BlackPocket;
+            row.Add(name);
+
+            var value = new Label(payout > 0 ? $"{amount:N0}  +{payout - amount:N0}" : amount.ToString("N0")) { pickingMode = PickingMode.Ignore };
+            value.AddToClassList("rl-my-bet-amount");
+            row.Add(value);
+            return row;
+        }
+
+        static Color PocketColor(int number) => number == 0 ? GreenPocket : RouletteRules.IsRed(number) ? RedPocket : BlackPocket;
 
         string NameAt(int seat)
         {
@@ -453,7 +546,7 @@ namespace CasinoMares.UI
                     break;
                 var item = new Label(number.ToString()) { pickingMode = PickingMode.Ignore };
                 item.AddToClassList("rl-history-item");
-                item.style.backgroundColor = number == 0 ? new Color(0.08f, 0.47f, 0.24f) : RouletteRules.IsRed(number) ? new Color(0.67f, 0.12f, 0.15f) : new Color(0.11f, 0.1f, 0.12f);
+                item.style.backgroundColor = PocketColor(number);
                 item.style.opacity = 1f - i * 0.06f;
                 _history.Add(item);
             }

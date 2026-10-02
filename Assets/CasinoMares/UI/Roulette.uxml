@@ -17,6 +17,11 @@
                 <ui:Button name="done-button" text="Ready" class="bj-button" />
             </ui:VisualElement>
         </ui:VisualElement>
+        <ui:VisualElement name="my-bets" class="panel rl-my-bets hidden" picking-mode="Ignore">
+            <ui:Label text="Your bets" class="bj-settings-title" picking-mode="Ignore" />
+            <ui:VisualElement name="my-bets-rows" picking-mode="Ignore" />
+            <ui:Label name="my-bets-total" class="rl-my-bets-total" picking-mode="Ignore" />
+        </ui:VisualElement>
         <ui:VisualElement name="settings-panel" class="panel bj-settings hidden">
             <ui:Label text="Table settings" class="bj-settings-title" />
             <ui:Button name="bet-timer-button" class="bj-setting" />
