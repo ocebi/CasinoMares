@@ -85,24 +85,28 @@ namespace CasinoMares.Player
                 _animator.SetTrigger(AngryId);
         }
 
-        /// <summary>Play an emote (animation plus its sound). Ignored unless the cat is standing on the ground.</summary>
-        public void PlayEmote(CatEmote emote)
+        /// <summary>
+        /// Play an emote (animation plus its sound). Ignored unless the cat is standing on the ground; returns whether
+        /// it started.
+        /// </summary>
+        public bool PlayEmote(CatEmote emote)
         {
             if (emote == CatEmote.Happy)
             {
                 PlayHappy(2);
-                return;
+                return true;
             }
 
             // Emotes start from the locomotion state only; a trigger set anywhere else would fire later.
             if (_animator == null || emote == CatEmote.None || _animator.IsInTransition(0) ||
                 _animator.GetCurrentAnimatorStateInfo(0).shortNameHash != LocomotionState)
-                return;
+                return false;
 
             _animator.SetInteger(EmoteId, (int)emote);
             _animator.SetTrigger(EmoteTriggerId);
             if (CatEmotes.TryGetSound(emote, out var sound, out var delay, out var volume))
                 _pendingSounds.Add((Time.time + delay, sound, volume));
+            return true;
         }
 
         /// <summary>A quick swat with the right front paw, on top of whatever the cat is doing.</summary>

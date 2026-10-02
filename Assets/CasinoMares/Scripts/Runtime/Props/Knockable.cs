@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CasinoMares.Audio;
+using CasinoMares.Player;
 using Fusion;
 using UnityEngine;
 
@@ -150,20 +151,9 @@ namespace CasinoMares.Props
         {
             Knockable best = null;
             var bestDistance = float.MaxValue;
-            var origin = cat.position;
             foreach (var knockable in All)
             {
-                if (knockable == null)
-                    continue;
-                var offset = knockable.Center - origin;
-                // From a paw on the floor up to a table rim or bar top a little above the cat's head.
-                if (offset.y < -0.25f || offset.y > 1.0f)
-                    continue;
-                offset.y = 0f;
-                var distance = offset.magnitude;
-                if (distance > reach || distance < 0.01f)
-                    continue;
-                if (Vector3.Angle(cat.forward, offset) > maxAngle)
+                if (knockable == null || !PawSwipe.InReach(cat, knockable.Center, reach, maxAngle, out var distance))
                     continue;
                 if (distance < bestDistance)
                 {

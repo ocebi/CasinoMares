@@ -85,6 +85,9 @@ namespace CasinoMares.Npc
 
         public static bool IsAssigned(PatronBrain patron) => Assignments.ContainsKey(patron);
 
+        /// <summary>Lets a watcher go without sending it off; the patron decides where to go next.</summary>
+        public static void Release(PatronBrain patron) => Assignments.Remove(patron);
+
         /// <summary>Patrons that despawned or moved to another client are no longer ours to direct.</summary>
         static void DropStaleAssignments()
         {
@@ -139,7 +142,7 @@ namespace CasinoMares.Npc
             var bestDistance = float.MaxValue;
             foreach (var patron in PatronBrain.All)
             {
-                if (patron == null || !patron.HasStateAuthority || Assignments.ContainsKey(patron))
+                if (patron == null || !patron.HasStateAuthority || Assignments.ContainsKey(patron) || patron.IsSpooked)
                     continue;
                 var distance = (patron.transform.position - spot).sqrMagnitude;
                 if (distance < bestDistance)
