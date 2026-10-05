@@ -1,8 +1,21 @@
 namespace CasinoMares.Rules
 {
+    /// <summary>How a slot win is celebrated, by how many times the bet it pays.</summary>
+    public enum SlotWin
+    {
+        None,
+        /// <summary>Less than ten times the bet: a chime and a hop.</summary>
+        Small,
+        /// <summary>Ten times the bet or more: coins and a BIG WIN banner.</summary>
+        Big,
+        /// <summary>Fifty times the bet or more: a bell the whole room hears and a line in the chat.</summary>
+        Top,
+    }
+
     /// <summary>
-    /// Three-reel cat slot machine (GDD §13.3). Reels are weighted; three of a kind pays by symbol, paws pay on
-    /// their own (one paw returns the bet, two pay triple). Return to player is about 98%.
+    /// Three-reel cat slot machine (GDD §13.3). Reels are weighted; three of a kind pays by symbol, and paws pay on
+    /// their own (one paw doubles the bet, two pay four times), so about a third of spins win something and none
+    /// just hand the bet back. Return to player is about 98.5%.
     /// </summary>
     public static class SlotRules
     {
@@ -20,10 +33,13 @@ namespace CasinoMares.Rules
         public static readonly string[] Names = { "FISH", "MILK", "YARN", "MOUSE", "PAW", "7" };
 
         /// <summary>Relative frequency of each symbol on a reel.</summary>
-        public static readonly int[] Weights = { 30, 24, 18, 12, 10, 6 };
+        public static readonly int[] Weights = { 36, 24, 14, 8, 10, 4 };
 
         /// <summary>Multiplier (stake included) for three of a kind.</summary>
-        public static readonly int[] ThreeOfAKind = { 8, 12, 20, 40, 60, 150 };
+        public static readonly int[] ThreeOfAKind = { 3, 6, 12, 24, 50, 120 };
+
+        public const int OnePaw = 2;
+        public const int TwoPaws = 4;
 
         public static int WeightTotal
         {
@@ -57,12 +73,24 @@ namespace CasinoMares.Rules
             var paws = (a == Paw ? 1 : 0) + (b == Paw ? 1 : 0) + (c == Paw ? 1 : 0);
             return paws switch
             {
-                2 => 3,
-                1 => 1,
+                2 => TwoPaws,
+                1 => OnePaw,
                 _ => 0,
             };
         }
 
         public static int Payout(int bet, int a, int b, int c) => bet * Multiplier(a, b, c);
+
+        /// <summary>The first two reels match, so the third could make three of a kind: it slows down to tease.</summary>
+        public static bool Teases(int a, int b) => a == b;
+
+        public static SlotWin Tier(int bet, int payout)
+        {
+            if (bet <= 0 || payout <= bet)
+                return SlotWin.None;
+            if (payout >= bet * 50)
+                return SlotWin.Top;
+            return payout >= bet * 10 ? SlotWin.Big : SlotWin.Small;
+        }
     }
 }
