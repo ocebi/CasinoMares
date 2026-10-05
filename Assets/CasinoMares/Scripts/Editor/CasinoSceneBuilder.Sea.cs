@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using CasinoMares.Npc;
 using CasinoMares.Props;
 using CasinoMares.Social;
 using CasinoMares.UI;
@@ -438,6 +439,7 @@ namespace CasinoMares.Editor
             BuildExterior(outside);
             var terrace = BuildTerraceDeck(outside, stone, out var teak);
             BuildTerraceFurniture(terrace, m, teak);
+            BuildBarSeats(hall);
             BuildCatWall(hall, m, teak);
 
             var hud = CreateDocument("UI_Terrace", "Terrace.uxml", Load<PanelSettings>(PanelSettingsPath), 6);
@@ -1233,9 +1235,10 @@ namespace CasinoMares.Editor
                 SetArray(table, "_seatCameras", cameras);
             }
 
-            // Patrons also come out to stand at the railing and look at the sea.
-            AddPatronSpot(spots, "Terrace_Rail_East_A", new Vector3(17.2f, 0f, 1.6f), 90f, false, new Vector2(10f, 25f));
-            AddPatronSpot(spots, "Terrace_Rail_East_B", new Vector3(17.2f, 0f, 4.5f), 90f, false, new Vector2(10f, 25f));
+            // Patrons also come out to sit at the railing and look at the sea. Sitting, not standing: a standing cat plays
+            // idle emotes, and the meow and groom ones sit it down and stand it up again.
+            AddPatronSpot(spots, "Terrace_Rail_East_A", new Vector3(17.2f, 0f, 1.6f), 90f, true, new Vector2(10f, 25f));
+            AddPatronSpot(spots, "Terrace_Rail_East_B", new Vector3(17.2f, 0f, 4.5f), 90f, true, new Vector2(10f, 25f));
 
             var pot = Lit("Sea_Terracotta", new Color(0.72f, 0.38f, 0.24f), 0.15f);
             var soil = Lit("Sea_Soil", new Color(0.18f, 0.12f, 0.08f), 0.05f);
@@ -1253,6 +1256,57 @@ namespace CasinoMares.Editor
         /// One camera per table that every seat shares: it orbits the middle of the table (A/D, W/S or a drag, see
         /// PlayerCameraRig), starting behind whoever sits down.
         /// </summary>
+        // ---------------------------------------------------------------- Bar stools
+
+        const int BarStools = 4;
+        /// <summary>The stools' tops, where a seated cat sits (and where patrons sit, see BuildPatronSpots).</summary>
+        const float BarStoolHeight = 0.4f;
+
+        /// <summary>
+        /// Players can sit on the bar stools too, as on the terrace chairs: one <see cref="TerraceTable"/> for the row,
+        /// and each stool its own orbiting camera, starting behind the cat and kept on the room side of the counter.
+        /// The patrons' stool spots give way to players.
+        /// </summary>
+        static void BuildBarSeats(Transform hall)
+        {
+            var bar = hall.Find("Bar");
+            var spots = GameObject.Find(PatronSpotsName).transform;
+            var root = new GameObject("Bar Seats");
+            root.transform.SetParent(bar, false);
+            MakeMasterClientObject(root.AddComponent<NetworkObject>());
+            var table = root.AddComponent<TerraceTable>();
+
+            var anchors = new Transform[BarStools];
+            var cameras = new CinemachineCamera[BarStools];
+            for (var i = 0; i < BarStools; i++)
+            {
+                var stool = bar.Find($"BarStool_{i + 1}");
+                // Facing the counter (+Z), like the patrons who sit here, and a little behind the stool's centre.
+                var top = new Vector3(stool.position.x, BarStoolHeight, stool.position.z - SeatBack);
+                anchors[i] = Child(root.transform, $"Seat_{i + 1}", root.transform.InverseTransformPoint(top));
+                var camera = TableOrbitCamera(anchors[i]);
+                var orbit = camera.GetComponent<CinemachineOrbitalFollow>();
+                orbit.Radius = 1.9f;
+                orbit.HorizontalAxis.Range = new Vector2(-100f, 100f);
+                orbit.HorizontalAxis.Wrap = false;
+                cameras[i] = camera;
+
+                var seat = stool.gameObject.AddComponent<TerraceSeat>();
+                SetFields(seat, ("_table", table));
+                SetInt(seat, "_seat", i);
+                SetFloat(seat, "_radius", 0.6f);
+                SetString(seat, "_prompt", "Sit at the bar");
+
+                var spot = spots.Find($"BarStool_{i + 1}").GetComponent<PatronSpot>();
+                SetFields(spot, ("_playerTable", table));
+                SetInt(spot, "_playerSeat", i);
+            }
+
+            SetString(table, "_displayName", "Bar");
+            SetArray(table, "_seatAnchors", anchors);
+            SetArray(table, "_seatCameras", cameras);
+        }
+
         static CinemachineCamera TableOrbitCamera(Transform table)
         {
             var focus = Child(table, "OrbitTarget", new Vector3(0f, 0.5f, 0f));

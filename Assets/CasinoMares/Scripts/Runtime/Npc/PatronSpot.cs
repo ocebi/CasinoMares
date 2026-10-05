@@ -12,7 +12,7 @@ namespace CasinoMares.Npc
         [Tooltip("Patrons sit down here instead of standing around.")]
         [SerializeField] bool _sit;
         [SerializeField] Vector2 _stayRange = new(6f, 16f);
-        [Tooltip("A seat players can take too (terrace chairs): patrons leave it to them.")]
+        [Tooltip("A seat players can take too (terrace chairs, bar stools): patrons leave it to them.")]
         [SerializeField] TerraceTable _playerTable;
         [SerializeField] int _playerSeat = -1;
 

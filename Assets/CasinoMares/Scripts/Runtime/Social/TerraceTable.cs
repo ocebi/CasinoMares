@@ -9,13 +9,14 @@ using UnityEngine;
 namespace CasinoMares.Social
 {
     /// <summary>
-    /// A café table on the seaside terrace: somewhere to sit, watch the sea and chat, with no game. It seats players
-    /// through the same <see cref="IGameTable"/> path as the games (seat camera, Stand up, the seat anchor), and
-    /// patrons sit on the free seats (<see cref="Npc.PatronSpot"/>).
+    /// A café table on the seaside terrace, or the row of bar stools: somewhere to sit and chat, with no game. It seats
+    /// players through the same <see cref="IGameTable"/> path as the games (seat camera, Stand up, the seat anchor),
+    /// and patrons sit on the free seats (<see cref="Npc.PatronSpot"/>).
     /// </summary>
     public class TerraceTable : NetworkBehaviour, IGameTable, IPlayerLeft
     {
-        public const int MaxSeats = 3;
+        /// <summary>Three chairs at a terrace table, four stools at the bar.</summary>
+        public const int MaxSeats = 4;
 
         public static readonly List<TerraceTable> All = new();
 

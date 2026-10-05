@@ -7,8 +7,8 @@ using UnityEngine.UIElements;
 namespace CasinoMares.UI
 {
     /// <summary>
-    /// Seated at a terrace table there's no game UI, just Stand up (E). Phones need the button: with no keyboard,
-    /// it's the only way back up.
+    /// Seated at a terrace table or on a bar stool there's no game UI, just Stand up (E). Phones need the button:
+    /// with no keyboard, it's the only way back up.
     /// </summary>
     public class TerraceHud : MonoBehaviour
     {
