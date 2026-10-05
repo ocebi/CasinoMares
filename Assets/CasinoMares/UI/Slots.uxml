@@ -14,6 +14,10 @@
                 <ui:Button name="spin-button" text="Spin (Space)" class="bj-button" />
             </ui:VisualElement>
         </ui:VisualElement>
+        <ui:VisualElement name="win-banner" class="slots-banner" picking-mode="Ignore">
+            <ui:Label name="win-title" text="BIG WIN!" class="slots-banner-title" picking-mode="Ignore" />
+            <ui:Label name="win-amount" text="+0" class="slots-banner-amount" picking-mode="Ignore" />
+        </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
         </ui:VisualElement>

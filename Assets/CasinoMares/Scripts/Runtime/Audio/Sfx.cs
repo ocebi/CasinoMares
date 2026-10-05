@@ -57,6 +57,8 @@ namespace CasinoMares.Audio
             _synthesized[SoundId.PropClink] = (new[] { CatVoice.Clink(0), CatVoice.Clink(1) }, 0.45f, new Vector2(0.9f, 1.1f));
             _synthesized[SoundId.PropThud] = (new[] { CatVoice.Thud(0) }, 0.6f, new Vector2(0.85f, 1.15f));
             _synthesized[SoundId.BallTick] = (new[] { CatVoice.BallTick(0), CatVoice.BallTick(1) }, 0.5f, new Vector2(0.9f, 1.15f));
+            _synthesized[SoundId.SlotChime] = (new[] { CatVoice.Chime(0), CatVoice.Chime(1) }, 0.45f, new Vector2(0.98f, 1.02f));
+            _synthesized[SoundId.SlotBell] = (new[] { CatVoice.Bell() }, 0.6f, Vector2.one);
         }
 
         void OnDestroy()
@@ -297,6 +299,60 @@ namespace CasinoMares.Audio
             }
 
             return Clip($"BallTick_{seed}", samples);
+        }
+
+        /// <summary>A small slot win: three quick bell notes going up.</summary>
+        public static AudioClip Chime(int seed)
+        {
+            var notes = seed == 0 ? new[] { 1046.5f, 1318.5f, 1568f } : new[] { 1174.7f, 1480f, 1760f };
+            const float gap = 0.085f;
+            var samples = new float[(int)(SampleRate * (gap * (notes.Length - 1) + 0.8f))];
+
+            for (var n = 0; n < notes.Length; n++)
+            {
+                var start = (int)(SampleRate * gap * n);
+                for (var i = start; i < samples.Length; i++)
+                {
+                    var time = (i - start) / (float)SampleRate;
+                    var tone = Mathf.Sin(2f * Mathf.PI * notes[n] * time) +
+                               0.3f * Mathf.Sin(2f * Mathf.PI * notes[n] * 2.76f * time) * Mathf.Exp(-time * 14f);
+                    samples[i] += tone * Mathf.Exp(-time * 5.5f) * 0.28f;
+                }
+            }
+
+            return Clip($"Chime_{seed}", samples);
+        }
+
+        /// <summary>A top slot win: a big brass bell, rung three times.</summary>
+        public static AudioClip Bell()
+        {
+            // A church bell's partials over its strike note: hum, prime, minor third, fifth, octave and above.
+            var partials = new[] { 0.5f, 1f, 1.19f, 1.5f, 2f, 2.52f, 2.66f };
+            var levels = new[] { 0.5f, 0.8f, 0.55f, 0.35f, 0.4f, 0.2f, 0.15f };
+            const float strike = 587.3f;
+            const float gap = 0.42f;
+            const int strikes = 3;
+            var ring = new float[(int)(SampleRate * 2.6f)];
+            for (var i = 0; i < ring.Length; i++)
+            {
+                var time = i / (float)SampleRate;
+                var value = 0f;
+                for (var p = 0; p < partials.Length; p++)
+                    value += Mathf.Sin(2f * Mathf.PI * strike * partials[p] * time) * levels[p] * Mathf.Exp(-time * (1.6f + p * 0.9f));
+                var clang = time < 0.01f ? 1f - time / 0.01f : 0f;
+                ring[i] = value * 0.16f + clang * 0.1f;
+            }
+
+            var samples = new float[(int)(SampleRate * gap) * (strikes - 1) + ring.Length];
+            for (var s = 0; s < strikes; s++)
+            {
+                var start = (int)(SampleRate * gap) * s;
+                var level = s == strikes - 1 ? 1f : 0.85f;
+                for (var i = 0; i < ring.Length; i++)
+                    samples[start + i] += ring[i] * level;
+            }
+
+            return Clip("Bell", samples);
         }
 
         /// <summary>A soft thud: a falling low tone plus a muffled noise hit.</summary>

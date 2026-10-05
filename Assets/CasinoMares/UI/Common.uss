@@ -795,6 +795,48 @@
     width: 260px;
 }
 
+/* Slots: the BIG WIN banner, whose payout counts up */
+.slots-banner {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 26%;
+    align-items: center;
+    opacity: 0;
+    scale: 0.5 0.5;
+    transition-property: opacity, scale;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out-back;
+}
+
+.slots-banner--show {
+    opacity: 1;
+    scale: 1 1;
+}
+
+.slots-banner-title {
+    font-size: 72px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+    -unity-text-outline-width: 2px;
+    -unity-text-outline-color: rgb(90, 40, 10);
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+}
+
+.slots-banner--top .slots-banner-title {
+    color: rgb(255, 150, 210);
+    -unity-text-outline-color: rgb(90, 20, 60);
+}
+
+.slots-banner-amount {
+    font-size: 44px;
+    -unity-font-style: bold;
+    color: var(--cm-text);
+    -unity-text-outline-width: 1px;
+    -unity-text-outline-color: rgb(40, 20, 10);
+    text-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
 /* Roulette: your own bets, on a card at the side while the camera watches the wheel */
 .rl-my-bets {
     position: absolute;
@@ -1315,6 +1357,18 @@
 
 .touch .slots-paytable {
     top: 146px;
+}
+
+.touch .slots-banner {
+    top: 20%;
+}
+
+.touch .slots-banner-title {
+    font-size: 52px;
+}
+
+.touch .slots-banner-amount {
+    font-size: 32px;
 }
 
 .touch .rl-my-bets {

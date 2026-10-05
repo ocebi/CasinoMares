@@ -4,7 +4,8 @@ A cozy multiplayer casino for up to 10 friends, where everyone is a cat. Built w
 (URP), Photon Fusion 2 (Shared Mode), Cinemachine and UI Toolkit. The full design is in
 [`Docs/GDD.md`](Docs/GDD.md).
 
-**Games:** Blackjack (2 tables), European Roulette, Texas Hold'em, Baccarat, and 3 slot machines.
+**Games:** Blackjack (2 tables), European Roulette, Texas Hold'em, Baccarat, and 4 slot machines
+(2 three-reel, 2 cascading Yarn Tumbles).
 There's also chat, a leaderboard (hold Tab, plus the wall board), chip gifting, "Cat Welfare" at the
 cashier when you're broke, NPC cats (dealers, seat fillers, patrons, staff) and a spectator panel
 when you stand near a friend who's playing.

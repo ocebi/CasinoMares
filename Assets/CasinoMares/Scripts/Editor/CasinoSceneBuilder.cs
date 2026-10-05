@@ -71,6 +71,11 @@ namespace CasinoMares.Editor
         const float HallDepth = 14f;
         /// <summary>The entrance doorway in the south wall, over the carpet runner (NPC players come and go here).</summary>
         const float DoorX = 4.8f;
+        /// <summary>
+        /// A sitting cat leans forward over its front paws, so on a stool it sits this far behind the centre (away
+        /// from what it faces) to keep its paws on the cushion.
+        /// </summary>
+        const float SeatBack = 0.09f;
         const float DoorWidth = 1.6f;
         const float DoorHeight = 2.4f;
         const float CeilingHeight = 3.5f;
@@ -816,8 +821,13 @@ namespace CasinoMares.Editor
 
             BuildRouletteTable("Roulette", new Vector3(0f, 0f, 4.3f), materials, npcPrefab);
             BuildBaccaratTable("Baccarat", new Vector3(-0.4f, 0f, -3.4f), materials, npcPrefab);
-            for (var i = 0; i < 3; i++)
-                BuildSlotMachine($"Slot Machine {i + 1}", new Vector3(HallWidth / 2f - 0.55f, 0f, -2.1f - i * 1.15f), materials);
+            // Two three-reel machines nearest the windows, then two Yarn Tumbles towards the south wall.
+            for (var i = 0; i < 4; i++)
+            {
+                var kind = i < 2 ? SlotKind.Reels : SlotKind.YarnTumble;
+                var name = kind == SlotKind.Reels ? $"Slot Machine {i + 1}" : $"Yarn Tumble {i - 1}";
+                BuildSlotMachine(name, new Vector3(HallWidth / 2f - 0.55f, 0f, -2.1f - i * 1.15f), kind, materials);
+            }
             BuildPokerTable("Poker", new Vector3(-7.9f, 0f, -0.9f), materials, npcPrefab);
             BuildBar(hall, materials, npcPrefab);
             BuildCashier(hall, materials, npcPrefab);
@@ -869,6 +879,13 @@ namespace CasinoMares.Editor
             public readonly Material BaccaratPlayer = Lit("BaccaratPlayer", new Color(0.18f, 0.32f, 0.7f), 0.2f);
             public readonly Material BaccaratBanker = Lit("BaccaratBanker", new Color(0.62f, 0.14f, 0.17f), 0.2f);
             public readonly Material Cabinet = Lit("SlotCabinet", new Color(0.45f, 0.08f, 0.14f), 0.55f, 0.2f);
+            public readonly Material YarnCabinet = Lit("YarnTumbleCabinet", new Color(0.1f, 0.36f, 0.4f), 0.35f);
+            // Matte, so the lamps above don't leave a hotspot on the grid.
+            public readonly Material YarnWindow = Lit("YarnTumbleWindow", YarnTumbleSymbols.Window, 0.1f);
+            /// <summary>The Yarn Tumble grid: alpha-clipped, so the glow behind a winning symbol shows round its tile.</summary>
+            public readonly Material YarnGrid = Cutout(Unlit("YarnTumbleGrid", null));
+            public readonly Material SpinButton = Emissive("SlotSpinButton", new Color(0.85f, 0.15f, 0.12f), new Color(1f, 0.2f, 0.12f) * 1.5f);
+            public readonly Material Coin = Metal(Emissive("SlotCoin", new Color(1f, 0.78f, 0.3f), new Color(0.5f, 0.32f, 0.06f)), 0.8f, 0.75f);
             public readonly Material Ball = Lit("RouletteBall", new Color(0.96f, 0.95f, 0.92f), 0.8f);
             public readonly Material Board = Unlit("LeaderboardBoard", Load<RenderTexture>(BoardTexturePath));
 
@@ -877,6 +894,7 @@ namespace CasinoMares.Editor
             public readonly Material LampGlow = Emissive("LampGlow", new Color(1f, 0.9f, 0.75f), new Color(1f, 0.8f, 0.55f) * 6f);
             public readonly Material SconceGlow = Emissive("SconceGlow", new Color(1f, 0.85f, 0.65f), new Color(1f, 0.72f, 0.45f) * 2.5f);
             public readonly Material SlotGlow = Emissive("SlotGlow", new Color(1f, 0.8f, 0.5f), new Color(1f, 0.55f, 0.25f) * 3f);
+            public readonly Material YarnGlow = Emissive("YarnTumbleGlow", new Color(1f, 0.6f, 0.85f), new Color(1f, 0.3f, 0.7f) * 1.5f);
             public readonly Material ShelfGlow = Emissive("ShelfGlow", new Color(1f, 0.8f, 0.55f), new Color(1f, 0.62f, 0.3f) * 2.5f);
             public readonly Material Cone = LightConeMaterial();
             public readonly Material Dust = SoftAdditive("DustMote", SoftDotTexture(), new Color(1f, 0.85f, 0.65f) * 0.9f);
@@ -1255,6 +1273,26 @@ namespace CasinoMares.Editor
             return material;
         }
 
+        /// <summary>Alpha clipping on a URP material (what the inspector's Alpha Clipping toggle does).</summary>
+        static Material Cutout(Material material)
+        {
+            material.SetFloat("_AlphaClip", 1f);
+            material.SetFloat("_Cutoff", 0.5f);
+            material.EnableKeyword("_ALPHATEST_ON");
+            material.SetOverrideTag("RenderType", "TransparentCutout");
+            material.renderQueue = (int)RenderQueue.AlphaTest;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        static Material Metal(Material material, float metallic, float smoothness)
+        {
+            material.SetFloat("_Metallic", metallic);
+            material.SetFloat("_Smoothness", smoothness);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         static Material MaterialAsset(string name, string shader)
         {
             var path = $"{Root}/Art/Materials/{name}.mat";
@@ -1537,7 +1575,7 @@ namespace CasinoMares.Editor
             Pendant(lamps, "Lamp_Bar_B", new Vector3(-4.0f, 2.55f, 5.15f), 0.85f, 0.85f, 8f, false, cone, m);
             Pendant(lamps, "Lamp_Lounge", new Vector3(6.6f, 2.65f, 1.4f), 1.5f, 0f, 11f, true, cone, m);
             Pendant(lamps, "Lamp_Cashier", new Vector3(-6f, 2.6f, -4.95f), 1.0f, 0.74f, 8f, false, cone, m);
-            Pendant(lamps, "Lamp_Slots", new Vector3(9.4f, 2.75f, -3.25f), 1.4f, 0f, 10f, false, cone, m);
+            Pendant(lamps, "Lamp_Slots", new Vector3(9.4f, 2.75f, -3.8f), 1.6f, 0f, 10f, false, cone, m);
         }
 
         static void Pendant(Transform parent, string name, Vector3 position, float coneRadius, float coneBottom, float intensity, bool shadows, Mesh cone, Materials m)
@@ -2166,64 +2204,185 @@ namespace CasinoMares.Editor
 
         // ---------------------------------------------------------------- Slot machines
 
-        /// <summary>A slot machine against the east wall, facing west (-X), with its stool in front.</summary>
-        static SlotMachine BuildSlotMachine(string name, Vector3 position, Materials m)
+        /// <summary>
+        /// A slot machine against the east wall, facing west (-X), with its stool in front: a classic red cabinet with
+        /// three reels, or a taller teal Yarn Tumble with its 5×5 grid, chain lamps and name sign.
+        /// </summary>
+        static SlotMachine BuildSlotMachine(string name, Vector3 position, SlotKind kind, Materials m)
         {
             var root = new GameObject(name);
             root.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, -90f, 0f));
             MakeMasterClientObject(root.AddComponent<NetworkObject>());
             var machine = root.AddComponent<SlotMachine>();
-            var view = root.AddComponent<SlotMachineView>();
+            var celebration = root.AddComponent<SlotCelebration>();
             var t = root.transform;
+            var tumble = kind == SlotKind.YarnTumble;
 
             // Local frame: +Z is the machine's front (facing the player), +Y up.
-            Box("Cabinet", t, new Vector3(0f, 0.65f, 0f), new Vector3(0.8f, 1.3f, 0.5f), m.Cabinet);
-            Box("Topper", t, new Vector3(0f, 1.38f, 0.02f), new Vector3(0.84f, 0.16f, 0.54f), m.Brass, collider: false);
-            Box("Marquee", t, new Vector3(0f, 1.38f, 0.292f), new Vector3(0.72f, 0.1f, 0.01f), m.SlotGlow, collider: false);
-            Box("ReelWindow", t, new Vector3(0f, 0.95f, 0.251f), new Vector3(0.66f, 0.3f, 0.01f), m.DarkWood, collider: false);
+            if (tumble)
+                BuildYarnTumbleCabinet(t, machine, celebration, m);
+            else
+                BuildReelCabinet(t, machine, celebration, m);
             Box("Ledge", t, new Vector3(0f, 0.55f, 0.32f), new Vector3(0.7f, 0.05f, 0.18f), m.Brass, collider: false);
+            // On the player's right (the machine's -X), where the right paw lands.
+            var button = Cylinder("SpinButton", t, new Vector3(-0.16f, 0.587f, 0.36f), new Vector3(0.07f, 0.012f, 0.07f), m.SpinButton, collider: false);
+            NoShadows(button);
 
-            var reels = new MeshRenderer[SlotRules.Reels];
-            for (var i = 0; i < SlotRules.Reels; i++)
-            {
-                var reel = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                reel.name = $"Reel_{i + 1}";
-                Object.DestroyImmediate(reel.GetComponent<Collider>());
-                reel.transform.SetParent(t, false);
-                // Seen from the front, the machine's local +X is on the player's left, so reel 0 goes at +X.
-                reel.transform.localPosition = new Vector3((1 - i) * 0.21f, 0.95f, 0.258f);
-                // Quads face -Z; turn it to face the machine's front (+Z).
-                reel.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                reel.transform.localScale = new Vector3(0.19f, 0.26f, 1f);
-                var renderer = reel.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = m.Reel;
-                reels[i] = renderer;
-            }
-
-            var light = PointLight("MachineLight", new Vector3(0f, 1.2f, 0.6f), 2f, 1.2f, new Color(1f, 0.6f, 0.4f), t);
+            // Above the cabinet and out over the stool, where it lights the cat and floor without glaring on the screen.
+            var light = PointLight("MachineLight", new Vector3(0f, tumble ? 1.85f : 1.65f, 0.7f), 2.2f, 0.5f,
+                tumble ? new Color(1f, 0.5f, 0.75f) : new Color(1f, 0.6f, 0.4f), t);
+            var coins = CoinBurst(t, m);
 
             var stool = Cylinder("Stool", t, new Vector3(0f, 0.16f, 0.72f), new Vector3(0.42f, 0.16f, 0.42f), m.Velvet);
             Cylinder("Cushion", stool.transform, new Vector3(0f, 1.05f, 0f), new Vector3(0.95f, 0.12f, 0.95f), m.Cushion, collider: false, worldScale: false);
-            var anchor = Child(t, "Seat", new Vector3(0f, 0.34f, 0.72f), Quaternion.Euler(0f, 180f, 0f));
+            var anchor = Child(t, "Seat", new Vector3(0f, 0.34f, 0.72f + SeatBack), Quaternion.Euler(0f, 180f, 0f));
             var seat = stool.AddComponent<SlotSeat>();
             SetFields(seat, ("_machine", machine));
             SetFloat(seat, "_radius", 0.7f);
 
+            // The Yarn Tumble's screen sits higher and its sign higher still, so its camera does too.
             var camera = new GameObject("SeatCamera").AddComponent<CinemachineCamera>();
             camera.transform.SetParent(t, false);
-            var cameraPosition = anchor.position - anchor.forward * 0.8f + Vector3.up * 0.95f;
-            var focus = t.TransformPoint(new Vector3(0f, 0.95f, 0.25f));
+            var cameraPosition = anchor.position - anchor.forward * 0.8f + Vector3.up * (tumble ? 1.1f : 0.95f);
+            var focus = t.TransformPoint(new Vector3(0f, tumble ? 1.1f : 0.95f, 0.25f));
             camera.transform.SetPositionAndRotation(cameraPosition, Quaternion.LookRotation(focus - cameraPosition, Vector3.up));
             camera.Lens = LensSettings.Default;
             camera.Lens.FieldOfView = 50f;
             camera.Lens.NearClipPlane = 0.05f;
             camera.Priority = 0;
 
+            SetInt(machine, "_kind", (int)kind);
             SetFields(machine, ("_seatAnchor", anchor), ("_seatCamera", camera));
             SetString(machine, "_displayName", name);
-            SetFields(view, ("_machine", machine), ("_light", light));
-            SetArray(view, "_reels", reels);
+            SetFields(celebration, ("_machine", machine), ("_light", light), ("_button", button.transform), ("_coins", coins));
             return machine;
+        }
+
+        static void BuildReelCabinet(Transform t, SlotMachine machine, SlotCelebration celebration, Materials m)
+        {
+            var view = t.gameObject.AddComponent<SlotMachineView>();
+            Box("Cabinet", t, new Vector3(0f, 0.65f, 0f), new Vector3(0.8f, 1.3f, 0.5f), m.Cabinet);
+            Box("Topper", t, new Vector3(0f, 1.38f, 0.02f), new Vector3(0.84f, 0.16f, 0.54f), m.Brass, collider: false);
+            Box("Marquee", t, new Vector3(0f, 1.38f, 0.292f), new Vector3(0.72f, 0.1f, 0.01f), m.SlotGlow, collider: false);
+            Box("ReelWindow", t, new Vector3(0f, 0.95f, 0.251f), new Vector3(0.66f, 0.3f, 0.01f), m.DarkWood, collider: false);
+
+            var reels = new MeshRenderer[SlotRules.Reels];
+            for (var i = 0; i < SlotRules.Reels; i++)
+            {
+                // Seen from the front, the machine's local +X is on the player's left, so reel 0 goes at +X.
+                reels[i] = FrontQuad($"Reel_{i + 1}", t, new Vector3((1 - i) * 0.21f, 0.95f, 0.258f), new Vector2(0.19f, 0.26f), m.Reel);
+            }
+
+            SetFields(view, ("_machine", machine), ("_celebration", celebration));
+            SetArray(view, "_reels", reels);
+        }
+
+        static void BuildYarnTumbleCabinet(Transform t, SlotMachine machine, SlotCelebration celebration, Materials m)
+        {
+            var view = t.gameObject.AddComponent<YarnTumbleView>();
+            Box("Cabinet", t, new Vector3(0f, 0.75f, 0f), new Vector3(0.8f, 1.5f, 0.5f), m.YarnCabinet);
+            Box("Topper", t, new Vector3(0f, 1.58f, 0.02f), new Vector3(0.84f, 0.16f, 0.54f), m.Brass, collider: false);
+            var sign = FrontQuad("Sign", t, new Vector3(0f, 1.58f, 0.293f), new Vector2(0.74f, 0.13f), m.Reel);
+            Box("Marquee", t, new Vector3(0f, 1.465f, 0.258f), new Vector3(0.72f, 0.025f, 0.01f), m.YarnGlow, collider: false);
+            // A brass bezel round the grid's dark window, and a dark strip for the chain lamps under it.
+            Box("Bezel", t, new Vector3(0f, 1.02f, 0.2505f), new Vector3(0.7f, 0.7f, 0.008f), m.Brass, collider: false);
+            Box("GridWindow", t, new Vector3(0f, 1.02f, 0.251f), new Vector3(0.64f, 0.64f, 0.01f), m.YarnWindow, collider: false);
+            Box("LampPanel", t, new Vector3(0f, 0.654f, 0.251f), new Vector3(0.62f, 0.1f, 0.01f), m.YarnWindow, collider: false);
+
+            // The grid's mesh is built at runtime (YarnTumbleView); its quads already face the front.
+            var grid = Child(t, "Grid", new Vector3(0f, 1.02f, 0.262f));
+            grid.gameObject.AddComponent<MeshFilter>();
+            var gridRenderer = grid.gameObject.AddComponent<MeshRenderer>();
+            gridRenderer.sharedMaterial = m.YarnGrid;
+            NoShadows(grid.gameObject);
+
+            SetFields(view, ("_machine", machine), ("_celebration", celebration), ("_grid", grid.GetComponent<MeshFilter>()), ("_sign", sign));
+        }
+
+        /// <summary>A quad on a slot machine's front, facing the player.</summary>
+        static MeshRenderer FrontQuad(string name, Transform t, Vector3 position, Vector2 size, Material material)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = name;
+            Object.DestroyImmediate(quad.GetComponent<Collider>());
+            quad.transform.SetParent(t, false);
+            quad.transform.localPosition = position;
+            // Quads face -Z; turn it to face the machine's front (+Z).
+            quad.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            quad.transform.localScale = new Vector3(size.x, size.y, 1f);
+            var renderer = quad.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            NoShadows(quad);
+            return renderer;
+        }
+
+        /// <summary>
+        /// Gold coins that burst out over the tray on a big win (<see cref="SlotCelebration"/> emits them) and bounce
+        /// on the floor. The system runs all the time with no emission of its own, so Emit works at once.
+        /// </summary>
+        static ParticleSystem CoinBurst(Transform t, Materials m)
+        {
+            var go = new GameObject("Coins");
+            go.transform.SetParent(t, false);
+            go.transform.localPosition = new Vector3(0f, 0.62f, 0.36f);
+            // Out of the machine's front and up.
+            go.transform.localRotation = Quaternion.Euler(-55f, 0f, 0f);
+            var floor = Child(t, "CoinFloor", new Vector3(0f, 0.005f, 0f));
+
+            var particles = go.AddComponent<ParticleSystem>();
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = particles.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.6f, 2.2f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.4f, 2.8f);
+            main.startSize3D = true;
+            main.startSizeX = new ParticleSystem.MinMaxCurve(0.045f);
+            // Unity's cylinder is 2 tall: this makes a coin about 8 mm thick.
+            main.startSizeY = new ParticleSystem.MinMaxCurve(0.004f);
+            main.startSizeZ = new ParticleSystem.MinMaxCurve(0.045f);
+            main.startRotation3D = true;
+            main.startRotationX = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationY = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationZ = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.gravityModifier = 1f;
+            main.maxParticles = 150;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = particles.emission;
+            emission.rateOverTime = 0f;
+
+            var shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 28f;
+            shape.radius = 0.08f;
+
+            var spin = particles.rotationOverLifetime;
+            spin.enabled = true;
+            spin.separateAxes = true;
+            spin.x = new ParticleSystem.MinMaxCurve(-14f, 14f);
+            spin.y = new ParticleSystem.MinMaxCurve(-6f, 6f);
+            spin.z = new ParticleSystem.MinMaxCurve(-14f, 14f);
+
+            var collision = particles.collision;
+            collision.enabled = true;
+            collision.type = ParticleSystemCollisionType.Planes;
+            collision.SetPlane(0, floor);
+            collision.bounce = new ParticleSystem.MinMaxCurve(0.3f, 0.45f);
+            collision.dampen = new ParticleSystem.MinMaxCurve(0.25f);
+
+            // Shrink away at the end instead of popping out.
+            var size = particles.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(0.8f, 1f), new Keyframe(1f, 0f)));
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            renderer.mesh = Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
+            renderer.alignment = ParticleSystemRenderSpace.World;
+            renderer.sharedMaterial = m.Coin;
+            NoShadows(go);
+            return particles;
         }
 
         // ---------------------------------------------------------------- Bar, cashier, lounge, board
@@ -2305,7 +2464,7 @@ namespace CasinoMares.Editor
             void Spot(string name, Vector3 position, float yaw, bool sit, Vector2? stay = null) => AddPatronSpot(root, name, position, yaw, sit, stay);
 
             for (var i = 0; i < 4; i++)
-                Spot($"BarStool_{i + 1}", new Vector3(-6.9f + i * 1.1f, 0.4f, 4.45f), 0f, true, new Vector2(10f, 25f));
+                Spot($"BarStool_{i + 1}", new Vector3(-6.9f + i * 1.1f, 0.4f, 4.45f - SeatBack), 0f, true, new Vector2(10f, 25f));
             for (var i = 0; i < 3; i++)
                 Spot($"LoungeCushion_{i + 1}", new Vector3(6.4f + (i - 1) * 0.9f, 0.16f, 2.6f - i * 0.9f), -120f, true, new Vector2(12f, 30f));
 

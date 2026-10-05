@@ -32,7 +32,6 @@ namespace CasinoMares.UI
         readonly StringBuilder _text = new();
         readonly Dictionary<BlackjackTable, BlackjackTableView> _views = new();
         readonly Dictionary<RouletteTable, RouletteView> _rouletteViews = new();
-        readonly Dictionary<SlotMachine, SlotMachineView> _slotViews = new();
         readonly Dictionary<BaccaratTable, BaccaratView> _baccaratViews = new();
         readonly Dictionary<PokerTable, PokerView> _pokerViews = new();
         int _used;
@@ -211,16 +210,10 @@ namespace CasinoMares.UI
 
         void LabelSlots(SlotMachine machine, Camera cam)
         {
-            if (!_slotViews.TryGetValue(machine, out var view) || view == null)
-            {
-                view = machine.GetComponent<SlotMachineView>();
-                _slotViews[machine] = view;
-            }
-
-            if (view == null || machine.IsSpinning)
+            if (machine.IsSpinning)
                 return;
             var payout = machine.LastPayout;
-            var label = Place(view.LabelPosition, payout > 0 ? $"{PlayerCat.NameOf(machine.SpinOwner)} won {payout:N0}" : $"{PlayerCat.NameOf(machine.SpinOwner)}: no luck", cam);
+            var label = Place(machine.LabelPosition, payout > 0 ? $"{PlayerCat.NameOf(machine.SpinOwner)} won {payout:N0}" : $"{PlayerCat.NameOf(machine.SpinOwner)}: no luck", cam);
             label?.AddToClassList(payout > machine.Bet ? "hand-label--win" : "hand-label--push");
         }
 

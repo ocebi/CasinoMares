@@ -15,7 +15,7 @@ namespace CasinoMares.Slots
                 return null;
             return _machine.Occupant != Fusion.PlayerRef.None
                 ? $"{PlayerCat.NameOf(_machine.Occupant)} is playing"
-                : "Play the slot machine";
+                : _machine.Kind == SlotKind.YarnTumble ? "Play Yarn Tumble" : "Play the slot machine";
         }
 
         public override bool CanInteract(PlayerCat player) =>

@@ -695,10 +695,23 @@ and the floating cards.
     slider starts at the suggested size. The math is `PokerCoach` in the Rules assembly, with tests.
 
 ### 13.3 Slots
-- 3 machines on the east wall, each a single-seat table. The authority rolls weighted reels
-  (fish, milk, yarn, mouse, paw, 7) and every nearby client sees the same reels stop.
-- Paytable: three of a kind pays 8× to 150×, two paws pay 3×, one paw returns the bet. That's about
-  98% RTP, tested.
+- 4 machines on the east wall, each a single-seat table: two three-reel machines and two Yarn
+  Tumbles. The seated cat paws the spin button.
+- **Three reels**: the authority rolls weighted reels (fish, milk, yarn, mouse, paw, 7) and every
+  nearby client sees the same reels stop. When the first two match, the third slows down, ticking
+  and glowing, before it stops.
+  - Paytable: three of a kind pays 3× to 120×, two paws pay 4×, one paw pays 2×. No spin just
+    returns the bet; about 35% of spins win, at about 98.5% RTP, tested.
+- **Yarn Tumble**: a 5×5 grid of yarn balls (blue, green, pink), fish, mice and golden paws. A group
+  of 5 or more touching side by side pays (1× to 2× for five, a quarter more for each one more, up
+  to 10). The cat bats the winners away, the rest fall, and new symbols drop in, a quarter of them
+  as a copy of the one they land on, so wins tend to chain. Each chain raises the multiplier by a
+  half: ×1, ×1.5, ×2, ×2.5, ×3, ×3.5. The authority only picks a seed; every client plays the same
+  cascade out from it. About a third of spins win and one in eight chains at least twice, at about
+  98% RTP, tested (sampled).
+- **Celebrations by size**: under 10× the bet, a chime and a hop; 10× or more, coins burst from the
+  tray, a BIG WIN banner counts the payout up and nearby patrons hop; 50× or more (MEGA WIN), also
+  a bell the whole room hears and a line in the chat.
 
 ### 13.4 Baccarat and craps
 - **Baccarat (Punto Banco)**: 5 seats, 8-deck shoe, the full drawing tableau. Player pays 1:1, Banker

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CasinoMares.Audio;
 using CasinoMares.Blackjack;
 using CasinoMares.Player;
+using CasinoMares.Slots;
 using Fusion;
 using UnityEngine;
 using UnityEngine.AI;
@@ -91,12 +92,14 @@ namespace CasinoMares.Npc
             }
 
             BlackjackTable.BigWin += OnBigWin;
+            SlotMachine.BigWin += OnBigWin;
         }
 
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
             All.Remove(this);
             BlackjackTable.BigWin -= OnBigWin;
+            SlotMachine.BigWin -= OnBigWin;
             ReleaseTarget();
         }
 
@@ -546,7 +549,8 @@ namespace CasinoMares.Npc
 
         void OnBigWin(Vector3 tablePosition)
         {
-            if (_visual == null || (tablePosition - transform.position).sqrMagnitude > BigWinReactRange * BigWinReactRange)
+            // A sitting cat stays put: the hop would lift it off its seat (and the terrace sits within range of the slots).
+            if (_visual == null || Sitting || (tablePosition - transform.position).sqrMagnitude > BigWinReactRange * BigWinReactRange)
                 return;
             _visual.Reactions?.PlayHappy(2, 0.2f + CatReactions.StaggerDelay());
         }
