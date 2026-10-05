@@ -22,7 +22,7 @@
         <div class="loading-subtitle">A cozy casino for cats</div>
         <div class="loading-bar"><div id="loading-fill"></div></div>
         <div id="loading-status">Loading…</div>
-        <div id="home-screen-hint" class="hidden">
+        <div class="home-screen-hint hidden">
           <div class="hint-title">Play full screen</div>
           <div>Tap <svg class="share-icon" viewBox="0 0 20 24" aria-label="Share"><path d="M10 2v13M5.5 6.5 10 2l4.5 4.5M6 10H3.5v11.5h13V10H14"/></svg> Share in Safari, then <b>Add to Home Screen</b>, and open Casino Mares from there.</div>
         </div>
@@ -30,6 +30,10 @@
       <div id="rotate">
         <div class="rotate-phone"></div>
         <div>Turn your phone sideways to play</div>
+        <div class="home-screen-hint hidden">
+          <div class="hint-title">Play full screen</div>
+          <div>Tap <svg class="share-icon" viewBox="0 0 20 24" aria-label="Share"><path d="M10 2v13M5.5 6.5 10 2l4.5 4.5M6 10H3.5v11.5h13V10H14"/></svg> Share in Safari, then <b>Add to Home Screen</b>, and open Casino Mares from there.</div>
+        </div>
       </div>
       <div id="error" class="hidden"></div>
     </div>
@@ -46,8 +50,9 @@
       var canFullscreen = document.fullscreenEnabled || document.webkitFullscreenEnabled;
       var iOS = /iPhone|iPod/.test(navigator.userAgent) ||
         (/iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1 && !canFullscreen);
+      // On the title screen and on the "turn your phone sideways" screen.
       if (iOS && !standalone)
-        document.getElementById("home-screen-hint").classList.remove("hidden");
+        document.querySelectorAll(".home-screen-hint").forEach(function (hint) { hint.classList.remove("hidden"); });
 
       // The title screen stays up at least this long, so there's time to read it (a cached game loads in a moment).
       var splashUntil = performance.now() + 5000;

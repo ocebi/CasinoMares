@@ -117,7 +117,7 @@ body {
   opacity: 0.7;
 }
 
-#home-screen-hint {
+.home-screen-hint {
   margin-top: 28px;
   max-width: 360px;
   padding: 12px 16px;
@@ -167,6 +167,11 @@ body {
   body.touch.ready #rotate {
     display: flex;
   }
+}
+
+/* The same tip as on the title screen, a little closer to the line above it. */
+#rotate .home-screen-hint {
+  margin-top: 4px;
 }
 
 .rotate-phone {
