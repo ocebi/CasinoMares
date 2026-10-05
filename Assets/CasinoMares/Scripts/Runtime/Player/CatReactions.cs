@@ -16,14 +16,20 @@ namespace CasinoMares.Player
         static readonly int EmoteTriggerId = Animator.StringToHash("EmoteTrigger");
         static readonly int LocomotionState = Animator.StringToHash("Locomotion");
         static readonly int SwipeState = Animator.StringToHash("Swipe");
+        static readonly int SpeedId = Animator.StringToHash("Speed");
 
         /// <summary>Animator layer with only the right foreleg (see CasinoSceneBuilder).</summary>
         const int PawLayer = 1;
         /// <summary>Where the reach starts in the pounce clip, and how long the swipe lasts.</summary>
         const float SwipeClipStart = 0.45f;
         const float SwipeDuration = 0.55f;
-        /// <summary>The cat rears up on its hind legs while swiping, so the paw reaches table height.</summary>
+        /// <summary>
+        /// A walking cat rears up on its hind legs while swiping, so the paw reaches table height. One standing still
+        /// keeps both front paws down and swats with the one.
+        /// </summary>
         const float SwipeRearDegrees = 24f;
+        /// <summary>Walking speed (the Animator's Speed) from which a swipe rears up, as emotes count a cat as moving.</summary>
+        const float SwipeRearMinSpeed = 0.3f;
         /// <summary>Roughly where the hind paws stand, in the cat's local space (the rear-up pivots there).</summary>
         static readonly Vector3 HindPivot = new(0f, 0f, -0.35f);
 
@@ -41,6 +47,7 @@ namespace CasinoMares.Player
         float _hopHeightNow;
         float _squashNow = 1f;
         float _swipeTime = -1f;
+        bool _swipeRears;
         float _rearNow;
         float _happyAt = -1f;
         int _delayedHops;
@@ -117,6 +124,7 @@ namespace CasinoMares.Player
                 return;
             _animator.Play(SwipeState, PawLayer, SwipeClipStart);
             _swipeTime = 0f;
+            _swipeRears = _animator.GetFloat(SpeedId) > SwipeRearMinSpeed;
         }
 
         void Update()
@@ -171,7 +179,7 @@ namespace CasinoMares.Player
             // Blend the paw layer in fast and out a little slower.
             var weight = t < 0.15f ? t / 0.15f : t > 0.7f ? Mathf.Clamp01((1f - t) / 0.3f) : 1f;
             _animator.SetLayerWeight(PawLayer, weight);
-            _rearNow = SwipeRearDegrees * Mathf.SmoothStep(0f, 1f, weight);
+            _rearNow = _swipeRears ? SwipeRearDegrees * Mathf.SmoothStep(0f, 1f, weight) : 0f;
             if (t >= 1f)
             {
                 _animator.SetLayerWeight(PawLayer, 0f);

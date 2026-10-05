@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace CasinoMares.Core
 {
@@ -152,12 +153,43 @@ namespace CasinoMares.Core
         public static bool JumpPressed() => GameplayEnabled && (Jump.WasPressedThisFrame() || TouchPressed(TouchButton.Jump));
         public static bool InteractPressed() => GameplayEnabled && (Interact.WasPressedThisFrame() || TouchPressed(TouchButton.Interact));
 
-        /// <summary>Left click while walking around (not while the cursor is out for table UI), or the Paw button.</summary>
+        /// <summary>
+        /// Left click while walking around (not while the cursor is out for table UI, nor on a HUD button), or the Paw
+        /// button.
+        /// </summary>
         public static bool PawPressed()
         {
             if (!GameplayEnabled || CursorFree || LookBlocked)
                 return false;
-            return Platform.IsTouch ? TouchPressed(TouchButton.Paw) : Paw.WasPressedThisFrame();
+            return Platform.IsTouch ? TouchPressed(TouchButton.Paw) : Paw.WasPressedThisFrame() && !MouseOverUI();
+        }
+
+        /// <summary>
+        /// Whether the mouse is on something the UI draws (a button, a panel), where a click is meant for the UI. Only
+        /// a visible cursor counts: a locked one sits in the middle of the screen.
+        /// </summary>
+        static bool MouseOverUI()
+        {
+            var mouse = Mouse.current;
+            if (mouse == null || UnityEngine.Cursor.lockState == CursorLockMode.Locked)
+                return false;
+
+            var screen = mouse.position.ReadValue();
+            foreach (var document in Object.FindObjectsByType<UIDocument>())
+            {
+                var panel = document.rootVisualElement?.panel;
+                if (panel == null)
+                    continue;
+                var position = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(screen.x, Screen.height - screen.y));
+                // Screen-sized containers can be pickable too; what matters is whether anything under them is drawn.
+                for (var element = panel.Pick(position); element != null && element != panel.visualTree; element = element.parent)
+                {
+                    if (element.focusable || element.resolvedStyle.backgroundColor.a > 0.05f)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         public static bool EmotePressed() => GameplayEnabled && !CursorFree && (Emote.WasPressedThisFrame() || TouchPressed(TouchButton.Emote));

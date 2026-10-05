@@ -16,6 +16,8 @@ namespace CasinoMares.Player
     {
         /// <summary>A cat below this has fallen out of the world (off the seaside terrace, say) and goes back to its spawn.</summary>
         const float FallOutHeight = -2f;
+        /// <summary>Degrees a second a cat turns to face something it was told to (a clicked spot it swipes at).</summary>
+        const float FaceTurnSpeed = 900f;
 
         /// <summary>Set while seated or otherwise not allowed to walk around.</summary>
         public bool MovementLocked { get; set; }
@@ -30,6 +32,8 @@ namespace CasinoMares.Player
         Quaternion _teleportRotation;
         Vector3 _spawnPosition;
         Quaternion _spawnRotation;
+        Vector3 _faceDirection;
+        float _faceUntil;
 
         /// <summary>Move the cat instantly (sitting down, standing up). Applied on the next network tick.</summary>
         public void RequestTeleport(Vector3 position, Quaternion rotation)
@@ -37,6 +41,19 @@ namespace CasinoMares.Player
             _teleportRequested = true;
             _teleportPosition = position;
             _teleportRotation = rotation;
+        }
+
+        /// <summary>
+        /// Turn to face <paramref name="direction"/> (flat) and hold it for <paramref name="seconds"/>, even while
+        /// walking. Turns on the next network ticks.
+        /// </summary>
+        public void FaceFor(Vector3 direction, float seconds)
+        {
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.0001f)
+                return;
+            _faceDirection = direction.normalized;
+            _faceUntil = Time.time + seconds;
         }
 
         void Awake()
@@ -88,8 +105,13 @@ namespace CasinoMares.Player
                 _character.Jump(overrideImpulse: CatMotion.JumpImpulse);
             _jumpRequested = false;
 
-            // Move() also applies gravity and braking, so it runs every tick even without input.
+            // Move() also applies gravity and braking, so it runs every tick even without input. It also turns the cat
+            // towards where it walks, which facing something overrides.
+            var rotation = transform.rotation;
             _character.Move(CameraRelative(input));
+            if (Time.time < _faceUntil)
+                transform.rotation = Quaternion.RotateTowards(rotation, Quaternion.LookRotation(_faceDirection, Vector3.up),
+                    FaceTurnSpeed * Runner.DeltaTime);
 
             var velocity = _character.Velocity;
             if (velocity.y < -CatMotion.MaxFallSpeed)
