@@ -62,6 +62,10 @@ namespace CasinoMares.Roulette
         [Networked] NpcCrew Crew { get; set; }
         [Networked] sbyte PendingResult { get; set; }
         [Networked] public sbyte Result { get; set; }
+        /// <summary>When everyone sees the latest round event (<see cref="TableReveal"/>).</summary>
+        [Networked] int RevealTick { get; set; }
+        /// <summary>The reveal tick of the current spin: the croupier's push, on every screen at once.</summary>
+        [Networked] int SpinTick { get; set; }
 
         [Networked, Capacity(SeatCount)] NetworkArray<byte> SeatOccupants => default;
         [Networked, Capacity(SeatCount)] NetworkArray<PlayerRef> SeatPlayers => default;
@@ -75,6 +79,8 @@ namespace CasinoMares.Roulette
         int _walletRound;
         int _walletCharged;
         int _walletPaidRound;
+        RevealQueue<Snapshot> _reveal;
+        int _stampedTick = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -105,33 +111,11 @@ namespace CasinoMares.Roulette
         /// <summary>Close-up of the wheel that seated players watch the spin through.</summary>
         public CinemachineCamera WheelCamera => _wheelCamera;
 
-        /// <summary>Most recent results, newest first (-1 = empty).</summary>
-        public int HistoryAt(int index) => History[index];
-
-        public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
-
-        /// <summary>
-        /// Seconds since the croupier spun the wheel. The spin phase lasts <see cref="GameTables.ResultPause"/>
-        /// longer than the ball runs, so it rests in its pocket for a moment before the result is called.
-        /// </summary>
-        public float SpinElapsed => Phase == RoulettePhase.Spinning && TimeRemaining >= 0f ? Mathf.Max(0f, SpinDuration + GameTables.ResultPause - TimeRemaining) : 0f;
-
-        /// <summary>The number the ball is heading for; the view needs it during the spin to land in the right pocket.</summary>
-        public int LandingNumber => Phase == RoulettePhase.Spinning ? PendingResult : Result;
-
         public int TotalBetAt(int seat)
         {
             var total = 0;
             for (var spot = 0; spot < Spots; spot++)
                 total += Bets[seat * Spots + spot];
-            return total;
-        }
-
-        public int PayoutAt(int seat, int result)
-        {
-            var total = 0;
-            for (var spot = 0; spot < Spots; spot++)
-                total += RouletteRules.Payout(spot, Bets[seat * Spots + spot], result);
             return total;
         }
 
@@ -148,12 +132,97 @@ namespace CasinoMares.Roulette
             return false;
         }
 
+        // ---------------------------------------------------------------- What players see (every client)
+
+        /// <summary>
+        /// The round as players see it right now: the networked round state, with each event (betting opens, the
+        /// spin, the result) held back until its reveal tick so it happens on every screen at once. Views, HUDs and
+        /// the local wallet read this; the round logic reads the live state. Seats and settings stay live.
+        /// </summary>
+        public Snapshot Shown => (_reveal ??= new RevealQueue<Snapshot>(Capture)).Get(Runner, RevealTick);
+
+        public sealed class Snapshot
+        {
+            public RoulettePhase Phase;
+            public int RoundId;
+            public int SettledRoundId;
+            public sbyte Result;
+            internal sbyte PendingResult;
+            internal int SpinTick;
+            internal NetworkRunner Runner;
+            internal TickTimer PhaseTimer;
+            internal readonly PlayerRef[] RoundOwners = new PlayerRef[SeatCount];
+            internal readonly NetworkBool[] Done = new NetworkBool[SeatCount];
+            internal readonly int[] Bets = new int[SeatCount * Spots];
+            internal readonly sbyte[] History = new sbyte[HistoryLength];
+
+            public PlayerRef RoundOwnerAt(int seat) => RoundOwners[seat];
+            public bool IsDoneAt(int seat) => Done[seat];
+            public int BetAt(int seat, int spot) => Bets[seat * Spots + spot];
+
+            /// <summary>Most recent results, newest first (-1 = empty).</summary>
+            public int HistoryAt(int index) => History[index];
+
+            public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
+
+            /// <summary>
+            /// Seconds since the croupier spun the wheel, on the reveal clock so the ball runs in step on every screen.
+            /// The ball rests in its pocket for <see cref="GameTables.ResultPause"/> before the result is called.
+            /// </summary>
+            public float SpinElapsed => Phase == RoulettePhase.Spinning && Runner != null && Runner.IsRunning
+                ? Mathf.Max(0f, (TableReveal.Now(Runner) - SpinTick) * Runner.DeltaTime)
+                : 0f;
+
+            /// <summary>The number the ball is heading for; the view needs it during the spin to land in the right pocket.</summary>
+            public int LandingNumber => Phase == RoulettePhase.Spinning ? PendingResult : Result;
+
+            public int TotalBetAt(int seat)
+            {
+                var total = 0;
+                for (var spot = 0; spot < Spots; spot++)
+                    total += Bets[seat * Spots + spot];
+                return total;
+            }
+
+            public int PayoutAt(int seat, int result)
+            {
+                var total = 0;
+                for (var spot = 0; spot < Spots; spot++)
+                    total += RouletteRules.Payout(spot, Bets[seat * Spots + spot], result);
+                return total;
+            }
+        }
+
+        void Capture(Snapshot shown)
+        {
+            shown.Phase = Phase;
+            shown.RoundId = RoundId;
+            shown.SettledRoundId = SettledRoundId;
+            shown.Result = Result;
+            shown.PendingResult = PendingResult;
+            shown.SpinTick = SpinTick;
+            shown.Runner = Runner;
+            shown.PhaseTimer = PhaseTimer;
+            SeatRoundOwners.CopyTo(shown.RoundOwners, false);
+            SeatDone.CopyTo(shown.Done, false);
+            Bets.CopyTo(shown.Bets, false);
+            History.CopyTo(shown.History, false);
+        }
+
+        /// <summary>Authority: marks what this tick changed as an event for everyone to see at once; returns the seconds until they do.</summary>
+        float Reveal()
+        {
+            RevealTick = TableReveal.Stamp(Runner, RevealTick, ref _stampedTick);
+            return TableReveal.SecondsUntil(Runner, RevealTick);
+        }
+
         // ---------------------------------------------------------------- Lifecycle
 
         public override void Spawned()
         {
             All.Add(this);
             GameTables.All.Add(this);
+            _reveal = null; // a fresh session starts from what's on the table now
             if (HasStateAuthority && !Initialized)
             {
                 Initialized = true;
@@ -197,30 +266,31 @@ namespace CasinoMares.Roulette
             if (!TryGetSeatOf(player, out var seat))
                 return false;
 
+            var shown = Shown;
             text.AppendLine($"{_displayName} · seat {seat + 1}");
-            var total = TotalBetAt(seat);
+            var total = shown.TotalBetAt(seat);
             if (total == 0)
             {
-                text.AppendLine(Phase == RoulettePhase.Betting ? "Choosing bets..." : "No bets this spin");
+                text.AppendLine(shown.Phase == RoulettePhase.Betting ? "Choosing bets..." : "No bets this spin");
             }
             else
             {
                 text.AppendLine($"Total bet {total:N0} on:");
-                var shown = 0;
-                for (var spot = 0; spot < Spots && shown < 6; spot++)
+                var listed = 0;
+                for (var spot = 0; spot < Spots && listed < 6; spot++)
                 {
-                    var amount = BetAt(seat, spot);
+                    var amount = shown.BetAt(seat, spot);
                     if (amount <= 0)
                         continue;
                     text.AppendLine($"  {RouletteRules.SpotLabel(spot)}: {amount:N0}");
-                    shown++;
+                    listed++;
                 }
             }
 
-            text.AppendLine(Phase switch
+            text.AppendLine(shown.Phase switch
             {
                 RoulettePhase.Spinning => "The wheel is spinning...",
-                RoulettePhase.Result => $"Result: {Result} {RouletteRules.ColorName(Result)}",
+                RoulettePhase.Result => $"Result: {shown.Result} {RouletteRules.ColorName(shown.Result)}",
                 _ => "",
             });
             return true;
@@ -245,6 +315,7 @@ namespace CasinoMares.Roulette
                         ClearAllBets();
                         Phase = RoulettePhase.WaitingForPlayers;
                         PhaseTimer = TickTimer.None;
+                        Reveal();
                         break;
                     }
 
@@ -272,6 +343,7 @@ namespace CasinoMares.Roulette
                     if (PhaseTimer.ExpiredOrNotRunning(Runner))
                     {
                         ClearAllBets();
+                        Reveal();
                         if (HumanCount() > 0)
                             EnterBetting();
                         else
@@ -309,7 +381,8 @@ namespace CasinoMares.Roulette
         {
             RoundId++;
             Phase = RoulettePhase.Betting;
-            PhaseTimer = TickTimer.CreateFromSeconds(Runner, BetTimerSeconds);
+            // Betting opens when everyone sees it, so the window runs from the reveal.
+            PhaseTimer = TickTimer.CreateFromSeconds(Runner, BetTimerSeconds + Reveal());
             for (var i = 0; i < SeatCount; i++)
             {
                 SeatDone.Set(i, false);
@@ -337,6 +410,8 @@ namespace CasinoMares.Roulette
             Phase = RoulettePhase.Spinning;
             PendingResult = (sbyte)UnityEngine.Random.Range(0, RouletteRules.Numbers);
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, SpinDuration + GameTables.ResultPause);
+            Reveal();
+            SpinTick = RevealTick;
         }
 
         void Land()
@@ -348,6 +423,7 @@ namespace CasinoMares.Roulette
             SettledRoundId = RoundId;
             Phase = RoulettePhase.Result;
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, ResultDuration);
+            Reveal();
         }
 
         void ClearAllBets()
@@ -494,35 +570,37 @@ namespace CasinoMares.Roulette
             if (Runner == null)
                 return;
 
+            // The shown round, so the payout and its toast come with the ball, not before it.
+            var shown = Shown;
             var local = Runner.LocalPlayer;
             var seat = -1;
             for (var i = 0; i < SeatCount; i++)
             {
-                if (SeatRoundOwners[i] == local)
+                if (shown.RoundOwnerAt(i) == local)
                 {
                     seat = i;
                     break;
                 }
             }
 
-            if (_walletRound != RoundId)
+            if (_walletRound != shown.RoundId)
             {
-                _walletRound = RoundId;
+                _walletRound = shown.RoundId;
                 _walletCharged = 0;
             }
 
             // Bets can grow or shrink while betting is open (clear, leave the seat), so keep the balance in step.
-            var wager = seat >= 0 && SeatPlayers[seat] == local || Phase != RoulettePhase.Betting ? (seat >= 0 ? TotalBetAt(seat) : 0) : 0;
-            if (wager != _walletCharged && _walletPaidRound != RoundId)
+            var wager = seat >= 0 && SeatPlayers[seat] == local || shown.Phase != RoulettePhase.Betting ? (seat >= 0 ? shown.TotalBetAt(seat) : 0) : 0;
+            if (wager != _walletCharged && _walletPaidRound != shown.RoundId)
             {
                 ProfileStore.SetBalance(ProfileStore.Current.Balance - (wager - _walletCharged));
                 _walletCharged = wager;
             }
 
-            if (seat >= 0 && SettledRoundId == RoundId && _walletPaidRound != RoundId && Phase == RoulettePhase.Result)
+            if (seat >= 0 && shown.SettledRoundId == shown.RoundId && _walletPaidRound != shown.RoundId && shown.Phase == RoulettePhase.Result)
             {
-                _walletPaidRound = RoundId;
-                var payout = PayoutAt(seat, Result);
+                _walletPaidRound = shown.RoundId;
+                var payout = shown.PayoutAt(seat, shown.Result);
                 if (payout > 0)
                     ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
                 if (_walletCharged > 0)

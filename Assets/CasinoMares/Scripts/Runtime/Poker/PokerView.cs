@@ -9,8 +9,9 @@ using UnityEngine;
 namespace CasinoMares.Poker
 {
     /// <summary>
-    /// Renders a poker table: community cards, two cards in front of each player still in the hand (face down for
-    /// everyone else, face up for their owner, and for all at showdown), stacks, bets, the pot and the button.
+    /// Renders a poker table from its shown hand (<see cref="PokerTable.Shown"/>): community cards, two cards in front
+    /// of each player still in the hand (face down for everyone else, face up for their owner, and for all at
+    /// showdown), stacks, bets, the pot and the button.
     /// </summary>
     public class PokerView : MonoBehaviour
     {
@@ -37,6 +38,7 @@ namespace CasinoMares.Poker
         readonly ChipStack[] _stacks = new ChipStack[PokerTable.SeatCount];
         readonly ChipStack[] _bets = new ChipStack[PokerTable.SeatCount];
         SeatCats _seatCats;
+        PokerTable.Snapshot _shown;
         ChipStack _potStack;
         bool _initialized;
         int _lastHand = -1;
@@ -57,31 +59,32 @@ namespace CasinoMares.Poker
             if (_table.Object == null || !_table.Object.IsValid)
                 return;
 
+            _shown = _table.Shown;
             var instant = !_initialized;
             _initialized = true;
-            var phase = _table.Phase;
-            if (_table.HandId != _lastHand && phase != PokerPhase.WaitingForPlayers)
+            var phase = _shown.Phase;
+            if (_shown.HandId != _lastHand && phase != PokerPhase.WaitingForPlayers)
             {
-                _lastHand = _table.HandId;
+                _lastHand = _shown.HandId;
                 if (!instant)
                     Sfx.PlayAt(SoundId.Shuffle, _deck.position, 0.7f);
             }
 
             // React once the pot is awarded, not when the cards are first turned over.
-            var settled = phase == PokerPhase.Showdown && _table.ShowdownSettled;
-            if (settled && _reactedHand != _table.HandId && !instant)
+            var settled = phase == PokerPhase.Showdown && _shown.ShowdownSettled;
+            if (settled && _reactedHand != _shown.HandId && !instant)
                 React();
             if (settled || instant)
-                _reactedHand = _table.HandId;
+                _reactedHand = _shown.HandId;
 
             _seen.Clear();
             var dealt = phase != PokerPhase.WaitingForPlayers;
             if (dealt)
             {
-                for (var i = 0; i < _table.CommunityCount; i++)
+                for (var i = 0; i < _shown.CommunityCount; i++)
                 {
                     var position = _board.position + _board.right * ((i - 2) * (CardFaces.CardSize.x + 0.03f)) + Vector3.up * 0.002f;
-                    Place(CommunityKey + i, _table.CommunityAt(i), position, _board.rotation, true, instant);
+                    Place(CommunityKey + i, _shown.CommunityAt(i), position, _board.rotation, true, instant);
                 }
 
                 for (var seat = 0; seat < PokerTable.SeatCount; seat++)
@@ -96,7 +99,7 @@ namespace CasinoMares.Poker
 
         void PlaceHoleCards(int seat, bool instant)
         {
-            if (!_table.IsInHand(seat))
+            if (!_shown.IsInHand(seat))
                 return;
 
             var spot = _cardSpots[seat];
@@ -104,13 +107,13 @@ namespace CasinoMares.Poker
             byte second = Cards.None;
             var faceUp = false;
 
-            if (_table.ShownCardAt(seat, 0) != Cards.None)
+            if (_shown.ShownCardAt(seat, 0) != Cards.None)
             {
-                first = _table.ShownCardAt(seat, 0);
-                second = _table.ShownCardAt(seat, 1);
+                first = _shown.ShownCardAt(seat, 0);
+                second = _shown.ShownCardAt(seat, 1);
                 faceUp = true;
             }
-            else if (_table.PlayerAt(seat) == _table.Runner.LocalPlayer && _table.TryGetMyHoleCards(out var a, out var b))
+            else if (_table.PlayerAt(seat) == _table.Runner.LocalPlayer && _shown.TryGetMyHoleCards(out var a, out var b))
             {
                 first = a;
                 second = b;
@@ -168,11 +171,11 @@ namespace CasinoMares.Poker
             for (var seat = 0; seat < PokerTable.SeatCount; seat++)
             {
                 var occupied = _table.OccupantAt(seat) != PokerOccupant.Empty;
-                SetStack(ref _stacks[seat], occupied ? _table.StackAt(seat) : 0, _stackSpots[seat].position, instant, false);
-                SetStack(ref _bets[seat], _table.RoundBetAt(seat), _betSpots[seat].position, instant, true);
+                SetStack(ref _stacks[seat], occupied ? _shown.StackAt(seat) : 0, _stackSpots[seat].position, instant, false);
+                SetStack(ref _bets[seat], _shown.RoundBetAt(seat), _betSpots[seat].position, instant, true);
             }
 
-            SetStack(ref _potStack, _table.Phase == PokerPhase.Showdown && _table.ShowdownSettled ? 0 : _table.PotInMiddle, _pot.position, instant, false);
+            SetStack(ref _potStack, _shown.Phase == PokerPhase.Showdown && _shown.ShowdownSettled ? 0 : _shown.PotInMiddle, _pot.position, instant, false);
         }
 
         void SetStack(ref ChipStack stack, int amount, Vector3 position, bool instant, bool sound)
@@ -200,8 +203,8 @@ namespace CasinoMares.Poker
 
         void UpdateButton()
         {
-            var seat = _table.ButtonSeat;
-            _button.gameObject.SetActive(seat >= 0 && _table.Phase != PokerPhase.WaitingForPlayers);
+            var seat = _shown.ButtonSeat;
+            _button.gameObject.SetActive(seat >= 0 && _shown.Phase != PokerPhase.WaitingForPlayers);
             if (seat >= 0)
                 _button.position = Vector3.Lerp(_button.position, _betSpots[seat].position + _betSpots[seat].right * 0.14f + Vector3.up * 0.005f, 1f - Mathf.Exp(-8f * Time.deltaTime));
         }
@@ -215,7 +218,7 @@ namespace CasinoMares.Poker
             if (_dealer != null)
             {
                 _dealer.Sitting = true;
-                var active = _table.ActiveSeat;
+                var active = _shown.ActiveSeat;
                 _dealer.FaceTowards(active >= 0 ? _table.GetSeatAnchor(active).position : transform.position, 120f);
             }
         }
@@ -224,8 +227,8 @@ namespace CasinoMares.Poker
         {
             for (var seat = 0; seat < PokerTable.SeatCount; seat++)
             {
-                var won = _table.WonAt(seat);
-                var put = _table.ContributedAt(seat);
+                var won = _shown.WonAt(seat);
+                var put = _shown.ContributedAt(seat);
                 if (won == 0 && put == 0)
                     continue;
 

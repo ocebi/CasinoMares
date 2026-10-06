@@ -105,6 +105,8 @@ namespace CasinoMares.Poker
         /// later; this turns true then (and right away when everyone else folded).
         /// </summary>
         [Networked] public NetworkBool ShowdownSettled { get; set; }
+        /// <summary>When everyone sees the latest hand event (<see cref="TableReveal"/>).</summary>
+        [Networked] int RevealTick { get; set; }
 
         [Networked, Capacity(SeatCount)] NetworkArray<byte> SeatOccupants => default;
         [Networked, Capacity(SeatCount)] NetworkArray<PlayerRef> SeatPlayers => default;
@@ -134,6 +136,9 @@ namespace CasinoMares.Poker
         int _lastSeenStack;
         bool _walletSeated;
         int _reportedHand = -1;
+
+        RevealQueue<Snapshot> _reveal;
+        int _stampedTick = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -169,23 +174,9 @@ namespace CasinoMares.Poker
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
 
-        public bool IsInHand(int seat) => (FlagsAt(seat) & PokerSeatFlags.InHand) != 0 && (FlagsAt(seat) & PokerSeatFlags.Folded) == 0;
         public bool IsActiveTurn(int seat) => IsBettingPhase && ActiveSeat == seat;
         public bool IsBettingPhase => Phase is PokerPhase.PreFlop or PokerPhase.Flop or PokerPhase.Turn or PokerPhase.River;
         public int ToCall(int seat) => Mathf.Max(0, CurrentBet - RoundBets[seat]);
-        public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
-
-        /// <summary>Chips in the middle, not counting bets still in front of players this street.</summary>
-        public int PotInMiddle
-        {
-            get
-            {
-                var total = 0;
-                for (var i = 0; i < SeatCount; i++)
-                    total += Contributed[i] - RoundBets[i];
-                return total;
-            }
-        }
 
         public int TotalPot
         {
@@ -196,14 +187,6 @@ namespace CasinoMares.Poker
                     total += Contributed[i];
                 return total;
             }
-        }
-
-        /// <summary>The local player's own hole cards for the current hand, if dealt in.</summary>
-        public bool TryGetMyHoleCards(out byte first, out byte second)
-        {
-            first = _myHole[0];
-            second = _myHole[1];
-            return _myHoleHand == HandId && first != Cards.None && Phase != PokerPhase.WaitingForPlayers;
         }
 
         public int MinRaiseTo => CurrentBet == 0 ? BigBlind : CurrentBet + Mathf.Max(MinRaise, BigBlind);
@@ -221,12 +204,131 @@ namespace CasinoMares.Poker
             return false;
         }
 
+        // ---------------------------------------------------------------- What players see (every client)
+
+        /// <summary>
+        /// The hand as players see it right now: the networked hand state, with each event (a bet, a fold, the turn
+        /// passing, the flop, the showdown) held back until its reveal tick so it happens on every screen at once.
+        /// Views, HUDs and the coach read this; the hand logic reads the live state. Seats, buy-ins and settings
+        /// stay live, and so does the stack the wallet cashes out.
+        /// </summary>
+        public Snapshot Shown => (_reveal ??= new RevealQueue<Snapshot>(Capture)).Get(Runner, RevealTick);
+
+        public sealed class Snapshot
+        {
+            public PokerPhase Phase;
+            public int HandId;
+            public sbyte ButtonSeat;
+            public sbyte ActiveSeat;
+            public int CurrentBet;
+            public int MinRaise;
+            public int SmallBlind;
+            public byte CommunityCount;
+            public NetworkString<_64> LastResult;
+            public bool ShowdownSettled;
+            internal PokerTable Table;
+            internal NetworkRunner Runner;
+            internal TickTimer PhaseTimer;
+            internal readonly byte[] Community = new byte[5];
+            internal readonly int[] Stacks = new int[SeatCount];
+            internal readonly int[] RoundBets = new int[SeatCount];
+            internal readonly int[] Contributed = new int[SeatCount];
+            internal readonly byte[] Flags = new byte[SeatCount];
+            internal readonly byte[] LastActions = new byte[SeatCount];
+            internal readonly int[] LastAmounts = new int[SeatCount];
+            internal readonly int[] WonAmounts = new int[SeatCount];
+            internal readonly byte[] ShownCards = new byte[SeatCount * 2];
+
+            public int BigBlind => SmallBlind * 2;
+            public int StackAt(int seat) => Stacks[seat];
+            public int RoundBetAt(int seat) => RoundBets[seat];
+            public int ContributedAt(int seat) => Contributed[seat];
+            public PokerSeatFlags FlagsAt(int seat) => (PokerSeatFlags)Flags[seat];
+            public PokerAction LastActionAt(int seat) => (PokerAction)LastActions[seat];
+            public int LastAmountAt(int seat) => LastAmounts[seat];
+            public int WonAt(int seat) => WonAmounts[seat];
+            public byte CommunityAt(int index) => Community[index];
+            public byte ShownCardAt(int seat, int index) => ShownCards[seat * 2 + index];
+
+            public bool IsInHand(int seat) => (FlagsAt(seat) & PokerSeatFlags.InHand) != 0 && (FlagsAt(seat) & PokerSeatFlags.Folded) == 0;
+            public bool IsActiveTurn(int seat) => IsBettingPhase && ActiveSeat == seat;
+            public bool IsBettingPhase => Phase is PokerPhase.PreFlop or PokerPhase.Flop or PokerPhase.Turn or PokerPhase.River;
+            public int ToCall(int seat) => Mathf.Max(0, CurrentBet - RoundBets[seat]);
+            public int MinRaiseTo => CurrentBet == 0 ? BigBlind : CurrentBet + Mathf.Max(MinRaise, BigBlind);
+            public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
+
+            /// <summary>Chips in the middle, not counting bets still in front of players this street.</summary>
+            public int PotInMiddle
+            {
+                get
+                {
+                    var total = 0;
+                    for (var i = 0; i < SeatCount; i++)
+                        total += Contributed[i] - RoundBets[i];
+                    return total;
+                }
+            }
+
+            public int TotalPot
+            {
+                get
+                {
+                    var total = 0;
+                    for (var i = 0; i < SeatCount; i++)
+                        total += Contributed[i];
+                    return total;
+                }
+            }
+
+            /// <summary>The local player's own hole cards, once the hand they were dealt for is on screen.</summary>
+            public bool TryGetMyHoleCards(out byte first, out byte second)
+            {
+                first = Table._myHole[0];
+                second = Table._myHole[1];
+                return Table._myHoleHand == HandId && first != Cards.None && Phase != PokerPhase.WaitingForPlayers;
+            }
+        }
+
+        void Capture(Snapshot shown)
+        {
+            shown.Phase = Phase;
+            shown.HandId = HandId;
+            shown.ButtonSeat = ButtonSeat;
+            shown.ActiveSeat = ActiveSeat;
+            shown.CurrentBet = CurrentBet;
+            shown.MinRaise = MinRaise;
+            shown.SmallBlind = SmallBlind;
+            shown.CommunityCount = CommunityCount;
+            shown.LastResult = LastResult;
+            shown.ShowdownSettled = ShowdownSettled;
+            shown.Table = this;
+            shown.Runner = Runner;
+            shown.PhaseTimer = PhaseTimer;
+            Community.CopyTo(shown.Community, false);
+            Stacks.CopyTo(shown.Stacks, false);
+            RoundBets.CopyTo(shown.RoundBets, false);
+            Contributed.CopyTo(shown.Contributed, false);
+            Flags.CopyTo(shown.Flags, false);
+            LastActions.CopyTo(shown.LastActions, false);
+            LastAmounts.CopyTo(shown.LastAmounts, false);
+            WonAmounts.CopyTo(shown.WonAmounts, false);
+            ShownCards.CopyTo(shown.ShownCards, false);
+        }
+
+        /// <summary>Authority: marks what this tick changed as an event for everyone to see at once; returns the seconds until they do.</summary>
+        float Reveal()
+        {
+            RevealTick = TableReveal.Stamp(Runner, RevealTick, ref _stampedTick);
+            return TableReveal.SecondsUntil(Runner, RevealTick);
+        }
+
         // ---------------------------------------------------------------- Lifecycle
 
         public override void Spawned()
         {
             All.Add(this);
             GameTables.All.Add(this);
+            _reveal = null; // a fresh session starts from what's on the table now
             if (HasStateAuthority && !Initialized)
             {
                 Initialized = true;
@@ -285,21 +387,22 @@ namespace CasinoMares.Poker
             if (!TryGetSeatOf(player, out var seat))
                 return false;
 
+            var shown = Shown;
             text.AppendLine($"{_displayName} · seat {seat + 1}");
-            text.AppendLine($"Stack {StackAt(seat):N0}" + (ContributedAt(seat) > 0 ? $" · in pot {ContributedAt(seat):N0}" : ""));
-            var flags = FlagsAt(seat);
+            text.AppendLine($"Stack {shown.StackAt(seat):N0}" + (shown.ContributedAt(seat) > 0 ? $" · in pot {shown.ContributedAt(seat):N0}" : ""));
+            var flags = shown.FlagsAt(seat);
             if ((flags & PokerSeatFlags.Folded) != 0)
                 text.AppendLine("Folded");
             else if ((flags & PokerSeatFlags.AllIn) != 0)
                 text.AppendLine("All in!");
-            else if (LastActionAt(seat) != PokerAction.None)
-                text.AppendLine(ActionLabel(LastActionAt(seat), LastAmountAt(seat)));
-            if (IsActiveTurn(seat))
-                text.AppendLine($"Thinking... {Mathf.CeilToInt(TimeRemaining)}s");
-            if (ShownCardAt(seat, 0) != Cards.None)
-                text.AppendLine($"Shows {Cards.Label(ShownCardAt(seat, 0))} {Cards.Label(ShownCardAt(seat, 1))}");
-            if (WonAt(seat) > 0)
-                text.AppendLine($"Won {WonAt(seat):N0}");
+            else if (shown.LastActionAt(seat) != PokerAction.None)
+                text.AppendLine(ActionLabel(shown.LastActionAt(seat), shown.LastAmountAt(seat)));
+            if (shown.IsActiveTurn(seat))
+                text.AppendLine($"Thinking... {Mathf.CeilToInt(shown.TimeRemaining)}s");
+            if (shown.ShownCardAt(seat, 0) != Cards.None)
+                text.AppendLine($"Shows {Cards.Label(shown.ShownCardAt(seat, 0))} {Cards.Label(shown.ShownCardAt(seat, 1))}");
+            if (shown.WonAt(seat) > 0)
+                text.AppendLine($"Won {shown.WonAt(seat):N0}");
             return true;
         }
 
@@ -416,6 +519,7 @@ namespace CasinoMares.Poker
 
             Phase = PokerPhase.PreFlop;
             ActiveSeat = (sbyte)bigBlindSeat;
+            Reveal();
             AdvanceTurn();
         }
 
@@ -457,11 +561,13 @@ namespace CasinoMares.Poker
                 ActiveSeat = -1;
                 PhaseTimer = TickTimer.None;
                 StepTimer = TickTimer.CreateFromSeconds(Runner, StreetPause);
+                Reveal();
                 return;
             }
 
             ActiveSeat = (sbyte)next;
-            PhaseTimer = TickTimer.CreateFromSeconds(Runner, TurnTimerSeconds);
+            // The turn starts when the player sees it, so the reveal delay doesn't eat into their time.
+            PhaseTimer = TickTimer.CreateFromSeconds(Runner, TurnTimerSeconds + Reveal());
             StepTimer = TickTimer.CreateFromSeconds(Runner, UnityEngine.Random.Range(NpcThinkMin, NpcThinkMax));
         }
 
@@ -501,6 +607,8 @@ namespace CasinoMares.Poker
                     Showdown();
                     return;
             }
+
+            Reveal();
 
             // With fewer than two players able to bet, just keep dealing.
             if (CountSeats(CanAct) < 2)
@@ -651,6 +759,7 @@ namespace CasinoMares.Poker
             ActiveSeat = -1;
             ShowdownSettled = false;
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, GameTables.ResultPause);
+            Reveal();
         }
 
         /// <summary>
@@ -725,6 +834,7 @@ namespace CasinoMares.Poker
             ShowdownSettled = true;
             ActiveSeat = -1;
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, ShowdownDuration);
+            Reveal();
             if (LastResult.Length > 0)
                 RPC_Notice($"{_displayName}: {LastResult}");
         }
@@ -744,6 +854,7 @@ namespace CasinoMares.Poker
             CommunityCount = 0;
             Phase = PokerPhase.WaitingForPlayers;
             StepTimer = TickTimer.None;
+            Reveal();
         }
 
         void VoidHand(string reason)
@@ -760,6 +871,7 @@ namespace CasinoMares.Poker
             ActiveSeat = -1;
             Phase = PokerPhase.WaitingForPlayers;
             StepTimer = TickTimer.None;
+            Reveal();
             RPC_Notice($"{_displayName}: {reason}");
         }
 
@@ -1016,12 +1128,15 @@ namespace CasinoMares.Poker
                     ProfileStore.SetBalance(ProfileStore.Current.Balance - BuyIns[seat]);
                 }
 
+                // The live stack, so leaving never cashes out less (or more) than the table holds.
                 _lastSeenStack = Stacks[seat];
 
-                if (Phase == PokerPhase.Showdown && ShowdownSettled && _reportedHand != HandId && (FlagsAt(seat) & PokerSeatFlags.InHand) != 0)
+                // The result follows the shown hand, so the toast comes with the pot, not before it.
+                var shown = Shown;
+                if (shown.Phase == PokerPhase.Showdown && shown.ShowdownSettled && _reportedHand != shown.HandId && (shown.FlagsAt(seat) & PokerSeatFlags.InHand) != 0)
                 {
-                    _reportedHand = HandId;
-                    LocalHandResult?.Invoke(this, WonAt(seat) - ContributedAt(seat));
+                    _reportedHand = shown.HandId;
+                    LocalHandResult?.Invoke(this, shown.WonAt(seat) - shown.ContributedAt(seat));
                 }
             }
             else if (_walletSeated)

@@ -40,6 +40,7 @@ namespace CasinoMares.UI
         Button _npcButton;
 
         BlackjackTable _table;
+        BlackjackTable.Snapshot _shown;
         int _seat = -1;
         int _bet = 25;
         float _timerTotal;
@@ -107,6 +108,7 @@ namespace CasinoMares.UI
         void OnLocalSeatChanged(IGameTable table, int seat)
         {
             _table = table as BlackjackTable;
+            _shown = null;
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
@@ -128,8 +130,10 @@ namespace CasinoMares.UI
             if (_table == null || _table.Object == null || !_table.Object.IsValid)
                 return;
 
-            var phase = _table.Phase;
-            var myTurn = _table.IsActiveTurn(_seat);
+            // Everything about the round comes from the shown state, so the buttons appear with the cards.
+            _shown = _table.Shown;
+            var phase = _shown.Phase;
+            var myTurn = _shown.IsActiveTurn(_seat);
             var betting = phase == BlackjackPhase.Betting;
             var locked = _table.IsLockedAt(_seat);
 
@@ -142,10 +146,10 @@ namespace CasinoMares.UI
 
             if (myTurn)
             {
-                var handBet = _table.HandBetAt(_seat, _table.ActiveHand);
+                var handBet = _shown.HandBetAt(_seat, _shown.ActiveHand);
                 var canAffordMore = ProfileStore.Current.Balance >= handBet;
-                _doubleButton.SetEnabled(_table.CanDouble(_seat) && canAffordMore);
-                _splitButton.SetEnabled(_table.CanSplit(_seat) && canAffordMore);
+                _doubleButton.SetEnabled(_shown.CanDouble(_seat) && canAffordMore);
+                _splitButton.SetEnabled(_shown.CanSplit(_seat) && canAffordMore);
             }
 
             UpdateBanner(phase, myTurn, locked);
@@ -165,9 +169,9 @@ namespace CasinoMares.UI
                     : $"Place your bet ({BlackjackRules.MinBet}-{BlackjackRules.MaxBet})",
                 BlackjackPhase.Dealing => "Dealing...",
                 BlackjackPhase.PlayerTurns => myTurn
-                    ? $"Your turn: {_table.EvaluateHand(_seat, _table.ActiveHand)}" + (_table.HandCountAt(_seat) > 1 ? $" (hand {_table.ActiveHand + 1})" : "")
+                    ? $"Your turn: {_shown.EvaluateHand(_seat, _shown.ActiveHand)}" + (_shown.HandCountAt(_seat) > 1 ? $" (hand {_shown.ActiveHand + 1})" : "")
                     : $"{TurnName()}'s turn",
-                BlackjackPhase.DealerTurn => $"Dealer's turn: {_table.EvaluateDealerVisible()}",
+                BlackjackPhase.DealerTurn => $"Dealer's turn: {_shown.EvaluateDealerVisible()}",
                 BlackjackPhase.Settlement => SettlementText(),
                 _ => "",
             };
@@ -175,26 +179,26 @@ namespace CasinoMares.UI
 
         string TurnName()
         {
-            var seat = _table.ActiveSeat;
+            var seat = _shown.ActiveSeat;
             if (seat < 0)
                 return "Someone";
-            var owner = _table.RoundOwnerAt(seat);
+            var owner = _shown.RoundOwnerAt(seat);
             return owner == Fusion.PlayerRef.None ? $"Seat {seat + 1} (NPC)" : PlayerCat.NameOf(owner);
         }
 
         string SettlementText()
         {
-            var hands = _table.HandCountAt(_seat);
-            if (hands == 0 || _table.RoundOwnerAt(_seat) != _table.Runner.LocalPlayer)
-                return $"Dealer has {_table.EvaluateDealerVisible()}";
+            var hands = _shown.HandCountAt(_seat);
+            if (hands == 0 || _shown.RoundOwnerAt(_seat) != _table.Runner.LocalPlayer)
+                return $"Dealer has {_shown.EvaluateDealerVisible()}";
 
             var net = 0;
             var blackjack = false;
             for (var h = 0; h < hands; h++)
             {
-                var outcome = _table.OutcomeAt(_seat, h);
+                var outcome = _shown.OutcomeAt(_seat, h);
                 blackjack |= outcome == HandOutcome.Blackjack;
-                net += BlackjackRules.Payout(outcome, _table.HandBetAt(_seat, h)) - _table.HandBetAt(_seat, h);
+                net += BlackjackRules.Payout(outcome, _shown.HandBetAt(_seat, h)) - _shown.HandBetAt(_seat, h);
             }
 
             if (blackjack && net > 0)
@@ -206,7 +210,7 @@ namespace CasinoMares.UI
 
         void UpdateTimer(BlackjackPhase phase, bool myTurn)
         {
-            var remaining = _table.TimeRemaining;
+            var remaining = _shown.TimeRemaining;
             var showTimer = remaining >= 0f && (phase == BlackjackPhase.Betting || phase == BlackjackPhase.PlayerTurns);
             _timer.EnableInClassList("hidden", !showTimer);
             if (!showTimer)
@@ -214,7 +218,7 @@ namespace CasinoMares.UI
 
             if (phase != _lastPhase || remaining > _timerTotal)
                 _timerTotal = phase == BlackjackPhase.Betting ? _table.BetTimerSeconds : _table.TurnTimerSeconds;
-            _timerFill.style.width = Length.Percent(_timerTotal > 0f ? 100f * remaining / _timerTotal : 0f);
+            _timerFill.style.width = Length.Percent(_timerTotal > 0f ? Mathf.Min(100f, 100f * remaining / _timerTotal) : 0f);
 
             // Tick each second of the last five on your own turn.
             var second = Mathf.CeilToInt(remaining);
@@ -282,8 +286,9 @@ namespace CasinoMares.UI
 
         void Act(BlackjackAction action)
         {
-            if (_table != null && _table.IsActiveTurn(_seat))
-                _table.Act(_seat, action);
+            // Name the hand we can see, in case the live round already moved on to the next one.
+            if (_table != null && _shown != null && _shown.IsActiveTurn(_seat))
+                _table.Act(_seat, action, _shown.ActiveHand);
         }
 
         void CycleSetting(int turn = 0, int bet = 0, int npc = 0)

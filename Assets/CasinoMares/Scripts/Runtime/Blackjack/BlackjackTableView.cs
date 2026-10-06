@@ -8,9 +8,9 @@ using UnityEngine;
 namespace CasinoMares.Blackjack
 {
     /// <summary>
-    /// Renders a <see cref="BlackjackTable"/> on every client from its networked state (GDD §5.5): floating
-    /// cards and chips, NPC seat cats and the dealer cat. New cards fly in from the shoe; a client that just
-    /// arrived sees the current layout immediately without replaying animations.
+    /// Renders a <see cref="BlackjackTable"/> on every client from its shown round (<see cref="BlackjackTable.Shown"/>,
+    /// GDD §5.5): floating cards and chips, NPC seat cats and the dealer cat. New cards fly in from the shoe; a client
+    /// that just arrived sees the current layout immediately without replaying animations.
     /// </summary>
     public class BlackjackTableView : MonoBehaviour
     {
@@ -32,6 +32,7 @@ namespace CasinoMares.Blackjack
         readonly List<int> _stale = new();
         readonly ChipStack[] _betStacks = new ChipStack[BlackjackTable.SeatCount * BlackjackTable.MaxHands];
         SeatCats _seatCats;
+        BlackjackTable.Snapshot _shown;
         bool _initialized;
         int _lastShoeSeed;
 
@@ -69,6 +70,7 @@ namespace CasinoMares.Blackjack
                 Sfx.PlayAt(SoundId.Shuffle, _shoe.position);
             _lastShoeSeed = _table.ShoeSeedValue;
 
+            _shown = _table.Shown;
             _seen.Clear();
             UpdateHands(instant);
             UpdateDealer(instant);
@@ -111,7 +113,7 @@ namespace CasinoMares.Blackjack
         {
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
             {
-                var handCount = _table.HandCountAt(seat);
+                var handCount = _shown.HandCountAt(seat);
                 var anchor = _handAnchors[seat];
 
                 for (var hand = 0; hand < BlackjackTable.MaxHands; hand++)
@@ -121,7 +123,7 @@ namespace CasinoMares.Blackjack
                     if (hand >= handCount)
                     {
                         // During betting, show the chips a player has put up on their first spot.
-                        var pending = hand == 0 && _table.Phase == BlackjackPhase.Betting && _table.OccupantAt(seat) != SeatOccupant.Empty
+                        var pending = hand == 0 && _shown.Phase == BlackjackPhase.Betting && _table.OccupantAt(seat) != SeatOccupant.Empty
                             ? _table.PendingBetAt(seat)
                             : 0;
                         SetStack(ref stack, seat, hand, pending, ChipSpot(seat, 0, 1), instant);
@@ -129,16 +131,16 @@ namespace CasinoMares.Blackjack
                         continue;
                     }
 
-                    var cardCount = _table.CardCountAt(seat, hand);
+                    var cardCount = _shown.CardCountAt(seat, hand);
                     for (var i = 0; i < cardCount; i++)
                     {
                         var key = ((seat * BlackjackTable.MaxHands) + hand) * BlackjackTable.MaxCards + i;
-                        PlaceCard(key, _table.CardAt(seat, hand, i), CardPosition(seat, hand, handCount, i), anchor.rotation, true, instant);
+                        PlaceCard(key, _shown.CardAt(seat, hand, i), CardPosition(seat, hand, handCount, i), anchor.rotation, true, instant);
                     }
 
                     // Settled hands show what was paid out; lost chips vanish to the dealer.
-                    var amount = _table.HandBetAt(seat, hand);
-                    var outcome = _table.OutcomeAt(seat, hand);
+                    var amount = _shown.HandBetAt(seat, hand);
+                    var outcome = _shown.OutcomeAt(seat, hand);
                     if (outcome != HandOutcome.None)
                         amount = BlackjackRules.Payout(outcome, amount);
                     SetStack(ref stack, seat, hand, amount, ChipSpot(seat, hand, handCount), instant);
@@ -178,18 +180,18 @@ namespace CasinoMares.Blackjack
             }
 
             if (!instant && amount != stack.Amount)
-                Sfx.PlayAt(amount > stack.Amount && _table.Phase == BlackjackPhase.Settlement ? SoundId.ChipPayout : SoundId.ChipBet, position, 0.7f);
+                Sfx.PlayAt(amount > stack.Amount && _shown.Phase == BlackjackPhase.Settlement ? SoundId.ChipPayout : SoundId.ChipBet, position, 0.7f);
             stack.SetAmount(amount);
             stack.MoveTo(position, instant);
         }
 
         void UpdateDealer(bool instant)
         {
-            var count = _table.DealerCardCount;
+            var count = _shown.DealerCardCount;
             for (var i = 0; i < count; i++)
             {
-                var faceUp = i != 1 || _table.HoleRevealed;
-                PlaceCard(DealerKeyBase + i, _table.DealerCardAt(i), DealerCardPosition(i), _dealerCards.rotation, faceUp, instant);
+                var faceUp = i != 1 || _shown.HoleRevealed;
+                PlaceCard(DealerKeyBase + i, _shown.DealerCardAt(i), DealerCardPosition(i), _dealerCards.rotation, faceUp, instant);
             }
         }
 
@@ -250,17 +252,18 @@ namespace CasinoMares.Blackjack
                 return;
 
             _dealer.Sitting = true;
-            var active = _table.ActiveSeat;
+            var active = _shown.ActiveSeat;
             var lookAt = active >= 0 ? _table.GetSeatAnchor(active).position : transform.position;
             _dealer.FaceTowards(lookAt, 120f);
         }
 
         void OnRoundSettled()
         {
+            var shown = _table.Shown;
             var dealerWon = false;
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
             {
-                var hands = _table.HandCountAt(seat);
+                var hands = shown.HandCountAt(seat);
                 if (hands == 0)
                     continue;
 
@@ -268,13 +271,13 @@ namespace CasinoMares.Blackjack
                 var net = 0;
                 for (var h = 0; h < hands; h++)
                 {
-                    var outcome = _table.OutcomeAt(seat, h);
-                    net += BlackjackRules.Payout(outcome, _table.HandBetAt(seat, h)) - _table.HandBetAt(seat, h);
+                    var outcome = shown.OutcomeAt(seat, h);
+                    net += BlackjackRules.Payout(outcome, shown.HandBetAt(seat, h)) - shown.HandBetAt(seat, h);
                     if (outcome is HandOutcome.Blackjack or HandOutcome.Win)
                         best = outcome == HandOutcome.Blackjack || best == HandOutcome.Blackjack ? HandOutcome.Blackjack : HandOutcome.Win;
                 }
 
-                var reactions = ReactionsFor(seat);
+                var reactions = ReactionsFor(shown, seat);
                 if (reactions == null)
                     continue;
 
@@ -291,9 +294,9 @@ namespace CasinoMares.Blackjack
                 _dealer.Reactions.PlayHappy(1, CatReactions.StaggerDelay() + 0.3f);
         }
 
-        CatReactions ReactionsFor(int seat)
+        CatReactions ReactionsFor(BlackjackTable.Snapshot shown, int seat)
         {
-            var owner = _table.RoundOwnerAt(seat);
+            var owner = shown.RoundOwnerAt(seat);
             if (owner != Fusion.PlayerRef.None)
             {
                 var cat = PlayerCat.Find(owner);

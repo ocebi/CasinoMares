@@ -82,6 +82,7 @@ namespace CasinoMares.UI
         readonly System.Text.StringBuilder _text = new();
 
         RouletteTable _table;
+        RouletteTable.Snapshot _shown;
         int _seat = -1;
         int _chip = 10;
         int _hoverSpot = -1;
@@ -146,6 +147,7 @@ namespace CasinoMares.UI
         {
             WatchWheel(false);
             _table = table as RouletteTable;
+            _shown = null;
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
@@ -295,9 +297,10 @@ namespace CasinoMares.UI
 
         void PlaceChip(int spot)
         {
-            if (_table == null || _table.Phase != RoulettePhase.Betting)
+            // Betting has to be open both on screen and in the live round.
+            if (_table == null || _shown == null || _shown.Phase != RoulettePhase.Betting || _table.Phase != RoulettePhase.Betting)
                 return;
-            var total = _table.TotalBetAt(_seat);
+            var total = _shown.TotalBetAt(_seat);
             if (_chip > ProfileStore.Current.Balance)
             {
                 Toasts.Show("Not enough chips for that bet.");
@@ -320,20 +323,22 @@ namespace CasinoMares.UI
             if (_table == null || _table.Object == null || !_table.Object.IsValid)
                 return;
 
-            var phase = _table.Phase;
+            // The round as everyone sees it at this moment (see RouletteTable.Shown).
+            _shown = _table.Shown;
+            var phase = _shown.Phase;
             var betting = phase == RoulettePhase.Betting;
-            var result = phase == RoulettePhase.Result ? _table.Result : -1;
+            var result = phase == RoulettePhase.Result ? _shown.Result : -1;
 
             foreach (var pair in _cells)
             {
                 var view = pair.Value;
-                var amount = _table.BetAt(_seat, pair.Key);
+                var amount = _shown.BetAt(_seat, pair.Key);
                 view.Badge.style.display = amount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
                 view.Badge.text = amount.ToString();
                 view.Cell.SetEnabled(betting);
                 view.Cell.EnableInClassList("rl-cell--winner", result >= 0 && RouletteRules.Wins(pair.Key, result));
                 for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
-                    view.Dots[seat].style.display = seat != _seat && _table.BetAt(seat, pair.Key) > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+                    view.Dots[seat].style.display = seat != _seat && _shown.BetAt(seat, pair.Key) > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             UpdatePlayers(betting);
@@ -343,23 +348,23 @@ namespace CasinoMares.UI
                 chip.style.borderTopColor = chip.style.borderBottomColor = chip.style.borderLeftColor = chip.style.borderRightColor =
                     (int)chip.userData == _chip ? new Color(1f, 0.85f, 0.4f) : new Color(1f, 1f, 1f, 0.6f);
 
-            _total.text = $"Bet {_table.TotalBetAt(_seat):N0}";
-            _doneButton.SetEnabled(betting && !_table.IsDoneAt(_seat));
+            _total.text = $"Bet {_shown.TotalBetAt(_seat):N0}";
+            _doneButton.SetEnabled(betting && !_shown.IsDoneAt(_seat));
 
             _phase.text = phase switch
             {
                 RoulettePhase.WaitingForPlayers => "Waiting for players",
-                RoulettePhase.Betting => _table.IsDoneAt(_seat) ? "Ready! Waiting for the others..." : "Place your bets",
+                RoulettePhase.Betting => _shown.IsDoneAt(_seat) ? "Ready! Waiting for the others..." : "Place your bets",
                 RoulettePhase.Spinning => "No more bets!",
-                RoulettePhase.Result => $"{_table.Result} {RouletteRules.ColorName(_table.Result)}",
+                RoulettePhase.Result => $"{_shown.Result} {RouletteRules.ColorName(_shown.Result)}",
                 _ => "",
             };
 
-            var remaining = _table.TimeRemaining;
+            var remaining = _shown.TimeRemaining;
             var showTimer = betting && remaining >= 0f;
             _timer.EnableInClassList("hidden", !showTimer);
             if (showTimer)
-                _timerFill.style.width = Length.Percent(100f * remaining / Mathf.Max(1f, _table.BetTimerSeconds));
+                _timerFill.style.width = Length.Percent(Mathf.Min(100f, 100f * remaining / Mathf.Max(1f, _table.BetTimerSeconds)));
 
             _betTimerButton.text = $"Betting timer: {_table.BetTimerSeconds}s";
             _npcButton.text = $"NPC players: {NpcSeating.Describe(_table.NpcFill)}";
@@ -367,7 +372,7 @@ namespace CasinoMares.UI
 
             // Watch the ball from close by, then bring the board back once the result has sunk in.
             WatchWheel(WheelCloseUp && _table.WheelCamera != null &&
-                       (phase == RoulettePhase.Spinning || phase == RoulettePhase.Result && _table.TimeRemaining > RouletteTable.ResultDuration - WheelLinger));
+                       (phase == RoulettePhase.Spinning || phase == RoulettePhase.Result && remaining > RouletteTable.ResultDuration - WheelLinger));
 
             if (GameInput.KeyPressed(UnityEngine.InputSystem.Key.Space) && betting)
                 _table.SetDone(_seat, true);
@@ -394,13 +399,13 @@ namespace CasinoMares.UI
         /// </summary>
         void UpdateMyBets(int result)
         {
-            var total = _table.TotalBetAt(_seat);
+            var total = _shown.TotalBetAt(_seat);
             var shown = _watchingWheel && total > 0 && _settingsPanel.ClassListContains("hidden");
             _myBets.EnableInClassList("hidden", !shown);
             if (!shown)
                 return;
 
-            var key = System.HashCode.Combine(_table.RoundId, result, total);
+            var key = System.HashCode.Combine(_shown.RoundId, result, total);
             if (key == _shownMyBets)
                 return;
             _shownMyBets = key;
@@ -408,7 +413,7 @@ namespace CasinoMares.UI
             _mySpots.Clear();
             for (var spot = 0; spot < RouletteRules.SpotCount; spot++)
             {
-                if (_table.BetAt(_seat, spot) > 0)
+                if (_shown.BetAt(_seat, spot) > 0)
                     _mySpots.Add(spot);
             }
 
@@ -421,7 +426,7 @@ namespace CasinoMares.UI
             for (var i = 0; i < _mySpots.Count; i++)
             {
                 var spot = _mySpots[i];
-                var amount = _table.BetAt(_seat, spot);
+                var amount = _shown.BetAt(_seat, spot);
                 var payout = result >= 0 ? RouletteRules.Payout(spot, amount, result) : 0;
                 paidBack += payout;
                 if (i < maxRows)
@@ -476,7 +481,7 @@ namespace CasinoMares.UI
                 RouletteOccupant.Player => PlayerCat.NameOf(_table.PlayerAt(seat)),
                 RouletteOccupant.Npc => "NPC",
                 // Left mid-spin: their chips still ride.
-                _ => _table.RoundOwnerAt(seat) != Fusion.PlayerRef.None ? PlayerCat.NameOf(_table.RoundOwnerAt(seat)) : "Empty seat",
+                _ => _shown.RoundOwnerAt(seat) != Fusion.PlayerRef.None ? PlayerCat.NameOf(_shown.RoundOwnerAt(seat)) : "Empty seat",
             };
         }
 
@@ -485,7 +490,7 @@ namespace CasinoMares.UI
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
             {
                 var entry = _players[seat];
-                var total = _table.TotalBetAt(seat);
+                var total = _shown.TotalBetAt(seat);
                 var occupant = _table.OccupantAt(seat);
                 var present = occupant == RouletteOccupant.Player || occupant == RouletteOccupant.Npc && _table.NpcArrivalAt(seat) <= 0f;
                 var shown = present || total > 0;
@@ -495,7 +500,7 @@ namespace CasinoMares.UI
 
                 entry.Swatch.style.backgroundColor = seat == _seat ? YouColor : SeatColors[seat];
                 var status = total > 0 ? total.ToString("N0") : betting ? "deciding" : "sitting out";
-                if (betting && total > 0 && occupant == RouletteOccupant.Player && _table.IsDoneAt(seat))
+                if (betting && total > 0 && occupant == RouletteOccupant.Player && _shown.IsDoneAt(seat))
                     status += " · ready";
                 entry.Text.text = $"{NameAt(seat)}  {status}";
             }
@@ -517,7 +522,7 @@ namespace CasinoMares.UI
             var any = false;
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
             {
-                var amount = _table.BetAt(seat, _hoverSpot);
+                var amount = _shown.BetAt(seat, _hoverSpot);
                 if (amount <= 0)
                     continue;
                 if (any)
@@ -533,7 +538,7 @@ namespace CasinoMares.UI
 
         void UpdateHistory()
         {
-            var head = _table.HistoryAt(0) * 1000 + _table.SettledRoundId;
+            var head = _shown.HistoryAt(0) * 1000 + _shown.SettledRoundId;
             if (head == _shownHistoryHead)
                 return;
             _shownHistoryHead = head;
@@ -541,7 +546,7 @@ namespace CasinoMares.UI
             _history.Clear();
             for (var i = 0; i < RouletteTable.HistoryLength; i++)
             {
-                var number = _table.HistoryAt(i);
+                var number = _shown.HistoryAt(i);
                 if (number < 0)
                     break;
                 var item = new Label(number.ToString()) { pickingMode = PickingMode.Ignore };

@@ -15,7 +15,8 @@ namespace CasinoMares.UI
 {
     /// <summary>
     /// World-anchored labels over every hand at nearby tables (totals, results, whose turn), plus the spectator
-    /// panel when you stand near a playing friend (GDD §6). Everything shown is public table information.
+    /// panel when you stand near a playing friend (GDD §6). Everything shown is public table information, read from
+    /// each table's shown round so the labels change together with the cards.
     /// </summary>
     public class TableOverlay : MonoBehaviour
     {
@@ -71,7 +72,7 @@ namespace CasinoMares.UI
 
                 foreach (var baccarat in BaccaratTable.All)
                 {
-                    if (baccarat == null || baccarat.Object == null || !baccarat.Object.IsValid || baccarat.Revealed == 0)
+                    if (baccarat == null || baccarat.Object == null || !baccarat.Object.IsValid || baccarat.Shown.Revealed == 0)
                         continue;
                     if ((baccarat.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
                         continue;
@@ -114,16 +115,17 @@ namespace CasinoMares.UI
             if (view == null)
                 return;
 
+            var shown = table.Shown;
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
             {
-                var hands = table.HandCountAt(seat);
+                var hands = shown.HandCountAt(seat);
                 for (var hand = 0; hand < hands; hand++)
                 {
-                    if (table.CardCountAt(seat, hand) == 0)
+                    if (shown.CardCountAt(seat, hand) == 0)
                         continue;
 
-                    var outcome = table.OutcomeAt(seat, hand);
-                    var value = table.EvaluateHand(seat, hand);
+                    var outcome = shown.OutcomeAt(seat, hand);
+                    var value = shown.EvaluateHand(seat, hand);
                     var text = outcome == HandOutcome.None
                         ? value.IsBust ? "Bust" : value.ToString()
                         : $"{value.Total} · {BlackjackTable.OutcomeLabel(outcome)}";
@@ -131,17 +133,17 @@ namespace CasinoMares.UI
                     var label = Place(view.HandLabelPosition(seat, hand, hands), text, cam);
                     if (label == null)
                         continue;
-                    label.EnableInClassList("hand-label--active", table.IsActiveTurn(seat) && table.ActiveHand == hand);
+                    label.EnableInClassList("hand-label--active", shown.IsActiveTurn(seat) && shown.ActiveHand == hand);
                     label.EnableInClassList("hand-label--win", outcome is HandOutcome.Win or HandOutcome.Blackjack);
                     label.EnableInClassList("hand-label--lose", outcome is HandOutcome.Lose or HandOutcome.Bust || (outcome == HandOutcome.None && value.IsBust));
                     label.EnableInClassList("hand-label--push", outcome == HandOutcome.Push);
                 }
             }
 
-            if (table.DealerCardCount > 0)
+            if (shown.DealerCardCount > 0)
             {
-                var dealer = Place(view.DealerLabelPosition, $"Dealer {table.EvaluateDealerVisible()}", cam);
-                dealer?.EnableInClassList("hand-label--active", table.Phase == BlackjackPhase.DealerTurn);
+                var dealer = Place(view.DealerLabelPosition, $"Dealer {shown.EvaluateDealerVisible()}", cam);
+                dealer?.EnableInClassList("hand-label--active", shown.Phase == BlackjackPhase.DealerTurn);
             }
         }
 
@@ -153,35 +155,36 @@ namespace CasinoMares.UI
                 _pokerViews[table] = view;
             }
 
-            if (view == null || table.Phase == PokerPhase.WaitingForPlayers)
+            var shown = table.Shown;
+            if (view == null || shown.Phase == PokerPhase.WaitingForPlayers)
                 return;
 
-            if (table.TotalPot > 0 && !(table.Phase == PokerPhase.Showdown && table.ShowdownSettled))
-                Place(view.PotLabelPosition, $"Pot {table.TotalPot:N0}", cam);
+            if (shown.TotalPot > 0 && !(shown.Phase == PokerPhase.Showdown && shown.ShowdownSettled))
+                Place(view.PotLabelPosition, $"Pot {shown.TotalPot:N0}", cam);
 
             for (var seat = 0; seat < PokerTable.SeatCount; seat++)
             {
-                if (table.OccupantAt(seat) == PokerOccupant.Empty || (table.FlagsAt(seat) & PokerSeatFlags.InHand) == 0)
+                if (table.OccupantAt(seat) == PokerOccupant.Empty || (shown.FlagsAt(seat) & PokerSeatFlags.InHand) == 0)
                     continue;
 
                 string text;
-                if (table.Phase == PokerPhase.Showdown && table.WonAt(seat) > 0)
-                    text = $"+{table.WonAt(seat):N0}";
-                else if ((table.FlagsAt(seat) & PokerSeatFlags.Folded) != 0)
+                if (shown.Phase == PokerPhase.Showdown && shown.WonAt(seat) > 0)
+                    text = $"+{shown.WonAt(seat):N0}";
+                else if ((shown.FlagsAt(seat) & PokerSeatFlags.Folded) != 0)
                     text = "Fold";
-                else if ((table.FlagsAt(seat) & PokerSeatFlags.AllIn) != 0)
+                else if ((shown.FlagsAt(seat) & PokerSeatFlags.AllIn) != 0)
                     text = "All in";
                 else
-                    text = PokerTable.ActionLabel(table.LastActionAt(seat), table.LastAmountAt(seat));
+                    text = PokerTable.ActionLabel(shown.LastActionAt(seat), shown.LastAmountAt(seat));
 
                 if (string.IsNullOrEmpty(text))
                     continue;
                 var label = Place(view.SeatLabelPosition(seat), text, cam);
                 if (label == null)
                     continue;
-                label.EnableInClassList("hand-label--active", table.IsActiveTurn(seat));
-                label.EnableInClassList("hand-label--win", table.Phase == PokerPhase.Showdown && table.WonAt(seat) > 0);
-                label.EnableInClassList("hand-label--push", (table.FlagsAt(seat) & PokerSeatFlags.Folded) != 0);
+                label.EnableInClassList("hand-label--active", shown.IsActiveTurn(seat));
+                label.EnableInClassList("hand-label--win", shown.Phase == PokerPhase.Showdown && shown.WonAt(seat) > 0);
+                label.EnableInClassList("hand-label--push", (shown.FlagsAt(seat) & PokerSeatFlags.Folded) != 0);
             }
         }
 
@@ -196,12 +199,13 @@ namespace CasinoMares.UI
             if (view == null)
                 return;
 
-            var result = table.Phase == BaccaratPhase.Result;
-            var player = Place(view.PlayerLabelPosition, $"Player {table.VisibleTotal(false)}", cam);
-            player?.EnableInClassList("hand-label--win", result && table.Outcome == Rules.BaccaratOutcome.Player);
-            var banker = Place(view.BankerLabelPosition, $"Banker {table.VisibleTotal(true)}", cam);
-            banker?.EnableInClassList("hand-label--win", result && table.Outcome == Rules.BaccaratOutcome.Banker);
-            if (result && table.Outcome == Rules.BaccaratOutcome.Tie)
+            var shown = table.Shown;
+            var result = shown.Phase == BaccaratPhase.Result;
+            var player = Place(view.PlayerLabelPosition, $"Player {shown.VisibleTotal(false)}", cam);
+            player?.EnableInClassList("hand-label--win", result && shown.Outcome == Rules.BaccaratOutcome.Player);
+            var banker = Place(view.BankerLabelPosition, $"Banker {shown.VisibleTotal(true)}", cam);
+            banker?.EnableInClassList("hand-label--win", result && shown.Outcome == Rules.BaccaratOutcome.Banker);
+            if (result && shown.Outcome == Rules.BaccaratOutcome.Tie)
             {
                 player?.AddToClassList("hand-label--push");
                 banker?.AddToClassList("hand-label--push");
@@ -228,20 +232,21 @@ namespace CasinoMares.UI
             if (view == null)
                 return;
 
-            var text = table.Phase switch
+            var shown = table.Shown;
+            var text = shown.Phase switch
             {
-                RoulettePhase.Betting => $"Place your bets · {Mathf.CeilToInt(Mathf.Max(0f, table.TimeRemaining))}s",
+                RoulettePhase.Betting => $"Place your bets · {Mathf.CeilToInt(Mathf.Max(0f, shown.TimeRemaining))}s",
                 RoulettePhase.Spinning => "No more bets!",
-                RoulettePhase.Result => $"{table.Result} {Rules.RouletteRules.ColorName(table.Result)}",
+                RoulettePhase.Result => $"{shown.Result} {Rules.RouletteRules.ColorName(shown.Result)}",
                 _ => null,
             };
 
             if (text == null)
                 return;
             var label = Place(view.ResultLabelPosition, text, cam);
-            if (label == null || table.Phase != RoulettePhase.Result)
+            if (label == null || shown.Phase != RoulettePhase.Result)
                 return;
-            label.AddToClassList(table.Result == 0 ? "hand-label--win" : Rules.RouletteRules.IsRed(table.Result) ? "hand-label--lose" : "hand-label--push");
+            label.AddToClassList(shown.Result == 0 ? "hand-label--win" : Rules.RouletteRules.IsRed(shown.Result) ? "hand-label--lose" : "hand-label--push");
         }
 
         Label Place(Vector3 world, string text, Camera cam)

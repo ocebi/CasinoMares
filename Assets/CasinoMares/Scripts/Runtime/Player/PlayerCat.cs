@@ -41,6 +41,13 @@ namespace CasinoMares.Player
         [Networked]
         public NetworkBool IsAway { get; set; }
 
+        /// <summary>
+        /// The owner's round trip to the Photon cloud in milliseconds, kept roughly current by the owner. The table
+        /// authority holds events back by the slowest one so they show on every screen at once (<see cref="TableReveal"/>).
+        /// </summary>
+        [Networked]
+        public short RttMs { get; set; }
+
         /// <summary>Raised on every client when the name or fur color changes.</summary>
         public event Action AppearanceChanged;
 
@@ -51,8 +58,12 @@ namespace CasinoMares.Player
         public CatReactions Reactions => _reactions;
         public SessionWinnings Winnings { get; private set; }
 
+        const float RttUpdateInterval = 1f;
+        const int RttChangeMs = 10;
+
         CatReactions _reactions;
         CatAnimatorDriver _animatorDriver;
+        float _nextRttUpdate;
 
         /// <summary>The cat owned by this player, if it has spawned on this client.</summary>
         public static PlayerCat Find(PlayerRef player)
@@ -85,6 +96,20 @@ namespace CasinoMares.Player
         {
             if (_animatorDriver != null)
                 _animatorDriver.Sitting = IsSeated;
+
+            if (HasStateAuthority)
+                UpdateRtt();
+        }
+
+        /// <summary>About once a second, and only when it moved noticeably, so it doesn't churn the network.</summary>
+        void UpdateRtt()
+        {
+            if (Time.unscaledTime < _nextRttUpdate)
+                return;
+            _nextRttUpdate = Time.unscaledTime + RttUpdateInterval;
+            var rtt = Mathf.Clamp((int)Math.Round(Runner.GetPlayerRtt(Runner.LocalPlayer) * 1000.0), 0, short.MaxValue);
+            if (Mathf.Abs(rtt - RttMs) >= RttChangeMs)
+                RttMs = (short)rtt;
         }
 
         // ---------------------------------------------------------------- Chat & announcements

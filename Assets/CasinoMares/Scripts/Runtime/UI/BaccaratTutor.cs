@@ -26,7 +26,8 @@ namespace CasinoMares.UI
         /// <summary>The bet spot the coach suggests right now, or -1.</summary>
         public int SuggestedSpot { get; private set; } = -1;
 
-        public void Update(BaccaratTable table, int seat)
+        /// <summary><paramref name="table"/> is the coup as shown on screen, so the coach never runs ahead of the cards.</summary>
+        public void Update(BaccaratTable.Snapshot table, int seat)
         {
             SuggestedSpot = -1;
             if (!Panel.Enabled)
@@ -50,7 +51,7 @@ namespace CasinoMares.UI
             }
         }
 
-        void Betting(BaccaratTable table, int seat)
+        void Betting(BaccaratTable.Snapshot table, int seat)
         {
             _text.Clear();
             _text.Append("Banker wins <b>45.9%</b> of coups, Player <b>44.6%</b>, Tie <b>9.5%</b>.\n");
@@ -82,7 +83,7 @@ namespace CasinoMares.UI
         }
 
         /// <summary>How many of the latest coups the same side won in a row (ties don't break or extend it).</summary>
-        static int Streak(BaccaratTable table, out string side)
+        static int Streak(BaccaratTable.Snapshot table, out string side)
         {
             side = null;
             var count = 0;
@@ -105,7 +106,7 @@ namespace CasinoMares.UI
             return count;
         }
 
-        string DealText(BaccaratTable table)
+        string DealText(BaccaratTable.Snapshot table)
         {
             _player.Clear();
             _banker.Clear();
@@ -168,7 +169,7 @@ namespace CasinoMares.UI
             };
         }
 
-        string ResultText(BaccaratTable table, int seat)
+        string ResultText(BaccaratTable.Snapshot table, int seat)
         {
             var player = table.VisibleTotal(false);
             var banker = table.VisibleTotal(true);

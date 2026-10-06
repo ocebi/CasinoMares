@@ -45,7 +45,8 @@ namespace CasinoMares.UI
 
         public int SuggestedRaiseTo { get; private set; }
 
-        public void Update(PokerTable table, int seat)
+        /// <summary><paramref name="table"/> is the hand as shown on screen, so the coach never runs ahead of the cards.</summary>
+        public void Update(PokerTable.Snapshot table, int seat)
         {
             Suggestion = null;
             if (!Panel.Enabled)
@@ -125,7 +126,7 @@ namespace CasinoMares.UI
             Panel.Set($"Coach · {StreetTitle(phase)}", _text.ToString(), tip, _equity >= 0f ? _equity : 0f, meterText);
         }
 
-        void UpdateEquity(PokerTable table, byte a, byte b, int opponents)
+        void UpdateEquity(PokerTable.Snapshot table, byte a, byte b, int opponents)
         {
             if (_equityHand != table.HandId)
             {
@@ -201,7 +202,7 @@ namespace CasinoMares.UI
             }
         }
 
-        string HandDescription(PokerTable table, byte a, byte b)
+        string HandDescription(PokerTable.Snapshot table, byte a, byte b)
         {
             var cards = $"{CardText(a)} {CardText(b)}";
             if (table.CommunityCount < 3)
@@ -231,7 +232,7 @@ namespace CasinoMares.UI
         /// True when the made hand (a pair, two pair...) comes entirely from the shared cards, e.g. a pair of kings on
         /// the board while holding 5 2: a classic beginner trap.
         /// </summary>
-        static bool OnTheBoard(PokerTable table, PokerHandValue value)
+        static bool OnTheBoard(PokerTable.Snapshot table, PokerHandValue value)
         {
             if (value.Category is < PokerCategory.Pair or > PokerCategory.Quads or PokerCategory.Straight or PokerCategory.Flush)
                 return false;
@@ -261,7 +262,7 @@ namespace CasinoMares.UI
         };
 
         /// <summary>Flush and straight draws, with the "rule of 4 and 2" to turn outs into a rough chance.</summary>
-        static string DrawText(PokerTable table, byte a, byte b, PokerCategory made)
+        static string DrawText(PokerTable.Snapshot table, byte a, byte b, PokerCategory made)
         {
             var community = table.CommunityCount;
             Span<int> suits = stackalloc int[4];
@@ -387,7 +388,7 @@ namespace CasinoMares.UI
             _ => "",
         };
 
-        static PokerHandValue Evaluate(PokerTable table, byte a, byte b)
+        static PokerHandValue Evaluate(PokerTable.Snapshot table, byte a, byte b)
         {
             var count = table.CommunityCount;
             Span<byte> cards = stackalloc byte[2 + count];
@@ -398,7 +399,7 @@ namespace CasinoMares.UI
             return PokerRules.Evaluate(cards);
         }
 
-        static string BestHand(PokerTable table, byte a, byte b) => Evaluate(table, a, b).ToString();
+        static string BestHand(PokerTable.Snapshot table, byte a, byte b) => Evaluate(table, a, b).ToString();
 
         static string CardText(byte card) => Cards.IsRed(card) ? $"<color=#E0605A>{Cards.Label(card)}</color>" : Cards.Label(card);
 

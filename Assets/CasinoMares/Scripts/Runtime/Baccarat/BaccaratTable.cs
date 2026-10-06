@@ -66,6 +66,8 @@ namespace CasinoMares.Baccarat
         [Networked] byte PlayerCount { get; set; }
         [Networked] byte BankerCount { get; set; }
         [Networked] public byte Revealed { get; set; }
+        /// <summary>When everyone sees the latest round event (<see cref="TableReveal"/>).</summary>
+        [Networked] int RevealTick { get; set; }
 
         [Networked, Capacity(SeatCount)] NetworkArray<byte> SeatOccupants => default;
         [Networked, Capacity(SeatCount)] NetworkArray<PlayerRef> SeatPlayers => default;
@@ -76,10 +78,11 @@ namespace CasinoMares.Baccarat
         [Networked, Capacity(SeatCount * Spots)] NetworkArray<int> Bets => default;
         [Networked, Capacity(HistoryLength)] NetworkArray<byte> History => default;
 
-        readonly byte[] _scratch = new byte[3];
         int _walletRound;
         int _walletCharged;
         int _walletPaidRound;
+        RevealQueue<Snapshot> _reveal;
+        int _stampedTick = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -104,65 +107,15 @@ namespace CasinoMares.Baccarat
         bool NpcPresent(int seat) => OccupantAt(seat) == BaccaratOccupant.Npc && SeatArrivals[seat].ExpiredOrNotRunning(Runner);
         public bool IsDoneAt(int seat) => SeatDone[seat];
         public int BetAt(int seat, int spot) => Bets[seat * Spots + spot];
-        public BaccaratOutcome HistoryAt(int index) => (BaccaratOutcome)History[index];
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
         public int ShoeSeedValue => ShoeSeed;
-        public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
-
-        /// <summary>Card i of the coup in dealing order (P, B, P, B, P3, B3) as the players see it: side and card.</summary>
-        public bool TryGetRevealedCard(int order, out bool isBanker, out int index, out byte card)
-        {
-            isBanker = false;
-            index = -1;
-            card = Cards.None;
-            if (order >= Revealed)
-                return false;
-
-            switch (order)
-            {
-                case < 4:
-                    isBanker = order % 2 == 1;
-                    index = order / 2;
-                    break;
-                case 4 when PlayerCount == 3:
-                    index = 2;
-                    break;
-                default:
-                    isBanker = true;
-                    index = 2;
-                    break;
-            }
-
-            card = isBanker ? BankerCards[index] : PlayerCards[index];
-            return true;
-        }
-
-        public int VisibleTotal(bool banker)
-        {
-            var count = 0;
-            for (var order = 0; order < Revealed; order++)
-            {
-                if (TryGetRevealedCard(order, out var isBanker, out _, out var card) && isBanker == banker)
-                    _scratch[count++] = card;
-            }
-
-            return BaccaratRules.Total(new ReadOnlySpan<byte>(_scratch, 0, count));
-        }
 
         public int TotalBetAt(int seat)
         {
             var total = 0;
             for (var spot = 0; spot < Spots; spot++)
                 total += Bets[seat * Spots + spot];
-            return total;
-        }
-
-        public int PayoutAt(int seat)
-        {
-            var total = 0;
-            for (var spot = 0; spot < Spots; spot++)
-                total += BaccaratRules.Payout(spot, Bets[seat * Spots + spot], Outcome);
             return total;
         }
 
@@ -179,12 +132,128 @@ namespace CasinoMares.Baccarat
             return false;
         }
 
+        // ---------------------------------------------------------------- What players see (every client)
+
+        /// <summary>
+        /// The coup as players see it right now: the networked round state, with each event (a card turned over,
+        /// the result) held back until its reveal tick so it happens on every screen at once. Views, HUDs and the
+        /// local wallet read this; the round logic reads the live state. Seats and settings stay live.
+        /// </summary>
+        public Snapshot Shown => (_reveal ??= new RevealQueue<Snapshot>(Capture)).Get(Runner, RevealTick);
+
+        public sealed class Snapshot
+        {
+            public BaccaratPhase Phase;
+            public int RoundId;
+            public int SettledRoundId;
+            public BaccaratOutcome Outcome;
+            public byte Revealed;
+            internal byte PlayerCount;
+            internal NetworkRunner Runner;
+            internal TickTimer PhaseTimer;
+            internal readonly byte[] PlayerCards = new byte[3];
+            internal readonly byte[] BankerCards = new byte[3];
+            internal readonly PlayerRef[] RoundOwners = new PlayerRef[SeatCount];
+            internal readonly NetworkBool[] Done = new NetworkBool[SeatCount];
+            internal readonly int[] Bets = new int[SeatCount * Spots];
+            internal readonly byte[] History = new byte[HistoryLength];
+            readonly byte[] _scratch = new byte[3];
+
+            public PlayerRef RoundOwnerAt(int seat) => RoundOwners[seat];
+            public bool IsDoneAt(int seat) => Done[seat];
+            public int BetAt(int seat, int spot) => Bets[seat * Spots + spot];
+            public BaccaratOutcome HistoryAt(int index) => (BaccaratOutcome)History[index];
+            public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
+
+            /// <summary>Card i of the coup in dealing order (P, B, P, B, P3, B3) as the players see it: side and card.</summary>
+            public bool TryGetRevealedCard(int order, out bool isBanker, out int index, out byte card)
+            {
+                isBanker = false;
+                index = -1;
+                card = Cards.None;
+                if (order >= Revealed)
+                    return false;
+
+                switch (order)
+                {
+                    case < 4:
+                        isBanker = order % 2 == 1;
+                        index = order / 2;
+                        break;
+                    case 4 when PlayerCount == 3:
+                        index = 2;
+                        break;
+                    default:
+                        isBanker = true;
+                        index = 2;
+                        break;
+                }
+
+                card = isBanker ? BankerCards[index] : PlayerCards[index];
+                return true;
+            }
+
+            public int VisibleTotal(bool banker)
+            {
+                var count = 0;
+                for (var order = 0; order < Revealed; order++)
+                {
+                    if (TryGetRevealedCard(order, out var isBanker, out _, out var card) && isBanker == banker)
+                        _scratch[count++] = card;
+                }
+
+                return BaccaratRules.Total(new ReadOnlySpan<byte>(_scratch, 0, count));
+            }
+
+            public int TotalBetAt(int seat)
+            {
+                var total = 0;
+                for (var spot = 0; spot < Spots; spot++)
+                    total += Bets[seat * Spots + spot];
+                return total;
+            }
+
+            public int PayoutAt(int seat)
+            {
+                var total = 0;
+                for (var spot = 0; spot < Spots; spot++)
+                    total += BaccaratRules.Payout(spot, Bets[seat * Spots + spot], Outcome);
+                return total;
+            }
+        }
+
+        void Capture(Snapshot shown)
+        {
+            shown.Phase = Phase;
+            shown.RoundId = RoundId;
+            shown.SettledRoundId = SettledRoundId;
+            shown.Outcome = Outcome;
+            shown.Revealed = Revealed;
+            shown.PlayerCount = PlayerCount;
+            shown.Runner = Runner;
+            shown.PhaseTimer = PhaseTimer;
+            PlayerCards.CopyTo(shown.PlayerCards, false);
+            BankerCards.CopyTo(shown.BankerCards, false);
+            SeatRoundOwners.CopyTo(shown.RoundOwners, false);
+            SeatDone.CopyTo(shown.Done, false);
+            Bets.CopyTo(shown.Bets, false);
+            History.CopyTo(shown.History, false);
+        }
+
+        /// <summary>Authority: marks what this tick changed as an event for everyone to see at once; returns the seconds until they do.</summary>
+        float Reveal()
+        {
+            RevealTick = TableReveal.Stamp(Runner, RevealTick, ref _stampedTick);
+            return TableReveal.SecondsUntil(Runner, RevealTick);
+        }
+
         // ---------------------------------------------------------------- Lifecycle
 
         public override void Spawned()
         {
             All.Add(this);
             GameTables.All.Add(this);
+            _reveal = null; // a fresh session starts from what's on the table now
             if (HasStateAuthority && !Initialized)
             {
                 Initialized = true;
@@ -225,11 +294,12 @@ namespace CasinoMares.Baccarat
         {
             if (!TryGetSeatOf(player, out var seat))
                 return false;
+            var shown = Shown;
             text.AppendLine($"{_displayName} · seat {seat + 1}");
             var any = false;
             for (var spot = 0; spot < Spots; spot++)
             {
-                var amount = BetAt(seat, spot);
+                var amount = shown.BetAt(seat, spot);
                 if (amount <= 0)
                     continue;
                 text.AppendLine($"{BaccaratRules.SpotNames[spot]}: {amount:N0}");
@@ -237,11 +307,11 @@ namespace CasinoMares.Baccarat
             }
 
             if (!any)
-                text.AppendLine(Phase == BaccaratPhase.Betting ? "Choosing a bet..." : "Sitting this coup out");
-            if (Revealed > 0)
-                text.AppendLine($"Player {VisibleTotal(false)} · Banker {VisibleTotal(true)}");
-            if (Phase == BaccaratPhase.Result)
-                text.AppendLine($"{Outcome} wins");
+                text.AppendLine(shown.Phase == BaccaratPhase.Betting ? "Choosing a bet..." : "Sitting this coup out");
+            if (shown.Revealed > 0)
+                text.AppendLine($"Player {shown.VisibleTotal(false)} · Banker {shown.VisibleTotal(true)}");
+            if (shown.Phase == BaccaratPhase.Result)
+                text.AppendLine($"{shown.Outcome} wins");
             return true;
         }
 
@@ -264,6 +334,7 @@ namespace CasinoMares.Baccarat
                         ClearAllBets();
                         Phase = BaccaratPhase.WaitingForPlayers;
                         PhaseTimer = TickTimer.None;
+                        Reveal();
                     }
                     else if (PhaseTimer.ExpiredOrNotRunning(Runner) || AllHumansDone())
                     {
@@ -295,6 +366,7 @@ namespace CasinoMares.Baccarat
                     {
                         ClearAllBets();
                         Revealed = 0;
+                        Reveal();
                         if (HumanCount() > 0)
                             EnterBetting();
                         else
@@ -334,7 +406,8 @@ namespace CasinoMares.Baccarat
             Phase = BaccaratPhase.Betting;
             Outcome = BaccaratOutcome.None;
             Revealed = 0;
-            PhaseTimer = TickTimer.CreateFromSeconds(Runner, BetTimerSeconds);
+            // Betting opens when everyone sees it, so the window runs from the reveal.
+            PhaseTimer = TickTimer.CreateFromSeconds(Runner, BetTimerSeconds + Reveal());
             for (var i = 0; i < SeatCount; i++)
             {
                 SeatDone.Set(i, false);
@@ -378,6 +451,7 @@ namespace CasinoMares.Baccarat
             Phase = BaccaratPhase.Dealing;
             PhaseTimer = TickTimer.None;
             StepTimer = TickTimer.CreateFromSeconds(Runner, 0.4f);
+            Reveal();
         }
 
         /// <summary>Turns over the next card; after the last one there's a pause before the result.</summary>
@@ -386,6 +460,7 @@ namespace CasinoMares.Baccarat
             Revealed++;
             var last = Revealed >= PlayerCount + BankerCount;
             StepTimer = TickTimer.CreateFromSeconds(Runner, last ? GameTables.ResultPause : RevealInterval);
+            Reveal();
         }
 
         void Settle()
@@ -405,6 +480,7 @@ namespace CasinoMares.Baccarat
             SettledRoundId = RoundId;
             Phase = BaccaratPhase.Result;
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, ResultDuration);
+            Reveal();
         }
 
         void ClearAllBets()
@@ -547,35 +623,37 @@ namespace CasinoMares.Baccarat
             if (Runner == null)
                 return;
 
+            // The shown coup, so the payout and its toast come with the last card, not before it.
+            var shown = Shown;
             var local = Runner.LocalPlayer;
             var seat = -1;
             for (var i = 0; i < SeatCount; i++)
             {
-                if (SeatRoundOwners[i] == local)
+                if (shown.RoundOwnerAt(i) == local)
                 {
                     seat = i;
                     break;
                 }
             }
 
-            if (_walletRound != RoundId)
+            if (_walletRound != shown.RoundId)
             {
-                _walletRound = RoundId;
+                _walletRound = shown.RoundId;
                 _walletCharged = 0;
             }
 
             var stillSeated = seat >= 0 && SeatPlayers[seat] == local;
-            var wager = seat >= 0 && (stillSeated || Phase != BaccaratPhase.Betting) ? TotalBetAt(seat) : 0;
-            if (wager != _walletCharged && _walletPaidRound != RoundId)
+            var wager = seat >= 0 && (stillSeated || shown.Phase != BaccaratPhase.Betting) ? shown.TotalBetAt(seat) : 0;
+            if (wager != _walletCharged && _walletPaidRound != shown.RoundId)
             {
                 ProfileStore.SetBalance(ProfileStore.Current.Balance - (wager - _walletCharged));
                 _walletCharged = wager;
             }
 
-            if (seat >= 0 && SettledRoundId == RoundId && _walletPaidRound != RoundId && Phase == BaccaratPhase.Result)
+            if (seat >= 0 && shown.SettledRoundId == shown.RoundId && _walletPaidRound != shown.RoundId && shown.Phase == BaccaratPhase.Result)
             {
-                _walletPaidRound = RoundId;
-                var payout = PayoutAt(seat);
+                _walletPaidRound = shown.RoundId;
+                var payout = shown.PayoutAt(seat);
                 if (payout > 0)
                     ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
                 if (_walletCharged > 0)

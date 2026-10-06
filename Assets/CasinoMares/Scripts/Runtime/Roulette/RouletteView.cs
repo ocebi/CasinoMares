@@ -7,9 +7,9 @@ using UnityEngine;
 namespace CasinoMares.Roulette
 {
     /// <summary>
-    /// Renders a <see cref="RouletteTable"/> on every client: the wheel (bowl, rotor, frets), the ball running the
-    /// spin's <see cref="RouletteBallPath"/> into the networked result pocket, chip stacks per seat, the croupier and
-    /// NPC seat cats, and reactions to the result.
+    /// Renders a <see cref="RouletteTable"/> on every client from its shown round (<see cref="RouletteTable.Shown"/>):
+    /// the wheel (bowl, rotor, frets), the ball running the spin's <see cref="RouletteBallPath"/> into the networked
+    /// result pocket, chip stacks per seat, the croupier and NPC seat cats, and reactions to the result.
     /// </summary>
     public class RouletteView : MonoBehaviour
     {
@@ -27,6 +27,7 @@ namespace CasinoMares.Roulette
 
         readonly ChipStack[] _stacks = new ChipStack[RouletteTable.SeatCount];
         SeatCats _seatCats;
+        RouletteTable.Snapshot _shown;
 
         float _rotorAngle;
         RouletteBallPath _path;
@@ -58,11 +59,12 @@ namespace CasinoMares.Roulette
                 return;
             }
 
-            var phase = _table.Phase;
+            _shown = _table.Shown;
+            var phase = _shown.Phase;
             if (!_initialized)
             {
                 _initialized = true;
-                _lastSettled = _table.SettledRoundId;
+                _lastSettled = _shown.SettledRoundId;
             }
 
             if (phase == RoulettePhase.Spinning)
@@ -70,9 +72,9 @@ namespace CasinoMares.Roulette
             else
                 IdleSpin();
 
-            if (_table.SettledRoundId != _lastSettled)
+            if (_shown.SettledRoundId != _lastSettled)
             {
-                _lastSettled = _table.SettledRoundId;
+                _lastSettled = _shown.SettledRoundId;
                 if (phase == RoulettePhase.Result)
                     OnLanded();
             }
@@ -87,7 +89,7 @@ namespace CasinoMares.Roulette
             _rotor.localRotation = Quaternion.Euler(0f, _rotorAngle, 0f);
 
             // Between spins the ball rests in the last result's pocket and rides the rotor.
-            var last = _table.Object != null && _table.Object.IsValid ? _table.HistoryAt(0) : -1;
+            var last = _table.Object != null && _table.Object.IsValid ? _table.Shown.HistoryAt(0) : -1;
             _ball.gameObject.SetActive(last >= 0);
             if (last >= 0)
             {
@@ -99,14 +101,14 @@ namespace CasinoMares.Roulette
 
         void AnimateSpin()
         {
-            var elapsed = _table.SpinElapsed;
-            if (_path == null || _pathRound != _table.RoundId)
+            var elapsed = _shown.SpinElapsed;
+            if (_path == null || _pathRound != _shown.RoundId)
             {
                 // A new spin, or one already under way when we arrived: keep the rotor where it is and pick up the
                 // ball's path from here.
-                _pathRound = _table.RoundId;
+                _pathRound = _shown.RoundId;
                 _spinClock = elapsed;
-                _path = new RouletteBallPath(_table.RoundId, _table.HistoryAt(0), _table.LandingNumber, _rotorAngle - RouletteBallPath.RotorTurn(elapsed));
+                _path = new RouletteBallPath(_shown.RoundId, _shown.HistoryAt(0), _shown.LandingNumber, _rotorAngle - RouletteBallPath.RotorTurn(elapsed));
                 _contacts = _path.ContactsBefore(elapsed);
                 if (elapsed < 0.5f)
                     Sfx.PlayAt(SoundId.WheelSpin, _rotor.position);
@@ -142,14 +144,14 @@ namespace CasinoMares.Roulette
 
         void OnLanded()
         {
-            var result = _table.Result;
+            var result = _shown.Result;
 
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
             {
-                var bet = _table.TotalBetAt(seat);
+                var bet = _shown.TotalBetAt(seat);
                 if (bet == 0)
                     continue;
-                var net = _table.PayoutAt(seat, result) - bet;
+                var net = _shown.PayoutAt(seat, result) - bet;
                 var reactions = ReactionsFor(seat);
                 if (reactions == null)
                     continue;
@@ -164,7 +166,7 @@ namespace CasinoMares.Roulette
 
         CatReactions ReactionsFor(int seat)
         {
-            var owner = _table.RoundOwnerAt(seat);
+            var owner = _shown.RoundOwnerAt(seat);
             if (owner != Fusion.PlayerRef.None)
                 return PlayerCat.Find(owner)?.Reactions;
             return _seatCats.ReactionsAt(seat);
@@ -174,9 +176,9 @@ namespace CasinoMares.Roulette
         {
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
             {
-                var amount = _table.TotalBetAt(seat);
+                var amount = _shown.TotalBetAt(seat);
                 if (phase == RoulettePhase.Result)
-                    amount = _table.PayoutAt(seat, _table.Result);
+                    amount = _shown.PayoutAt(seat, _shown.Result);
 
                 var stack = _stacks[seat];
                 if (amount <= 0)
@@ -211,7 +213,7 @@ namespace CasinoMares.Roulette
             if (_croupier != null)
             {
                 _croupier.Sitting = true;
-                _croupier.FaceTowards(_table.Phase == RoulettePhase.Spinning ? _rotor.position : transform.position, 90f);
+                _croupier.FaceTowards(_shown.Phase == RoulettePhase.Spinning ? _rotor.position : transform.position, 90f);
             }
         }
     }

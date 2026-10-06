@@ -38,6 +38,7 @@ namespace CasinoMares.UI
         readonly List<Button> _chipButtons = new();
 
         BaccaratTable _table;
+        BaccaratTable.Snapshot _shown;
         int _seat = -1;
         int _chip = 10;
         int _shownRoad = int.MinValue;
@@ -112,6 +113,7 @@ namespace CasinoMares.UI
         void OnLocalSeatChanged(IGameTable table, int seat)
         {
             _table = table as BaccaratTable;
+            _shown = null;
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
@@ -133,7 +135,8 @@ namespace CasinoMares.UI
 
         void PlaceChip(int spot)
         {
-            if (_table == null || _table.Phase != BaccaratPhase.Betting)
+            // Betting has to be open both on screen and in the live round.
+            if (_table == null || _shown == null || _shown.Phase != BaccaratPhase.Betting || _table.Phase != BaccaratPhase.Betting)
                 return;
             if (_chip > ProfileStore.Current.Balance)
             {
@@ -141,7 +144,7 @@ namespace CasinoMares.UI
                 return;
             }
 
-            if (_table.TotalBetAt(_seat) + _chip > BaccaratRules.MaxTotalBet)
+            if (_shown.TotalBetAt(_seat) + _chip > BaccaratRules.MaxTotalBet)
             {
                 Toasts.Show($"Table limit is {BaccaratRules.MaxTotalBet} per coup.");
                 return;
@@ -155,20 +158,22 @@ namespace CasinoMares.UI
             if (_table == null || _table.Object == null || !_table.Object.IsValid)
                 return;
 
-            var phase = _table.Phase;
+            // The coup as everyone sees it at this moment (see BaccaratTable.Shown).
+            _shown = _table.Shown;
+            var phase = _shown.Phase;
             var betting = phase == BaccaratPhase.Betting;
             for (var spot = 0; spot < BaccaratRules.Spots; spot++)
             {
-                var amount = _table.BetAt(_seat, spot);
+                var amount = _shown.BetAt(_seat, spot);
                 _spotBadges[spot].style.display = amount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
                 _spotBadges[spot].text = amount.ToString();
                 _spotButtons[spot].SetEnabled(betting);
                 var winner = phase == BaccaratPhase.Result &&
-                             (int)_table.Outcome - 1 == spot;
+                             (int)_shown.Outcome - 1 == spot;
                 _spotButtons[spot].EnableInClassList("rl-cell--winner", winner);
             }
 
-            _tutor.Update(_table, _seat);
+            _tutor.Update(_shown, _seat);
             for (var spot = 0; spot < BaccaratRules.Spots; spot++)
                 _spotButtons[spot].EnableInClassList("coach-suggested", betting && _tutor.SuggestedSpot == spot);
 
@@ -176,22 +181,22 @@ namespace CasinoMares.UI
                 chip.style.borderTopColor = chip.style.borderBottomColor = chip.style.borderLeftColor = chip.style.borderRightColor =
                     (int)chip.userData == _chip ? new Color(1f, 0.85f, 0.4f) : new Color(1f, 1f, 1f, 0.6f);
 
-            _total.text = $"Bet {_table.TotalBetAt(_seat):N0}";
-            _doneButton.SetEnabled(betting && !_table.IsDoneAt(_seat));
+            _total.text = $"Bet {_shown.TotalBetAt(_seat):N0}";
+            _doneButton.SetEnabled(betting && !_shown.IsDoneAt(_seat));
             _phase.text = phase switch
             {
                 BaccaratPhase.WaitingForPlayers => "Waiting for players",
-                BaccaratPhase.Betting => _table.IsDoneAt(_seat) ? "Ready! Waiting for the others..." : "Place your bets",
-                BaccaratPhase.Dealing => $"Player {_table.VisibleTotal(false)} · Banker {_table.VisibleTotal(true)}",
-                BaccaratPhase.Result => _table.Outcome == BaccaratOutcome.Tie ? "Tie!" : $"{_table.Outcome} wins {_table.VisibleTotal(_table.Outcome == BaccaratOutcome.Banker)}",
+                BaccaratPhase.Betting => _shown.IsDoneAt(_seat) ? "Ready! Waiting for the others..." : "Place your bets",
+                BaccaratPhase.Dealing => $"Player {_shown.VisibleTotal(false)} · Banker {_shown.VisibleTotal(true)}",
+                BaccaratPhase.Result => _shown.Outcome == BaccaratOutcome.Tie ? "Tie!" : $"{_shown.Outcome} wins {_shown.VisibleTotal(_shown.Outcome == BaccaratOutcome.Banker)}",
                 _ => "",
             };
 
-            var remaining = _table.TimeRemaining;
+            var remaining = _shown.TimeRemaining;
             var showTimer = betting && remaining >= 0f;
             _timer.EnableInClassList("hidden", !showTimer);
             if (showTimer)
-                _timerFill.style.width = Length.Percent(100f * remaining / Mathf.Max(1f, _table.BetTimerSeconds));
+                _timerFill.style.width = Length.Percent(Mathf.Min(100f, 100f * remaining / Mathf.Max(1f, _table.BetTimerSeconds)));
 
             _betTimerButton.text = $"Betting timer: {_table.BetTimerSeconds}s";
             _npcButton.text = $"NPC players: {NpcSeating.Describe(_table.NpcFill)}";
@@ -205,7 +210,7 @@ namespace CasinoMares.UI
 
         void UpdateRoad()
         {
-            var head = (int)_table.HistoryAt(0) * 100000 + _table.SettledRoundId;
+            var head = (int)_shown.HistoryAt(0) * 100000 + _shown.SettledRoundId;
             if (head == _shownRoad)
                 return;
             _shownRoad = head;
@@ -213,7 +218,7 @@ namespace CasinoMares.UI
             _road.Clear();
             for (var i = 0; i < BaccaratTable.HistoryLength; i++)
             {
-                var outcome = _table.HistoryAt(i);
+                var outcome = _shown.HistoryAt(i);
                 if (outcome == BaccaratOutcome.None)
                     break;
                 var item = new Label(outcome.ToString().Substring(0, 1)) { pickingMode = PickingMode.Ignore };

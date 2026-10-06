@@ -112,10 +112,14 @@ namespace CasinoMares.Blackjack
         [Networked] NetworkBool DealerFinished { get; set; }
         [Networked] public sbyte ActiveSeat { get; set; }
         [Networked] public byte ActiveHand { get; set; }
+        /// <summary>When everyone sees the latest round event (<see cref="TableReveal"/>).</summary>
+        [Networked] int RevealTick { get; set; }
 
         readonly byte[] _handScratch = new byte[MaxCards];
         readonly byte[] _dealerScratch = new byte[MaxCards];
         Shoe _shoe;
+        RevealQueue<Snapshot> _reveal;
+        int _stampedTick = -1;
 
         // Local chip accounting (§9.4), per client, for the local player's seat only.
         int _walletRound;
@@ -161,35 +165,7 @@ namespace CasinoMares.Blackjack
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
 
-        /// <summary>Seconds left on the betting window or the current turn, or -1 when no timer is running.</summary>
-        public float TimeRemaining
-        {
-            get
-            {
-                if (!PhaseTimer.IsRunning || Runner == null)
-                    return -1f;
-                return Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f);
-            }
-        }
-
         public HandValue EvaluateHand(int seat, int hand) => BlackjackRules.Evaluate(HandSpan(seat, hand));
-
-        /// <summary>The dealer's total as players can see it (the hole card is hidden until revealed).</summary>
-        public HandValue EvaluateDealerVisible()
-        {
-            var count = HoleRevealed ? DealerCardCount : Mathf.Min(1, (int)DealerCardCount);
-            for (var i = 0; i < count; i++)
-                _dealerScratch[i] = DealerCards[i];
-            return BlackjackRules.Evaluate(new ReadOnlySpan<byte>(_dealerScratch, 0, count));
-        }
-
-        public int TotalWagerAt(int seat)
-        {
-            var total = 0;
-            for (var h = 0; h < SeatHandCounts[seat]; h++)
-                total += HandBets[Slot(seat, h)];
-            return total;
-        }
 
         public bool IsActiveTurn(int seat) => Phase == BlackjackPhase.PlayerTurns && ActiveSeat == seat;
 
@@ -244,12 +220,108 @@ namespace CasinoMares.Blackjack
             return new ReadOnlySpan<byte>(_dealerScratch, 0, DealerCardCount);
         }
 
+        // ---------------------------------------------------------------- What players see (every client)
+
+        /// <summary>
+        /// The round as players see it right now: the networked round state, with each event held back until its
+        /// reveal tick so a card turns over on every screen at once. Views, HUDs and the local wallet read this; the
+        /// round logic reads the live state above. Seats, pending bets and settings stay live.
+        /// </summary>
+        public Snapshot Shown => (_reveal ??= new RevealQueue<Snapshot>(Capture)).Get(Runner, RevealTick);
+
+        public sealed class Snapshot
+        {
+            public BlackjackPhase Phase;
+            public int RoundId;
+            public int SettledRoundId;
+            public sbyte ActiveSeat;
+            public byte ActiveHand;
+            public byte DealerCardCount;
+            public bool HoleRevealed;
+            internal NetworkRunner Runner;
+            internal TickTimer PhaseTimer;
+            internal readonly PlayerRef[] RoundOwners = new PlayerRef[SeatCount];
+            internal readonly byte[] HandCounts = new byte[SeatCount];
+            internal readonly int[] Bets = new int[HandSlots];
+            internal readonly byte[] FlagBits = new byte[HandSlots];
+            internal readonly byte[] Outcomes = new byte[HandSlots];
+            internal readonly byte[] CardCounts = new byte[HandSlots];
+            internal readonly byte[] HandCards = new byte[HandSlots * MaxCards];
+            internal readonly byte[] Dealer = new byte[MaxCards];
+
+            public bool IsInRound => Phase is BlackjackPhase.Dealing or BlackjackPhase.PlayerTurns or BlackjackPhase.DealerTurn or BlackjackPhase.Settlement;
+            public PlayerRef RoundOwnerAt(int seat) => RoundOwners[seat];
+            public int HandCountAt(int seat) => HandCounts[seat];
+            public int HandBetAt(int seat, int hand) => Bets[Slot(seat, hand)];
+            public HandFlags HandFlagsAt(int seat, int hand) => (HandFlags)FlagBits[Slot(seat, hand)];
+            public HandOutcome OutcomeAt(int seat, int hand) => (HandOutcome)Outcomes[Slot(seat, hand)];
+            public int CardCountAt(int seat, int hand) => CardCounts[Slot(seat, hand)];
+            public byte CardAt(int seat, int hand, int index) => HandCards[Slot(seat, hand) * MaxCards + index];
+            public byte DealerCardAt(int index) => Dealer[index];
+            public bool IsActiveTurn(int seat) => Phase == BlackjackPhase.PlayerTurns && ActiveSeat == seat;
+
+            /// <summary>Seconds left on the betting window or the current turn, or -1 when no timer is running.</summary>
+            public float TimeRemaining => PhaseTimer.IsRunning && Runner != null ? Mathf.Max(0f, PhaseTimer.RemainingTime(Runner) ?? 0f) : -1f;
+
+            ReadOnlySpan<byte> HandSpan(int seat, int hand) =>
+                new(HandCards, Slot(seat, hand) * MaxCards, CardCounts[Slot(seat, hand)]);
+
+            public HandValue EvaluateHand(int seat, int hand) => BlackjackRules.Evaluate(HandSpan(seat, hand));
+
+            /// <summary>The dealer's total as players can see it (the hole card is hidden until revealed).</summary>
+            public HandValue EvaluateDealerVisible() =>
+                BlackjackRules.Evaluate(new ReadOnlySpan<byte>(Dealer, 0, HoleRevealed ? DealerCardCount : Mathf.Min(1, (int)DealerCardCount)));
+
+            public int TotalWagerAt(int seat)
+            {
+                var total = 0;
+                for (var h = 0; h < HandCounts[seat]; h++)
+                    total += Bets[Slot(seat, h)];
+                return total;
+            }
+
+            public bool CanDouble(int seat) =>
+                IsActiveTurn(seat) && BlackjackRules.CanDouble(HandSpan(seat, ActiveHand), (HandFlagsAt(seat, ActiveHand) & HandFlags.SplitAces) != 0);
+
+            public bool CanSplit(int seat) =>
+                IsActiveTurn(seat) && BlackjackRules.CanSplit(HandSpan(seat, ActiveHand), HandCounts[seat], (HandFlagsAt(seat, ActiveHand) & HandFlags.SplitAces) != 0);
+        }
+
+        void Capture(Snapshot shown)
+        {
+            shown.Phase = Phase;
+            shown.RoundId = RoundId;
+            shown.SettledRoundId = SettledRoundId;
+            shown.ActiveSeat = ActiveSeat;
+            shown.ActiveHand = ActiveHand;
+            shown.DealerCardCount = DealerCardCount;
+            shown.HoleRevealed = HoleRevealed;
+            shown.Runner = Runner;
+            shown.PhaseTimer = PhaseTimer;
+            SeatRoundOwners.CopyTo(shown.RoundOwners, false);
+            SeatHandCounts.CopyTo(shown.HandCounts, false);
+            HandBets.CopyTo(shown.Bets, false);
+            HandFlagBits.CopyTo(shown.FlagBits, false);
+            HandOutcomes.CopyTo(shown.Outcomes, false);
+            HandCardCounts.CopyTo(shown.CardCounts, false);
+            HandCards.CopyTo(shown.HandCards, false);
+            DealerCards.CopyTo(shown.Dealer, false);
+        }
+
+        /// <summary>Authority: marks what this tick changed as an event for everyone to see at once; returns the seconds until they do.</summary>
+        float Reveal()
+        {
+            RevealTick = TableReveal.Stamp(Runner, RevealTick, ref _stampedTick);
+            return TableReveal.SecondsUntil(Runner, RevealTick);
+        }
+
         // ---------------------------------------------------------------- Lifecycle
 
         public override void Spawned()
         {
             All.Add(this);
             GameTables.All.Add(this);
+            _reveal = null; // a fresh session starts from what's on the table now
 
             if (HasStateAuthority && !Initialized)
             {
@@ -301,11 +373,12 @@ namespace CasinoMares.Blackjack
             if (!TryGetSeatOf(player, out var seat))
                 return false;
 
+            var shown = Shown;
             text.AppendLine($"{_displayName} · seat {seat + 1}");
-            var hands = HandCountAt(seat);
+            var hands = shown.HandCountAt(seat);
             if (hands == 0)
             {
-                text.AppendLine(Phase == BlackjackPhase.Betting
+                text.AppendLine(shown.Phase == BlackjackPhase.Betting
                     ? IsLockedAt(seat) ? $"Bet locked: {PendingBetAt(seat):N0}" : "Choosing a bet..."
                     : "Waiting for the next round");
             }
@@ -313,20 +386,20 @@ namespace CasinoMares.Blackjack
             {
                 for (var h = 0; h < hands; h++)
                 {
-                    var outcome = OutcomeAt(seat, h);
+                    var outcome = shown.OutcomeAt(seat, h);
                     var result = outcome == HandOutcome.None ? "" : $" · {OutcomeLabel(outcome)}";
-                    var marker = IsActiveTurn(seat) && ActiveHand == h ? "▶ " : "";
-                    text.AppendLine($"{marker}Hand {h + 1}: {EvaluateHand(seat, h)} (bet {HandBetAt(seat, h):N0}){result}");
+                    var marker = shown.IsActiveTurn(seat) && shown.ActiveHand == h ? "▶ " : "";
+                    text.AppendLine($"{marker}Hand {h + 1}: {shown.EvaluateHand(seat, h)} (bet {shown.HandBetAt(seat, h):N0}){result}");
                 }
             }
 
-            if (IsActiveTurn(seat))
+            if (shown.IsActiveTurn(seat))
             {
-                var remaining = TimeRemaining;
+                var remaining = shown.TimeRemaining;
                 text.AppendLine(remaining >= 0f ? $"Their turn · {Mathf.CeilToInt(remaining)}s" : "Their turn");
             }
 
-            text.AppendLine($"Dealer shows {EvaluateDealerVisible()}");
+            text.AppendLine($"Dealer shows {shown.EvaluateDealerVisible()}");
             return true;
         }
 
@@ -399,8 +472,10 @@ namespace CasinoMares.Blackjack
                     LockNpcBet(i);
             }
 
+            // The window opens when everyone sees the table cleared, so it runs from the reveal.
+            var delay = Reveal();
             var seconds = BetTimerSeconds;
-            PhaseTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds) : TickTimer.None;
+            PhaseTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds + delay) : TickTimer.None;
             MaintainNpcs();
         }
 
@@ -426,6 +501,7 @@ namespace CasinoMares.Blackjack
             {
                 Phase = BlackjackPhase.WaitingForPlayers;
                 PhaseTimer = TickTimer.None;
+                Reveal();
                 return;
             }
 
@@ -497,6 +573,7 @@ namespace CasinoMares.Blackjack
             PhaseTimer = TickTimer.None;
             Phase = BlackjackPhase.Dealing;
             StepTimer = TickTimer.CreateFromSeconds(Runner, 0.4f);
+            Reveal();
         }
 
         void ClearHand(int slot)
@@ -567,6 +644,7 @@ namespace CasinoMares.Blackjack
                 GiveCard(participants[position], 0);
             else
                 GiveDealerCard();
+            Reveal();
 
             DealStep++;
             if (DealStep < totalSteps)
@@ -589,6 +667,7 @@ namespace CasinoMares.Blackjack
                 ActiveSeat = -1;
                 PhaseTimer = TickTimer.None;
                 StepTimer = TickTimer.CreateFromSeconds(Runner, GameTables.ResultPause);
+                Reveal();
                 RPC_Notice($"{_displayName}: dealer has blackjack.");
                 return;
             }
@@ -637,8 +716,10 @@ namespace CasinoMares.Blackjack
 
         void StartTurnTimers()
         {
+            // The turn starts when the player sees it, so the reveal delay doesn't eat into their time.
+            var delay = Reveal();
             var seconds = TurnTimerSeconds;
-            PhaseTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds) : TickTimer.None;
+            PhaseTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds + delay) : TickTimer.None;
             StepTimer = TickTimer.CreateFromSeconds(Runner, UnityEngine.Random.Range(NpcThinkMin, NpcThinkMax));
         }
 
@@ -704,6 +785,7 @@ namespace CasinoMares.Blackjack
                     break;
             }
 
+            Reveal();
             if (IsDone(seat, hand))
                 AdvanceTurn();
             else
@@ -745,6 +827,7 @@ namespace CasinoMares.Blackjack
             ActiveSeat = -1;
             PhaseTimer = TickTimer.None;
             StepTimer = TickTimer.CreateFromSeconds(Runner, 0.5f);
+            Reveal();
         }
 
         void DealerStep()
@@ -753,6 +836,7 @@ namespace CasinoMares.Blackjack
             {
                 HoleRevealed = true;
                 StepTimer = TickTimer.CreateFromSeconds(Runner, DealerDrawInterval);
+                Reveal();
                 return;
             }
 
@@ -760,6 +844,7 @@ namespace CasinoMares.Blackjack
             {
                 GiveDealerCard();
                 StepTimer = TickTimer.CreateFromSeconds(Runner, DealerDrawInterval);
+                Reveal();
                 return;
             }
 
@@ -808,6 +893,7 @@ namespace CasinoMares.Blackjack
             SettledRoundId = RoundId;
             Phase = BlackjackPhase.Settlement;
             PhaseTimer = TickTimer.CreateFromSeconds(Runner, SettlementDuration);
+            Reveal();
         }
 
         void FinishRound()
@@ -821,6 +907,7 @@ namespace CasinoMares.Blackjack
             DealerCardCount = 0;
             HoleRevealed = false;
             ActiveSeat = -1;
+            Reveal();
 
             if (HumanCount() > 0)
                 EnterBetting();
@@ -887,7 +974,11 @@ namespace CasinoMares.Blackjack
 
         public void PlaceBet(int seat, int amount, bool lockIn) => RPC_SetBet((byte)seat, amount, lockIn);
 
-        public void Act(int seat, BlackjackAction action) => RPC_Act((byte)seat, (byte)action);
+        /// <summary>
+        /// <paramref name="hand"/> is the hand the player saw as active (-1: don't check). The shown round runs a moment
+        /// behind the live one, so this keeps a late second click from landing on the next hand after a split.
+        /// </summary>
+        public void Act(int seat, BlackjackAction action, int hand = -1) => RPC_Act((byte)seat, (byte)action, hand);
 
         public void ChangeSettings(int turnOption, int betOption, int npcFill) =>
             RPC_SetSettings((byte)turnOption, (byte)betOption, (byte)npcFill);
@@ -929,9 +1020,11 @@ namespace CasinoMares.Blackjack
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        void RPC_Act(byte seat, byte action, RpcInfo info = default)
+        void RPC_Act(byte seat, byte action, int hand, RpcInfo info = default)
         {
             if (Phase != BlackjackPhase.PlayerTurns || ActiveSeat != seat || SeatRoundOwners[seat] != info.Source)
+                return;
+            if (hand >= 0 && hand != ActiveHand)
                 return;
             if (action > (byte)BlackjackAction.Split)
                 return;
@@ -963,13 +1056,15 @@ namespace CasinoMares.Blackjack
 
         public override void Render()
         {
-            UpdateLocalWallet();
+            // Chips, toasts and reactions follow the shown round, so nobody hears about a result before its card.
+            var shown = Shown;
+            UpdateLocalWallet(shown);
 
-            if (SettledRoundId != _lastSeenSettledRound)
+            if (shown.SettledRoundId != _lastSeenSettledRound)
             {
-                _lastSeenSettledRound = SettledRoundId;
-                if (Phase == BlackjackPhase.Settlement)
-                    OnRoundSettledLocally();
+                _lastSeenSettledRound = shown.SettledRoundId;
+                if (shown.Phase == BlackjackPhase.Settlement)
+                    OnRoundSettledLocally(shown);
             }
         }
 
@@ -978,7 +1073,7 @@ namespace CasinoMares.Blackjack
         /// itself once per round when the results are in. Everything is derived from networked state, so no
         /// double-spends even if messages arrive in odd orders.
         /// </summary>
-        void UpdateLocalWallet()
+        void UpdateLocalWallet(Snapshot shown)
         {
             if (Runner == null)
                 return;
@@ -987,7 +1082,7 @@ namespace CasinoMares.Blackjack
             var seat = -1;
             for (var i = 0; i < SeatCount; i++)
             {
-                if (SeatRoundOwners[i] == local && SeatHandCounts[i] > 0)
+                if (shown.RoundOwnerAt(i) == local && shown.HandCountAt(i) > 0)
                 {
                     seat = i;
                     break;
@@ -997,25 +1092,25 @@ namespace CasinoMares.Blackjack
             if (seat < 0)
                 return;
 
-            if (_walletRound != RoundId)
+            if (_walletRound != shown.RoundId)
             {
-                _walletRound = RoundId;
+                _walletRound = shown.RoundId;
                 _walletCharged = 0;
             }
 
-            var wager = TotalWagerAt(seat);
+            var wager = shown.TotalWagerAt(seat);
             if (wager > _walletCharged)
             {
                 ProfileStore.SetBalance(ProfileStore.Current.Balance - (wager - _walletCharged));
                 _walletCharged = wager;
             }
 
-            if (SettledRoundId == RoundId && _walletPaidRound != RoundId)
+            if (shown.SettledRoundId == shown.RoundId && _walletPaidRound != shown.RoundId)
             {
-                _walletPaidRound = RoundId;
+                _walletPaidRound = shown.RoundId;
                 var payout = 0;
-                for (var h = 0; h < SeatHandCounts[seat]; h++)
-                    payout += BlackjackRules.Payout(OutcomeAt(seat, h), HandBetAt(seat, h));
+                for (var h = 0; h < shown.HandCountAt(seat); h++)
+                    payout += BlackjackRules.Payout(shown.OutcomeAt(seat, h), shown.HandBetAt(seat, h));
 
                 if (payout > 0)
                     ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
@@ -1025,15 +1120,15 @@ namespace CasinoMares.Blackjack
             }
         }
 
-        void OnRoundSettledLocally()
+        void OnRoundSettledLocally(Snapshot shown)
         {
             RoundSettled?.Invoke();
 
             for (var seat = 0; seat < SeatCount; seat++)
             {
                 var net = 0;
-                for (var h = 0; h < SeatHandCounts[seat]; h++)
-                    net += BlackjackRules.Payout(OutcomeAt(seat, h), HandBetAt(seat, h)) - HandBetAt(seat, h);
+                for (var h = 0; h < shown.HandCountAt(seat); h++)
+                    net += BlackjackRules.Payout(shown.OutcomeAt(seat, h), shown.HandBetAt(seat, h)) - shown.HandBetAt(seat, h);
                 if (net >= 250)
                 {
                     BigWin?.Invoke(transform.position);

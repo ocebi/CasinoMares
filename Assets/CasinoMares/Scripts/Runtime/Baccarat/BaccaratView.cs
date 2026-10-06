@@ -8,7 +8,10 @@ using UnityEngine;
 
 namespace CasinoMares.Baccarat
 {
-    /// <summary>Renders a baccarat table: floating cards in the Player and Banker boxes, chips, croupier and NPC cats.</summary>
+    /// <summary>
+    /// Renders a baccarat table from its shown coup (<see cref="BaccaratTable.Shown"/>): floating cards in the Player
+    /// and Banker boxes, chips, croupier and NPC cats.
+    /// </summary>
     public class BaccaratView : MonoBehaviour
     {
         [SerializeField] BaccaratTable _table;
@@ -28,6 +31,7 @@ namespace CasinoMares.Baccarat
         readonly List<int> _stale = new();
         readonly ChipStack[] _stacks = new ChipStack[BaccaratTable.SeatCount];
         SeatCats _seatCats;
+        BaccaratTable.Snapshot _shown;
         bool _initialized;
         int _lastSettled;
         int _lastShoeSeed;
@@ -47,11 +51,12 @@ namespace CasinoMares.Baccarat
             if (_table.Object == null || !_table.Object.IsValid)
                 return;
 
+            _shown = _table.Shown;
             var instant = !_initialized;
             if (!_initialized)
             {
                 _initialized = true;
-                _lastSettled = _table.SettledRoundId;
+                _lastSettled = _shown.SettledRoundId;
                 _lastShoeSeed = _table.ShoeSeedValue;
             }
 
@@ -64,7 +69,7 @@ namespace CasinoMares.Baccarat
             _seen.Clear();
             for (var order = 0; order < 6; order++)
             {
-                if (!_table.TryGetRevealedCard(order, out var banker, out var index, out var card))
+                if (!_shown.TryGetRevealedCard(order, out var banker, out var index, out var card))
                     continue;
                 var box = banker ? _bankerBox : _playerBox;
                 // The third card lies sideways, as in a real casino.
@@ -87,10 +92,10 @@ namespace CasinoMares.Baccarat
                 _cards.Remove(key);
             }
 
-            if (_table.SettledRoundId != _lastSettled)
+            if (_shown.SettledRoundId != _lastSettled)
             {
-                _lastSettled = _table.SettledRoundId;
-                if (_table.Phase == BaccaratPhase.Result)
+                _lastSettled = _shown.SettledRoundId;
+                if (_shown.Phase == BaccaratPhase.Result)
                     React();
             }
 
@@ -118,7 +123,7 @@ namespace CasinoMares.Baccarat
         {
             for (var seat = 0; seat < BaccaratTable.SeatCount; seat++)
             {
-                var amount = _table.Phase == BaccaratPhase.Result ? _table.PayoutAt(seat) : _table.TotalBetAt(seat);
+                var amount = _shown.Phase == BaccaratPhase.Result ? _shown.PayoutAt(seat) : _shown.TotalBetAt(seat);
                 var stack = _stacks[seat];
                 if (amount <= 0)
                 {
@@ -156,12 +161,12 @@ namespace CasinoMares.Baccarat
         {
             for (var seat = 0; seat < BaccaratTable.SeatCount; seat++)
             {
-                var bet = _table.TotalBetAt(seat);
+                var bet = _shown.TotalBetAt(seat);
                 if (bet == 0)
                     continue;
-                var net = _table.PayoutAt(seat) - bet;
+                var net = _shown.PayoutAt(seat) - bet;
                 CatReactions reactions;
-                var owner = _table.RoundOwnerAt(seat);
+                var owner = _shown.RoundOwnerAt(seat);
                 if (owner != Fusion.PlayerRef.None)
                     reactions = PlayerCat.Find(owner)?.Reactions;
                 else
@@ -169,7 +174,7 @@ namespace CasinoMares.Baccarat
                 if (reactions == null)
                     continue;
                 if (net > 0)
-                    reactions.PlayHappy(_table.Outcome == BaccaratOutcome.Tie ? 3 : 1, CatReactions.StaggerDelay());
+                    reactions.PlayHappy(_shown.Outcome == BaccaratOutcome.Tie ? 3 : 1, CatReactions.StaggerDelay());
                 else if (net < 0)
                     reactions.PlayAngry(CatReactions.StaggerDelay());
             }
