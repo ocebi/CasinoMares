@@ -44,10 +44,10 @@
         }
     },
     "TimeSync": {
-        "StateReceiveBufferSettings": 0,
+        "StateReceiveBufferSettings": 1,
         "MaxLateSnapshots": 5.0,
         "RedundantSnapshots": 1.0,
-        "StateReceiveBufferDelayAdded": 0,
+        "StateReceiveBufferDelayAdded": 80,
         "StateReceiveBufferDelayAddedUnit": 0,
         "InputReceiveBufferSettings": 0,
         "MaxLateInputs": 5.0,
