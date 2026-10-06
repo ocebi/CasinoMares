@@ -2212,7 +2212,11 @@ namespace CasinoMares.Editor
         {
             var root = new GameObject(name);
             root.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, -90f, 0f));
-            MakeMasterClientObject(root.AddComponent<NetworkObject>());
+            // Not a master client object (those can't be taken): the seated player takes State Authority, so its
+            // spins start at once, and the master client takes it back afterwards (SlotMachine).
+            var networkObject = root.AddComponent<NetworkObject>();
+            networkObject.Flags |= NetworkObjectFlags.AllowStateAuthorityOverride;
+            networkObject.Flags &= ~NetworkObjectFlags.DestroyWhenStateAuthorityLeaves;
             var machine = root.AddComponent<SlotMachine>();
             var celebration = root.AddComponent<SlotCelebration>();
             var t = root.transform;

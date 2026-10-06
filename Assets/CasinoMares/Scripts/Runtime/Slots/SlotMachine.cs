@@ -22,6 +22,12 @@ namespace CasinoMares.Slots
     /// One slot machine (GDD §13.3): a single-seat game table. The seated player asks for a spin, the authority
     /// rolls it (the reels, or for a Yarn Tumble a seed that every client plays out the same way), and everyone
     /// nearby watches the same result land. Chips are settled by the player's own client like every other game.
+    /// <para>
+    /// The seated player's client takes State Authority over its machine, so its own spins start the moment it
+    /// asks, however slow the network is; everyone else watches a little behind. The master client holds the
+    /// machine while nobody's seated, so seat requests go to someone who's there. Machines in scenes built before
+    /// this (master client objects) stay with the master client throughout.
+    /// </para>
     /// </summary>
     public class SlotMachine : NetworkBehaviour, IGameTable, IPlayerLeft
     {
@@ -31,6 +37,13 @@ namespace CasinoMares.Slots
         public static readonly float[] ReelStops = { 1.1f, 1.7f, 2.3f };
         /// <summary>How much longer the third reel takes when it slows down to tease (the first two match).</summary>
         public const float TeaseDuration = 1.4f;
+        /// <summary>How often to ask again for State Authority while it hasn't come.</summary>
+        const float AuthorityRetry = 0.5f;
+        /// <summary>
+        /// How long the master client waits after a machine empties before taking it back from the player who sat
+        /// there, so a seat that player has just given to someone else has time to show up first.
+        /// </summary>
+        const float ReclaimDelay = 1f;
 
         public static readonly List<SlotMachine> All = new();
 
@@ -60,6 +73,11 @@ namespace CasinoMares.Slots
         YarnTumbleRules.Spin _tumble;
         int _tumbleSpin;
         int _tumbleSeed;
+        /// <summary>The spin this client is showing, and since when (see <see cref="ShownTime"/>).</summary>
+        int _shownSpin;
+        float _shownSince;
+        float _nextAuthorityRequest;
+        float _lastOccupied;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -84,7 +102,15 @@ namespace CasinoMares.Slots
             return false;
         }
 
-        public bool IsSpinning => SpinId != SettledSpinId;
+        /// <summary>
+        /// The current spin hasn't landed on this client yet: it's still playing out here (see
+        /// <see cref="SpinElapsed"/>), or the authority hasn't settled it.
+        /// </summary>
+        public bool IsSpinning => Unsettled || ShownTime < SpinDuration;
+
+        /// <summary>The authority hasn't settled the current spin yet.</summary>
+        bool Unsettled => SpinId != SettledSpinId;
+
         public int ReelAt(int reel) => Reels[reel];
 
         public int LastPayout =>
@@ -118,15 +144,25 @@ namespace CasinoMares.Slots
             ? YarnTumbleTiming.Duration(Tumble.Cascades.Count)
             : ReelSpinDuration + (Teases ? TeaseDuration : 0f);
 
-        /// <summary>Seconds since the current spin started; the whole duration once it's over.</summary>
-        public float SpinElapsed
+        /// <summary>
+        /// How far into the current spin this client is showing it, up to its whole duration. Each client plays a
+        /// spin from the start when it first hears of it, rather than from the authority's timer, so one that
+        /// arrives late (a stalled connection) still plays out in full instead of jumping ahead to its result.
+        /// </summary>
+        public float SpinElapsed => Mathf.Clamp(ShownTime, 0f, SpinDuration);
+
+        /// <summary>Seconds since this client first looked at the current spin; a new one starts showing then.</summary>
+        float ShownTime
         {
             get
             {
-                var duration = SpinDuration;
-                if (!IsSpinning || Runner == null)
-                    return duration;
-                return Mathf.Clamp(duration - (SpinTimer.RemainingTime(Runner) ?? 0f), 0f, duration);
+                if (_shownSpin != SpinId)
+                {
+                    _shownSpin = SpinId;
+                    _shownSince = Time.time;
+                }
+
+                return Time.time - _shownSince;
             }
         }
 
@@ -138,6 +174,9 @@ namespace CasinoMares.Slots
             All.Add(this);
             GameTables.All.Add(this);
             _chargedSpin = _paidSpin = SpinId;
+            // A spin already under way when we arrive isn't played out here (the views show its result).
+            _shownSpin = SpinId;
+            _shownSince = float.NegativeInfinity;
         }
 
         public override void Despawned(NetworkRunner runner, bool hasState)
@@ -187,10 +226,63 @@ namespace CasinoMares.Slots
 
         // ---------------------------------------------------------------- Authority
 
+        /// <summary>
+        /// Players can take State Authority over this machine (built with AllowStateAuthorityOverride). A machine
+        /// built as a master client object can't be taken, so it stays with the master client as before.
+        /// </summary>
+        bool PlayersTakeAuthority => (Object.Flags & NetworkObjectFlags.AllowStateAuthorityOverride) != 0;
+
+        void Update()
+        {
+            if (Object == null || !Object.IsValid || !PlayersTakeAuthority)
+                return;
+
+            if (Occupant != PlayerRef.None)
+                _lastOccupied = Time.time;
+
+            // The seated player takes the machine, so RPC_Spin runs on its own client in the same frame. Until it
+            // arrives, its spins go to whoever holds the machine now. It keeps the machine while its tab is hidden:
+            // a spin settles on its tick timer whenever the tab next runs, and nobody else can use the seat anyway.
+            if (Occupant == Runner.LocalPlayer)
+            {
+                if (!HasStateAuthority)
+                    RequestAuthority();
+                return;
+            }
+
+            if (!Runner.IsSharedModeMasterClient || HasStateAuthority)
+                return;
+
+            // The master client takes it back when the player who held it left (nobody holds it then), or stood up
+            // and the seat has stayed empty for a moment. Seat requests then go to a client that's there and in
+            // front, not to a player who walked off or whose tab is in the background.
+            if (Object.StateAuthority == PlayerRef.None ||
+                (Occupant == PlayerRef.None && Time.time - _lastOccupied >= ReclaimDelay))
+                RequestAuthority();
+        }
+
+        void RequestAuthority()
+        {
+            // It takes a round trip to arrive; don't ask again every frame meanwhile.
+            if (Time.time < _nextAuthorityRequest)
+                return;
+            _nextAuthorityRequest = Time.time + AuthorityRetry;
+            Object.RequestStateAuthority();
+        }
+
         public override void FixedUpdateNetwork()
         {
-            if (IsSpinning && SpinTimer.ExpiredOrNotRunning(Runner))
+            if (!HasStateAuthority)
+                return;
+
+            if (Unsettled && SpinTimer.ExpiredOrNotRunning(Runner))
                 SettledSpinId = SpinId;
+
+            // A seated player who held the machine and left the room took its authority along, so PlayerLeft below
+            // found nobody to free the seat. The master client adopts the machine then (Update) and frees it here.
+            if (Occupant != PlayerRef.None && Occupant != Runner.LocalPlayer && Runner.IsSharedModeMasterClient &&
+                PlayersTakeAuthority && !Runner.IsPlayerCommitted(Occupant))
+                Occupant = PlayerRef.None;
         }
 
         void IPlayerLeft.PlayerLeft(PlayerRef player)
@@ -200,6 +292,7 @@ namespace CasinoMares.Slots
         }
 
         public void RequestSeat() => RPC_Sit();
+        /// <summary>Runs straight away on this client when it holds the machine (the seated player, normally).</summary>
         public void Spin(int bet) => RPC_Spin(bet);
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -219,7 +312,7 @@ namespace CasinoMares.Slots
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         void RPC_Spin(int bet, RpcInfo info = default)
         {
-            if (IsSpinning || Occupant != info.Source || Array.IndexOf(SlotRules.BetOptions, bet) < 0)
+            if (Unsettled || Occupant != info.Source || Array.IndexOf(SlotRules.BetOptions, bet) < 0)
                 return;
 
             if (_kind == SlotKind.YarnTumble)
