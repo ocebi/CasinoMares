@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -10,6 +11,18 @@ namespace CasinoMares.Core
         public string DisplayName = "";
         public int FurIndex;
         public int Balance = ProfileStore.StartingBalance;
+        /// <summary>
+        /// When each <see cref="ChipRewards"/> key pays again. A list, since JsonUtility can't save a dictionary.
+        /// </summary>
+        public List<RewardCooldown> Cooldowns = new();
+    }
+
+    /// <summary>A chip reward on cooldown: its key and when it pays again, in Unix seconds (UTC).</summary>
+    [Serializable]
+    public class RewardCooldown
+    {
+        public string Key;
+        public long ReadyAt;
     }
 
     /// <summary>

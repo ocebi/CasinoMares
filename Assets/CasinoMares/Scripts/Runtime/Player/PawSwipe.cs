@@ -11,7 +11,8 @@ namespace CasinoMares.Player
     /// Left click swats with a front paw (everyone sees the swipe). If a <see cref="Knockable"/> is in reach in
     /// front of the cat, it gets knocked away just as the paw lands; a patron cat in reach hisses and walks off.
     /// With a mouse cursor on screen (a desktop browser), the cat first turns to face the clicked spot and swats
-    /// there, preferring the prop or cat that was clicked.
+    /// there, preferring the prop or cat that was clicked. A paw that lands earns a few chips, at most once per
+    /// object every few minutes (GDD §7.2).
     /// </summary>
     public class PawSwipe : NetworkBehaviour
     {
@@ -26,6 +27,9 @@ namespace CasinoMares.Player
         /// <summary>Close enough to the clicked direction to swipe, and the longest the turn may take.</summary>
         const float AimTolerance = 10f;
         const float AimMaxTurnTime = 0.3f;
+        /// <summary>Chips for pawing a prop or a patron, and how long until the same one pays again.</summary>
+        const int PawReward = 10;
+        static readonly System.TimeSpan PawRewardCooldown = System.TimeSpan.FromMinutes(5);
 
         PlayerCat _cat;
         CatMovement _movement;
@@ -72,13 +76,21 @@ namespace CasinoMares.Player
                 direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : transform.forward;
                 // Mostly away from the cat, a bit to the paw's side, and slightly up so it tips over the edge.
                 _target.Push((direction + transform.right * 0.25f).normalized * _pushSpeed + Vector3.up * 0.8f);
+                if (_target.Object != null && _target.Object.IsValid)
+                    EarnPawReward(_target);
                 _target = null;
             }
 
             if (_patron != null && Time.time >= _hitAt)
             {
                 if (_patron.Object != null && _patron.Object.IsValid)
+                {
+                    // A cat still spooked from an earlier paw ignores this one (see PatronBrain.RPC_Pawed), so it doesn't pay.
+                    if (!_patron.IsSpooked)
+                        EarnPawReward(_patron);
                     _patron.RPC_Pawed();
+                }
+
                 _patron = null;
             }
 
@@ -122,6 +134,13 @@ namespace CasinoMares.Player
                 : PatronBrain.FindInReach(transform, _reach + PatronBodyRadius, _maxAngle);
             _hitAt = Time.time + _hitDelay;
         }
+
+        /// <summary>
+        /// The paw landed on <paramref name="target"/>. Keyed by the object's place in the scene, so a reload doesn't
+        /// reset its cooldown.
+        /// </summary>
+        static void EarnPawReward(Component target) =>
+            ChipRewards.TryEarn("paw:" + ChipRewards.ScenePath(target.transform), PawReward, PawRewardCooldown);
 
         /// <summary>
         /// Where the mouse points, as a flat direction from the cat, when there's a cursor on screen to aim with (not

@@ -59,6 +59,7 @@ namespace CasinoMares.Audio
             _synthesized[SoundId.BallTick] = (new[] { CatVoice.BallTick(0), CatVoice.BallTick(1) }, 0.5f, new Vector2(0.9f, 1.15f));
             _synthesized[SoundId.SlotChime] = (new[] { CatVoice.Chime(0), CatVoice.Chime(1) }, 0.45f, new Vector2(0.98f, 1.02f));
             _synthesized[SoundId.SlotBell] = (new[] { CatVoice.Bell() }, 0.6f, Vector2.one);
+            _synthesized[SoundId.Coin] = (new[] { CatVoice.Coin() }, 0.5f, new Vector2(0.98f, 1.04f));
         }
 
         void OnDestroy()
@@ -353,6 +354,29 @@ namespace CasinoMares.Audio
             }
 
             return Clip("Bell", samples);
+        }
+
+        /// <summary>A coin picked up (chips earned): two quick bright notes, the second ringing out.</summary>
+        public static AudioClip Coin()
+        {
+            const float first = 987.8f; // B5
+            const float second = 1318.5f; // E6
+            const float switchAt = 0.07f;
+            var samples = new float[(int)(SampleRate * 0.45f)];
+            var phase = 0.0;
+
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var time = i / (float)SampleRate;
+                var held = time < switchAt;
+                phase += 2.0 * Mathf.PI * (held ? first : second) / SampleRate;
+                var tone = Mathf.Sin((float)phase) + 0.3f * Mathf.Sin((float)(phase * 2)) + 0.12f * Mathf.Sin((float)(phase * 3));
+                // One continuous phase and envelope, so the jump to the second note doesn't click.
+                var envelope = held ? Mathf.Min(1f, time * 400f) : Mathf.Exp(-(time - switchAt) * 7f);
+                samples[i] = tone * envelope * 0.3f;
+            }
+
+            return Clip("Coin", samples);
         }
 
         /// <summary>A soft thud: a falling low tone plus a muffled noise hit.</summary>

@@ -31,6 +31,7 @@ namespace CasinoMares.Audio
         BallTick,
         SlotChime,
         SlotBell,
+        Coin,
     }
 
     /// <summary>Clip variations per sound (GDD §11). Built by the scene builder from the Kenney CC0 packs.</summary>

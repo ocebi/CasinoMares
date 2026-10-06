@@ -1,3 +1,4 @@
+using System;
 using CasinoMares.Audio;
 using CasinoMares.Core;
 using CasinoMares.Player;
@@ -9,7 +10,8 @@ namespace CasinoMares.Props
     /// The cat wall in the seaside hall: a cat tree, shelves, a rope bridge and stepping pads up the west wall to a
     /// cushion under the ceiling. Jumping off the rug at its foot starts a clock and reaching the cushion stops it;
     /// touching the floor on the way calls the climb off. Each player times their own climbs (nothing is networked),
-    /// and a personal best is announced in the chat. <see cref="UI.CatWallHud"/> shows the clock.
+    /// and a personal best is announced in the chat. Reaching the top pays 100 chips, at most once every 10 minutes
+    /// (GDD §7.2). <see cref="UI.CatWallHud"/> shows the clock.
     /// </summary>
     public class CatWall : MonoBehaviour
     {
@@ -29,6 +31,9 @@ namespace CasinoMares.Props
         const float FloorHeight = 0.2f;
         const float GiveUpAfter = 300f;
         const float ShowFinishFor = 6f;
+        const int Reward = 100;
+        const string RewardKey = "catwall";
+        static readonly TimeSpan RewardCooldown = TimeSpan.FromMinutes(10);
 
         [Tooltip("The rug at the foot of the wall, as a box in world space.")]
         [SerializeField] Bounds _start;
@@ -47,6 +52,9 @@ namespace CasinoMares.Props
 
         /// <summary>The climb just finished beat the previous best.</summary>
         public bool NewBest { get; private set; }
+
+        /// <summary>Chips the climb just finished earned: 0 while the reward is still cooling down.</summary>
+        public int Earned { get; private set; }
 
         CatMovement _movement;
         float _startTime;
@@ -117,15 +125,19 @@ namespace CasinoMares.Props
             var best = Best;
             NewBest = best <= 0f || _time < best;
             Sfx.Play(SoundId.Win);
+            Earned = ChipRewards.TryEarn(RewardKey, Reward, RewardCooldown, big: true) ? Reward : 0;
+            var chips = Earned > 0
+                ? $" +{Earned} chips"
+                : $" Chips again in {ChipRewards.FormatWait(ChipRewards.SecondsLeft(RewardKey, RewardCooldown))}.";
             if (!NewBest)
             {
-                Toasts.Show($"Top of the cat wall in {Format(_time)}! (Best {Format(best)})");
+                Toasts.Show($"Top of the cat wall in {Format(_time)}! (Best {Format(best)}){chips}");
                 return;
             }
 
             PlayerPrefs.SetFloat(BestKey, _time);
             PlayerPrefs.Save();
-            Toasts.Show(best <= 0f ? $"Top of the cat wall in {Format(_time)}!" : $"New best on the cat wall: {Format(_time)}!");
+            Toasts.Show((best <= 0f ? $"Top of the cat wall in {Format(_time)}!" : $"New best on the cat wall: {Format(_time)}!") + chips);
             cat.Announce($"{cat.DisplayName} climbed the cat wall in {Format(_time)}");
         }
 

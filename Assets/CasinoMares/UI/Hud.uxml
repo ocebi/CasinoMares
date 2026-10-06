@@ -4,6 +4,8 @@
         <ui:VisualElement class="hud-chip hud-balance" picking-mode="Ignore">
             <ui:Label text="Chips" class="hud-label-dim" />
             <ui:Label name="balance-label" text="0" class="hud-value" />
+            <!-- Chips just earned (pawing, the cat wall, welfare): HudController animates it. -->
+            <ui:Label name="balance-gain" text="+10" class="balance-gain hidden" picking-mode="Ignore" />
         </ui:VisualElement>
         <!-- Desktop only: phones have the same in their touch pills and Emote button. -->
         <ui:VisualElement name="desktop-pills" class="hud-pills" picking-mode="Ignore">

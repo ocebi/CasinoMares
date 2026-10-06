@@ -12,12 +12,14 @@ using UnityEngine.UIElements;
 namespace CasinoMares.UI
 {
     /// <summary>
-    /// In-game HUD: balance, players online, [E] prompt, toasts, the Tab leaderboard (GDD §7.4) and the Esc pause
-    /// menu. Also owns cursor locking.
+    /// In-game HUD: balance (and chips just earned), players online, [E] prompt, toasts, the Tab leaderboard (GDD §7.4)
+    /// and the Esc pause menu. Also owns cursor locking.
     /// </summary>
     public class HudController : MonoBehaviour
     {
         const float ToastSeconds = 4f;
+        const float GainSeconds = 1.4f;
+        const float BigGainSeconds = 2.6f;
         const string WalkingHint = "WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string WebWalkingHint = "WASD move · Right-drag look · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string SeatedHint = "WASD or right-drag look around · E stand up · Enter chat · Esc menu";
@@ -34,6 +36,7 @@ namespace CasinoMares.UI
         VisualElement _leaderboard;
         VisualElement _leaderboardRows;
         Label _balance;
+        Label _gain;
         Label _players;
         Label _hint;
         Slider _sensitivity;
@@ -46,6 +49,10 @@ namespace CasinoMares.UI
         bool _overPills;
         string _shownPrompt;
         bool _shownPromptEnabled;
+        int _gainAmount;
+        float _gainShownAt;
+        bool _gainBig;
+        bool _gainShowing;
         readonly List<(VisualElement element, float expiresAt)> _toasts = new();
 
         bool InGame => ConnectionManager.Instance != null && ConnectionManager.Instance.State == ConnectionState.Connected;
@@ -61,6 +68,7 @@ namespace CasinoMares.UI
             _leaderboard = ui.Q("leaderboard");
             _leaderboardRows = ui.Q("leaderboard-rows");
             _balance = ui.Q<Label>("balance-label");
+            _gain = ui.Q<Label>("balance-gain");
             _players = ui.Q<Label>("players-label");
             _hint = ui.Q<Label>("hint-label");
             _sensitivity = ui.Q<Slider>("sensitivity-slider");
@@ -131,6 +139,7 @@ namespace CasinoMares.UI
             PlayerCat.Joined += OnPlayersChanged;
             PlayerCat.Left += OnPlayersChanged;
             Toasts.Shown += ShowToast;
+            ChipRewards.Earned += OnChipsEarned;
             ConnectionManager.Instance.StateChanged += OnConnectionStateChanged;
 
             OnProfileChanged(ProfileStore.Current);
@@ -143,6 +152,7 @@ namespace CasinoMares.UI
             PlayerCat.Joined -= OnPlayersChanged;
             PlayerCat.Left -= OnPlayersChanged;
             Toasts.Shown -= ShowToast;
+            ChipRewards.Earned -= OnChipsEarned;
             if (ConnectionManager.Instance != null)
                 ConnectionManager.Instance.StateChanged -= OnConnectionStateChanged;
 
@@ -163,6 +173,7 @@ namespace CasinoMares.UI
             UpdateHint();
             UpdateLeaderboard();
             ExpireToasts();
+            UpdateGain();
         }
 
         void SetOverPills(bool over)
@@ -245,6 +256,44 @@ namespace CasinoMares.UI
                 element.RemoveFromHierarchy();
                 _toasts.RemoveAt(i);
             }
+        }
+
+        // ---------------------------------------------------------------- Chips earned (ChipRewards)
+
+        /// <summary>
+        /// "+10" pops up beside the balance with a coin sound, drifts up and fades; a big reward is larger, stays
+        /// longer and chimes. Rewards close together (a prop and a patron in one swipe) add up in the same label.
+        /// </summary>
+        void OnChipsEarned(int amount, bool big)
+        {
+            Sfx.Play(big ? SoundId.SlotChime : SoundId.Coin, big ? 0.9f : 0.7f);
+            _gainAmount = _gainShowing ? _gainAmount + amount : amount;
+            _gainBig = big || (_gainShowing && _gainBig);
+            _gainShowing = true;
+            _gainShownAt = Time.unscaledTime;
+            _gain.text = $"+{_gainAmount:N0}";
+            _gain.EnableInClassList("balance-gain--big", _gainBig);
+            _gain.RemoveFromClassList("hidden");
+            UpdateGain();
+        }
+
+        void UpdateGain()
+        {
+            if (!_gainShowing)
+                return;
+            var t = (Time.unscaledTime - _gainShownAt) / (_gainBig ? BigGainSeconds : GainSeconds);
+            if (t >= 1f)
+            {
+                _gainShowing = false;
+                _gain.AddToClassList("hidden");
+                return;
+            }
+
+            // Pops in a little oversized, then rises and fades out over the last third.
+            var pop = 1f + (_gainBig ? 0.5f : 0.25f) * Mathf.Clamp01(1f - t * 6f);
+            _gain.style.scale = new Scale(new Vector3(pop, pop, 1f));
+            _gain.style.translate = new Translate(0f, -14f * t);
+            _gain.style.opacity = Mathf.Clamp01((1f - t) * 3f);
         }
 
         // ---------------------------------------------------------------- Leaderboard (hold Tab)

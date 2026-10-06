@@ -4,7 +4,10 @@ using UnityEngine.UIElements;
 
 namespace CasinoMares.UI
 {
-    /// <summary>The cat wall's clock, top middle: "Ready" on the start rug, then the time while climbing and at the top.</summary>
+    /// <summary>
+    /// The cat wall's clock, top middle: "Ready" on the start rug, then the time while climbing and at the top (with
+    /// the chips it earned).
+    /// </summary>
     public class CatWallHud : MonoBehaviour
     {
         [SerializeField] UIDocument _document;
@@ -38,7 +41,7 @@ namespace CasinoMares.UI
                 _title.text = phase switch
                 {
                     CatWall.Phase.Ready => "Cat wall: jump on to start",
-                    CatWall.Phase.Finished => wall.NewBest ? "New best!" : "Top!",
+                    CatWall.Phase.Finished => (wall.NewBest ? "New best!" : "Top!") + (wall.Earned > 0 ? $" +{wall.Earned}" : ""),
                     _ => "Cat wall",
                 };
                 var best = CatWall.Best;

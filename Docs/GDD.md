@@ -347,10 +347,20 @@ You can watch a friend just by walking up to them, and this works the same way f
 - Chip denominations in the betting UI: **5, 10, 25, 100, 500**. With min bet 10, the 5 chip is
   only there for making up odd amounts.
 
-### 7.2 Going broke: "Cat Welfare"
+### 7.2 Going broke: "Cat Welfare", and earning chips
 - If your balance drops below the minimum bet (10) and you have no active bets, the **cashier cat**
-  offers a **500-chip Cat Welfare refill**.
-- There's no cooldown or debt tracking in v1. It's a friends game.
+  offers a **500-chip Cat Welfare refill**, at most **once an hour**. While it's cooling down, the
+  cashier's prompt says how long is left. There's no debt tracking. It's a friends game.
+- Small activities earn chips too (`ChipRewards`):
+  - **Pawing** a knockable prop or a wandering patron: **10 chips**, at most once per object every
+    **5 minutes**. Only a paw that lands pays (a patron still spooked from an earlier paw ignores
+    it, so it doesn't). Other players' cats and the NPCs seated at tables can't be pawed.
+  - **Topping the cat wall**: **100 chips**, at most once every **10 minutes**.
+- A "+10" pops up beside the balance with a coin sound; the cat wall and welfare show a bigger
+  "+100"/"+500" with a chime. A paw on cooldown pays nothing and says nothing.
+- The balance is client-side, so these cooldowns are the only guard against farming. They're saved
+  in the profile as UTC times (expired ones are dropped), so a reload doesn't reset them. Paw
+  cooldowns are keyed by the object's scene path, e.g. `CasinoSea/Props/Glass_3`.
 
 ### 7.3 Chip gifting
 - Stand near another player, press **E**, then choose **Gift chips** and pick an amount (chip
