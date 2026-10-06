@@ -1,4 +1,5 @@
 using CasinoMares.Audio;
+using CasinoMares.Core;
 using CasinoMares.Player;
 using CasinoMares.Rules;
 using UnityEngine;
@@ -9,7 +10,9 @@ namespace CasinoMares.Slots
     /// What every slot machine does around a spin, on every client. When a spin starts, the seated cat paws the
     /// spin button. When it lands, the win is celebrated by its size (<see cref="SlotWin"/>): a chime and a hop for a
     /// small one; coins bursting from the tray for a big one; and for a top win, a bell the whole room hears as
-    /// well. The machine's light flashes while a win stands, faster the bigger it was. The views call in here.
+    /// well. The machine's light flashes while a win stands, faster the bigger it was. On the Mobile quality level the
+    /// light stays off and the marquee's glow flashes instead: four machine lights side by side cover most of a seated
+    /// player's screen, and lights are what a phone that has run hot struggles with most. The views call in here.
     /// </summary>
     public class SlotCelebration : MonoBehaviour
     {
@@ -17,6 +20,10 @@ namespace CasinoMares.Slots
         const float PawHitDelay = 0.18f;
         const float ButtonTravel = 0.012f;
         const float ButtonPressTime = 0.25f;
+        /// <summary>How much more the marquee's glow swings than the light did: it's small, and the light lit the floor too.</summary>
+        const float MarqueeSwing = 2.5f;
+
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         [SerializeField] SlotMachine _machine;
         [SerializeField] Light _light;
@@ -28,11 +35,26 @@ namespace CasinoMares.Slots
         float _pressAt = float.NegativeInfinity;
         bool _clicked = true;
         float _glow;
+        Renderer _marquee;
+        MaterialPropertyBlock _marqueeBlock;
+        Color _marqueeEmission;
+        float _marqueeGlow = 1f;
 
         void Awake()
         {
             if (_light != null)
                 _baseIntensity = _light.intensity;
+            if (_light != null && Platform.MobileQuality)
+            {
+                _light.enabled = false;
+                // CasinoSceneBuilder names it; both cabinets have one.
+                _marquee = transform.Find("Marquee")?.GetComponent<Renderer>();
+                if (_marquee != null)
+                {
+                    _marqueeBlock = new MaterialPropertyBlock();
+                    _marqueeEmission = _marquee.sharedMaterial.GetColor(EmissionColorId);
+                }
+            }
             if (_button != null)
                 _buttonRest = _button.localPosition;
         }
@@ -108,10 +130,10 @@ namespace CasinoMares.Slots
             if (_light == null || _machine.Object == null || !_machine.Object.IsValid)
                 return;
 
-            var intensity = _baseIntensity;
+            var flash = 1f;
             if (_machine.IsSpinning)
             {
-                intensity *= 1f + _glow * (0.4f + 0.2f * Mathf.Sin(Time.time * 18f));
+                flash = 1f + _glow * (0.4f + 0.2f * Mathf.Sin(Time.time * 18f));
             }
             else
             {
@@ -123,10 +145,23 @@ namespace CasinoMares.Slots
                     _ => 0f,
                 };
                 if (speed > 0f)
-                    intensity *= 1.2f + 0.4f * Mathf.Sin(Time.time * speed);
+                    flash = 1.2f + 0.4f * Mathf.Sin(Time.time * speed);
             }
 
-            _light.intensity = intensity;
+            if (_light.enabled)
+                _light.intensity = _baseIntensity * flash;
+            else if (_marquee != null)
+                SetMarqueeGlow(Mathf.Max(0.3f, 1f + (flash - 1f) * MarqueeSwing));
+        }
+
+        void SetMarqueeGlow(float glow)
+        {
+            if (Mathf.Approximately(glow, _marqueeGlow))
+                return;
+            _marqueeGlow = glow;
+            _marquee.GetPropertyBlock(_marqueeBlock);
+            _marqueeBlock.SetColor(EmissionColorId, _marqueeEmission * glow);
+            _marquee.SetPropertyBlock(_marqueeBlock);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace CasinoMares.Core
 {
@@ -40,6 +41,9 @@ namespace CasinoMares.Core
         /// <summary>The compressed texture set the page loaded: "DXT" (desktop) or "ASTC" (phones, or <c>?astc=1</c>).</summary>
         public static string TextureFormat => IsWeb ? CM_TextureFormat() : "native";
 
+        /// <summary>Rendering at the Mobile quality level (phones and tablets in a browser): fewer lights where it counts.</summary>
+        public static bool MobileQuality => QualitySettings.names[QualitySettings.GetQualityLevel()] == "Mobile";
+
         /// <summary>
         /// The screen height in CSS pixels, which follows the device's physical size (a phone held sideways is about
         /// 390). Outside a browser it's the height in pixels.
@@ -55,7 +59,7 @@ namespace CasinoMares.Core
         /// <summary>
         /// Browsers start on WebGL's default quality level (Mobile). Desktop browsers get the PC level; phones and
         /// tablets stay on Mobile, which renders the same way at full resolution but skips SSAO and uses smaller
-        /// shadow maps.
+        /// shadow maps. <c>?hdr=0</c> renders without HDR, to rule out a GPU that can't render to float targets.
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void ApplyQualityLevel()
@@ -66,6 +70,9 @@ namespace CasinoMares.Core
             var level = Array.IndexOf(QualitySettings.names, IsTouch ? "Mobile" : "PC");
             if (level >= 0 && level != QualitySettings.GetQualityLevel())
                 QualitySettings.SetQualityLevel(level, true);
+
+            if (QueryParameter("hdr") == "0" && UniversalRenderPipeline.asset != null)
+                UniversalRenderPipeline.asset.supportsHDR = false;
         }
 
         static bool DetectTouch()

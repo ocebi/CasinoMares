@@ -66,10 +66,96 @@
       // Safari's pinch zoom ignores user-scalable=no.
       document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
 
-      function showError(message) {
+      // A tap reloads where the game can't carry on by itself: in full screen a phone shows no reload button.
+      function showError(message, tapToReload) {
         var box = document.getElementById("error");
         box.textContent = message;
         box.classList.remove("hidden");
+        if (tapToReload) {
+          box.classList.add("reload");
+          box.onclick = function () { location.reload(); };
+        }
+      }
+
+      // ?debug=1 also keeps a log of page events and errors in the page itself: the size changes around turning the
+      // phone and going full screen, the GPU, lost WebGL contexts and the game's console errors. Unlike the game's
+      // own debug line, it stays readable when the game draws nothing (or only a colour).
+      var debugMode = new URLSearchParams(location.search).get("debug");
+      var debug = debugMode == "1" || debugMode == "perf";
+      var debugBox = null;
+      function debugLog(line) {
+        if (!debug)
+          return;
+        if (!debugBox) {
+          debugBox = document.createElement("div");
+          debugBox.id = "debug-log";
+          document.body.appendChild(debugBox);
+        }
+        var row = document.createElement("div");
+        row.textContent = (performance.now() / 1000).toFixed(1) + "s " + String(line).slice(0, 200);
+        debugBox.appendChild(row);
+        while (debugBox.childNodes.length > (touch ? 5 : 14))
+          debugBox.removeChild(debugBox.firstChild);
+      }
+      if (debug) {
+        ["error", "warn"].forEach(function (level) {
+          var original = console[level];
+          console[level] = function () {
+            debugLog(level + ": " + Array.prototype.join.call(arguments, " "));
+            return original.apply(console, arguments);
+          };
+        });
+        // The game's own measurements (?debug=perf, PerfProbe.cs) get a box of their own on the right: the game's HUD
+        // covers its debug corner on a phone, and this page draws over the game.
+        var perfBox = null;
+        function perfLog(line) {
+          if (!perfBox) {
+            perfBox = document.createElement("div");
+            perfBox.id = "perf-log";
+            document.body.appendChild(perfBox);
+          }
+          if (line.indexOf("seated") == 0 || line.indexOf("started") == 0)
+            perfBox.textContent = "";
+          var row = document.createElement("div");
+          row.textContent = line;
+          perfBox.appendChild(row);
+        }
+        if (debugMode == "perf")
+          perfLog("perf: sit down to start");
+        var log = console.log;
+        console.log = function () {
+          var line = Array.prototype.join.call(arguments, " ");
+          var at = line.indexOf("[PerfProbe] ");
+          if (at >= 0)
+            perfLog(line.substring(at + 12).split("\n")[0]);
+          // The phone's render scale stepping up or down (AutoRenderScale.cs).
+          at = line.indexOf("[RenderScale] ");
+          if (at >= 0)
+            debugLog(line.substring(at + 1).split("\n")[0].replace("] ", ": "));
+          return log.apply(console, arguments);
+        };
+        window.addEventListener("error", function (e) { debugLog("page error: " + e.message); });
+        window.addEventListener("unhandledrejection", function (e) { debugLog("rejected: " + e.reason); });
+        var sizes = function () {
+          var c = document.getElementById("unity-canvas");
+          return "window " + innerWidth + "x" + innerHeight + " dpr " + devicePixelRatio +
+            " canvas " + c.width + "x" + c.height;
+        };
+        debugLog(sizes());
+        window.addEventListener("resize", function () { debugLog("resize: " + sizes()); });
+        if (screen.orientation)
+          screen.orientation.addEventListener("change", function () { debugLog("orientation " + screen.orientation.type); });
+        document.addEventListener("fullscreenchange", function () { debugLog("fullscreen " + (document.fullscreenElement ? "on" : "off")); });
+        document.addEventListener("visibilitychange", function () { debugLog("page " + document.visibilityState); });
+        // The game resizes its canvas on its next frame, so a size change shows up here a moment after the resize.
+        var lastCanvas = "";
+        setInterval(function () {
+          var c = document.getElementById("unity-canvas");
+          var size = c.width + "x" + c.height;
+          if (size != lastCanvas)
+            debugLog("canvas now " + size);
+          lastCanvas = size;
+        }, 500);
       }
 
       // Phones and tablets go full screen and lock to landscape on a tap, where the browser allows it (Android, iPad;
@@ -171,9 +257,20 @@
         if (!gl)
           return "desktop";
         var astc = !!gl.getExtension("WEBGL_compressed_texture_astc");
+        var s3tc = !!gl.getExtension("WEBGL_compressed_texture_s3tc");
+        if (debug) {
+          var info = gl.getExtension("WEBGL_debug_renderer_info");
+          debugLog("GPU " + gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) +
+            ", float targets " + (gl.getExtension("EXT_color_buffer_float") ? "yes" : "no") +
+            ", half float targets " + (gl.getExtension("EXT_color_buffer_half_float") ? "yes" : "no"));
+        }
+        // This context only answered those questions; free it rather than keep a second one next to the game's.
+        var lose = gl.getExtension("WEBGL_lose_context");
+        if (lose)
+          lose.loseContext();
         if (astc && new URLSearchParams(location.search).get("astc") == "1")
           return "mobile";
-        if (gl.getExtension("WEBGL_compressed_texture_s3tc"))
+        if (s3tc)
           return "desktop";
         return astc ? "mobile" : "desktop";
       }
@@ -191,6 +288,13 @@
       var canvas = document.getElementById("unity-canvas");
       // The right mouse button turns the camera, so no context menu over the game.
       canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+      // The browser can take the GPU away from a page (a driver reset, or running out of graphics memory), and Unity
+      // can't rebuild its graphics afterwards: say so instead of leaving a frozen picture or a flat colour.
+      canvas.addEventListener("webglcontextlost", function () {
+        debugLog("WebGL context lost");
+        showError("The browser stopped the game's graphics.\nTap here to reload and play again.", true);
+      });
+      canvas.addEventListener("webglcontextrestored", function () { debugLog("WebGL context restored"); });
       var fill = document.getElementById("loading-fill");
       var statusLabel = document.getElementById("loading-status");
 

@@ -13,6 +13,9 @@ html, body {
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  /* iOS Safari enlarges page text when a phone is turned sideways; keep the sizes as written. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -201,6 +204,52 @@ body {
   color: #fff;
   font-size: 15px;
   white-space: pre-wrap;
+}
+
+#error.reload {
+  cursor: pointer;
+}
+
+/* ?debug=1: the page's own event log, over everything but out of the way of taps. */
+#debug-log {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 30;
+  max-width: 70%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #f5ecde;
+  font: 11px/1.35 monospace;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+/* ?debug=perf: the game's measurements, on the right where a seated view has no HUD. */
+#perf-log {
+  position: absolute;
+  right: 8px;
+  top: 22%;
+  z-index: 30;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #f5ecde;
+  font: 12px/1.4 monospace;
+  pointer-events: none;
+  white-space: pre;
+}
+
+body.touch #perf-log {
+  font-size: 10px;
+}
+
+/* A phone held sideways is only about 390 pixels tall: smaller, and fewer lines (index.html keeps 5). */
+body.touch #debug-log {
+  max-width: 55%;
+  padding: 2px 4px;
+  font-size: 8px;
 }
 
 /* ---------------------------------------------------------------- Text boxes */
