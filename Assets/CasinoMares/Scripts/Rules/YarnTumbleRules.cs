@@ -8,8 +8,8 @@ namespace CasinoMares.Rules
     /// by side, pays. Winning groups get batted away, the symbols above fall into the gaps and new ones drop in from
     /// the top, often matching the one they land on, so wins tend to chain; every chain raises the multiplier by a
     /// half (×1, ×1.5, ×2 ... ×3.5). A spin is worked out from a seed, so every client replays the same cascade.
-    /// A third of spins win (never less than the bet), one in eight chains at least twice, and the return to player
-    /// is about 98%.
+    /// About 36% of spins win (never less than the bet), one in eight chains at least twice, about 1.1% pay ten times
+    /// the bet or more, and the return to player is about 98.7%.
     /// </summary>
     public static class YarnTumbleRules
     {
@@ -19,7 +19,7 @@ namespace CasinoMares.Rules
         /// <summary>Groups pay more for each cell up to this size.</summary>
         public const int MaxPaidGroup = 10;
         /// <summary>The chance, in percent, that a new symbol drops in as a copy of the one it lands on.</summary>
-        public const int RefillRepeat = 25;
+        public const int RefillRepeat = 19;
         /// <summary>A safety stop; a spin practically never chains this often.</summary>
         public const int MaxCascades = 20;
 
@@ -34,7 +34,7 @@ namespace CasinoMares.Rules
         public static readonly string[] Names = { "Blue yarn", "Green yarn", "Pink yarn", "Fish", "Mouse", "Golden paw" };
 
         /// <summary>Relative frequency of each symbol.</summary>
-        public static readonly int[] Weights = { 28, 22, 18, 14, 11, 7 };
+        public static readonly int[] Weights = { 29, 22, 18, 15, 9, 7 };
 
         /// <summary>What a group of five pays, in tenths of the bet. Each cell over five adds a quarter of that.</summary>
         public static readonly int[] GroupOfFive = { 10, 10, 10, 12, 14, 20 };

@@ -99,7 +99,7 @@ namespace CasinoMares.Rules.Tests
 
             var rtp = tenths / 10.0 / spins;
             Assert.That(rtp, Is.InRange(0.92, 1.0), $"RTP was {rtp:P1}");
-            Assert.That(wins / (double)spins, Is.InRange(0.28, 0.4));
+            Assert.That(wins / (double)spins, Is.InRange(0.34, 0.4));
         }
     }
 }

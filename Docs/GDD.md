@@ -833,11 +833,12 @@ and the floating cards.
     the bet, at 97.4% RTP; tests check 95.5–98% and that rarer symbols pay more.
 - **Yarn Tumble**: a 5×5 grid of yarn balls (blue, green, pink), fish, mice and golden paws. A group
   of 5 or more touching side by side pays (1× to 2× for five, a quarter more for each one more, up
-  to 10). The cat bats the winners away, the rest fall, and new symbols drop in, a quarter of them
-  as a copy of the one they land on, so wins tend to chain. Each chain raises the multiplier by a
+  to 10). The cat bats the winners away, the rest fall, and new symbols drop in, about a fifth of
+  them (19%) as a copy of the one they land on, so wins tend to chain. Each chain raises the multiplier by a
   half: ×1, ×1.5, ×2, ×2.5, ×3, ×3.5. The authority only picks a seed; every client plays the same
-  cascade out from it. About a third of spins win and one in eight chains at least twice, at about
-  98% RTP, tested (sampled).
+  cascade out from it. Weights blue 29, green 22, pink 18, fish 15, mouse 9, golden paw 7. About 36%
+  of spins win (at least the bet back), one in eight chains at least twice and 1.1% pay 10× or
+  more, at about 98.7% RTP, tested (sampled).
 - **Celebrations by size**: under 10× the bet, a chime and a hop; 10× or more, coins burst from the
   tray, a BIG WIN banner counts the payout up and nearby patrons hop; 50× or more (MEGA WIN), also
   a bell the whole room hears and a line in the chat.
