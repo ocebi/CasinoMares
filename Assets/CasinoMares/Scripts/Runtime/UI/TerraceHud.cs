@@ -11,7 +11,8 @@ namespace CasinoMares.UI
     /// Seated at a terrace table or on a bar stool there's no game UI, just Stand up (E). Phones need the button:
     /// with no keyboard, it's the only way back up. At the bar there's also the wine order (UX §1.5): one button
     /// whose text is its state ("Order wine · 20", "Pouring…", "Another in 12 s") and a readable glass count; Space
-    /// orders on desktop.
+    /// orders on desktop. On a phone the wine glyph carries the meaning and the label under it is short: the price
+    /// when ready, "…" while busy, the seconds left in the cooldown.
     /// </summary>
     public class TerraceHud : MonoBehaviour
     {
@@ -72,7 +73,7 @@ namespace CasinoMares.UI
         {
             var phase = _bar.PhaseAt(_seat, out var elapsed);
             var ready = phase == WinePhase.Idle && !_bar.IsOrderPending(_seat);
-            var text = phase switch
+            var text = Platform.IsTouch ? TouchOrderText(phase, ready, elapsed) : phase switch
             {
                 WinePhase.Idle when ready => $"Order wine · {WineBar.WinePrice}" + KeyHints.For("Space"),
                 WinePhase.Idle => "Ordering…",
@@ -90,6 +91,14 @@ namespace CasinoMares.UI
             _orderButton.SetEnabled(ready);
             _orderButton.EnableInClassList("bj-button--wait", !ready);
         }
+
+        /// <summary>The short touch label under the wine icon (UX §1.9): "20", "…", or "12 s".</summary>
+        static string TouchOrderText(WinePhase phase, bool ready, float elapsed) => phase switch
+        {
+            WinePhase.Idle when ready => WineBar.WinePrice.ToString(),
+            WinePhase.Empty => $"{Mathf.CeilToInt(WineBar.EmptyEnd - elapsed)} s",
+            _ => "…",
+        };
 
         void UpdateCount()
         {

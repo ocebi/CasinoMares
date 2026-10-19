@@ -30,6 +30,8 @@ namespace CasinoMares.UI
         VisualElement _actionPanel;
         Button _foldButton;
         Button _callButton;
+        /// <summary>The call button's glyph: a tick to check, chips to call (touch only shows it).</summary>
+        VisualElement _callIcon;
         Button _raiseButton;
         Button _allInButton;
         Label _raiseLabel;
@@ -67,6 +69,10 @@ namespace CasinoMares.UI
             _raiseButton = ui.Q<Button>("raise-button");
             _raiseLabel = ui.Q<Label>("raise-label");
             _rebuyButton = ui.Q<Button>("rebuy-button");
+            _callIcon = _callButton.Q(className: "btn-icon");
+            // On a phone the glyph says what the button does; the label under it is just the money (UX §1.9).
+            if (Platform.IsTouch)
+                _rebuyButton.text = PokerSeat.DefaultBuyIn.ToString("N0");
             _settingsPanel = ui.Q("settings-panel");
             _blindButton = ui.Q<Button>("blind-button");
             _timerButton = ui.Q<Button>("timer-button");
@@ -181,8 +187,20 @@ namespace CasinoMares.UI
                 }
 
                 _raiseTo = Mathf.Clamp(_raiseTo, Mathf.Min(_shown.MinRaiseTo, maxTo), maxTo);
-                _callButton.text = (toCall == 0 ? "Check" : toCall >= stack ? $"Call all in {stack:N0}" : $"Call {toCall:N0}") + KeyHints.For("C");
-                _raiseButton.text = (_shown.CurrentBet == 0 ? $"Bet {_raiseTo:N0}" : $"Raise to {_raiseTo:N0}") + KeyHints.For("R");
+                if (Platform.IsTouch)
+                {
+                    // Short labels under the icons: the glyph carries the verb, the label the chips at stake.
+                    _callButton.text = toCall == 0 ? "Check" : toCall >= stack ? $"All in {stack:N0}" : $"Call {toCall:N0}";
+                    _raiseButton.text = _shown.CurrentBet == 0 ? $"Bet {_raiseTo:N0}" : $"Raise {_raiseTo:N0}";
+                }
+                else
+                {
+                    _callButton.text = (toCall == 0 ? "Check" : toCall >= stack ? $"Call all in {stack:N0}" : $"Call {toCall:N0}") + KeyHints.For("C");
+                    _raiseButton.text = (_shown.CurrentBet == 0 ? $"Bet {_raiseTo:N0}" : $"Raise to {_raiseTo:N0}") + KeyHints.For("R");
+                }
+
+                _callIcon?.EnableInClassList("icon--check", toCall == 0);
+                _callIcon?.EnableInClassList("icon--call", toCall != 0);
                 _raiseButton.SetEnabled(maxTo > _shown.CurrentBet);
                 _raiseLabel.text = _raiseTo.ToString("N0");
                 HandleKeys(toCall);
