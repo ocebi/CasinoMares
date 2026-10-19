@@ -188,6 +188,8 @@ MonoBehaviour:
     RawValue: 0
   _RttMs: 0
   _CigarUntilTick: 0
+  _Swimming:
+    RawValue: 0
   _DrinkCount: 0
 --- !u!114 &8127478801960297046
 MonoBehaviour:
