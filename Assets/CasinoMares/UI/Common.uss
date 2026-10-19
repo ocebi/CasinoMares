@@ -946,20 +946,6 @@
     background-color: rgba(20, 12, 16, 0.72);
     color: var(--cm-text);
     white-space: nowrap;
-    flex-direction: row;
-    align-items: center;
-}
-
-/* The two parts of a hand label: the cards' ranks ("4♠ Q♥ ·") and the total or result. */
-.hand-ranks,
-.hand-text {
-    margin: 0;
-    padding: 0;
-    white-space: nowrap;
-}
-
-.hand-ranks {
-    margin-right: 5px;
 }
 
 .hand-label--active {
