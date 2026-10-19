@@ -42,7 +42,11 @@ namespace CasinoMares.Editor
         const float SeaLevel = -3f;
         /// <summary>The top of the stone base, just under the floors (their bottoms are at -0.1), so no faces meet.</summary>
         const float PlinthTop = -0.12f;
-        /// <summary>The terrace deck, east of the hall: from the east wall out to here, and between these two along it.</summary>
+        /// <summary>
+        /// The terrace deck, east of the hall: from the east wall out to here, and between these two along it. The pool's
+        /// extension (CasinoSceneBuilder.Pool.cs) runs it on to <see cref="DeckEast"/>; the sea and islands stay centred on
+        /// this part.
+        /// </summary>
         const float TerraceEast = 18f;
         const float TerraceSouth = -1.5f;
         const float TerraceNorth = HallDepth / 2f + 0.2f;
@@ -439,6 +443,7 @@ namespace CasinoMares.Editor
             BuildExterior(outside);
             var terrace = BuildTerraceDeck(outside, stone, out var teak);
             BuildTerraceFurniture(terrace, m, teak);
+            BuildPool(terrace, stone, teak);
             BuildBarSeats(hall);
             BuildCatWall(hall, m, teak);
 
@@ -456,8 +461,8 @@ namespace CasinoMares.Editor
                 Camera.main.farClipPlane = FarClip;
 
             // Outside the hall's probe: the terrace furniture reflects the sea, the sky and the facade.
-            BakeReflectionProbe("TerraceReflectionProbe", new Vector3((HallWidth / 2f + TerraceEast) / 2f, 1.2f, (TerraceSouth + TerraceNorth) / 2f),
-                new Vector3(TerraceEast - HallWidth / 2f + 0.6f, 4f, TerraceNorth - TerraceSouth + 0.6f), new Vector3(0f, 0.8f, 0f), false, 128,
+            BakeReflectionProbe("TerraceReflectionProbe", new Vector3((HallWidth / 2f + DeckEast) / 2f, 1.2f, (TerraceSouth + TerraceNorth) / 2f),
+                new Vector3(DeckEast - HallWidth / 2f + 0.6f, 4f, TerraceNorth - TerraceSouth + 0.6f), new Vector3(0f, 0.8f, 0f), false, 128,
                 Root + "/Scenes/CasinoSea_TerraceReflection.exr");
         }
 
@@ -469,14 +474,24 @@ namespace CasinoMares.Editor
                 Box(name, parent, new Vector3((x0 + x1) / 2f, (PlinthTop + bottom) / 2f, (z0 + z1) / 2f), new Vector3(x1 - x0, PlinthTop - bottom, z1 - z0), stone, collider: false);
 
             foreach (var (name, x0, x1, z0, z1) in PlinthBlocks)
-                Block(name, x0, x1, z0, z1);
+            {
+                if (name != "Plinth_Terrace")
+                {
+                    Block(name, x0, x1, z0, z1);
+                    continue;
+                }
+
+                // The pool's basin goes down through the terrace's base (CasinoSceneBuilder.Pool.cs).
+                foreach (var (part, px0, px1, pz0, pz1, top) in PlinthAroundPool(x0, x1, z0, z1))
+                    Box(name + part, parent, new Vector3((px0 + px1) / 2f, (top + bottom) / 2f, (pz0 + pz1) / 2f), new Vector3(px1 - px0, top - bottom, pz1 - pz0), stone, collider: false);
+            }
         }
 
         /// <summary>The hall's base (with room for the entrance vestibule on the south side) and the terrace's.</summary>
         static readonly (string name, float x0, float x1, float z0, float z1)[] PlinthBlocks =
         {
             ("Plinth_Hall", -HallWidth / 2f - 0.7f, HallWidth / 2f + 0.7f, -HallDepth / 2f - 3.5f, TerraceNorth + 0.4f),
-            ("Plinth_Terrace", HallWidth / 2f + 0.7f, TerraceEast + 0.4f, TerraceSouth - 0.4f, TerraceNorth + 0.4f),
+            ("Plinth_Terrace", HallWidth / 2f + 0.7f, DeckEast + 0.4f, TerraceSouth - 0.4f, TerraceNorth + 0.4f),
         };
 
         /// <summary>Sandstone blocks: four staggered courses per tile with sunken mortar.</summary>
@@ -1120,12 +1135,12 @@ namespace CasinoMares.Editor
             const float railTop = 0.95f;
             // Each open side, from its start to its end along the deck's edge.
             var start = west + WallThickness / 2f + CladdingThickness;
-            var deckCenter = new Vector2((west + TerraceEast) / 2f, (TerraceSouth + TerraceNorth) / 2f);
+            var deckCenter = new Vector2((west + DeckEast) / 2f, (TerraceSouth + TerraceNorth) / 2f);
             foreach (var (name, a, b) in new[]
                      {
-                         ("Rail_North", new Vector2(start, TerraceNorth - inset), new Vector2(TerraceEast - inset, TerraceNorth - inset)),
-                         ("Rail_East", new Vector2(TerraceEast - inset, TerraceNorth - inset), new Vector2(TerraceEast - inset, TerraceSouth + inset)),
-                         ("Rail_South", new Vector2(TerraceEast - inset, TerraceSouth + inset), new Vector2(start, TerraceSouth + inset)),
+                         ("Rail_North", new Vector2(start, TerraceNorth - inset), new Vector2(DeckEast - inset, TerraceNorth - inset)),
+                         ("Rail_East", new Vector2(DeckEast - inset, TerraceNorth - inset), new Vector2(DeckEast - inset, TerraceSouth + inset)),
+                         ("Rail_South", new Vector2(DeckEast - inset, TerraceSouth + inset), new Vector2(start, TerraceSouth + inset)),
                      })
             {
                 var rail = new GameObject(name).transform;
@@ -1169,8 +1184,11 @@ namespace CasinoMares.Editor
 
         // ---------------------------------------------------------------- Terrace furniture
 
-        /// <summary>Café tables on the terrace: two flank the path out of the door, one stands by the far railing.</summary>
-        static readonly Vector3[] TerraceTables = { new(14.6f, 0f, 0.6f), new(14.6f, 0f, 5.4f), new(16.6f, 0f, 3f) };
+        /// <summary>
+        /// Café tables on the terrace: two flank the path out of the door, one stands where the old railing was, one by
+        /// the pool (CasinoSceneBuilder.Pool.cs).
+        /// </summary>
+        static readonly Vector3[] TerraceTables = { new(14.6f, 0f, 0.6f), new(14.6f, 0f, 5.4f), new(16.6f, 0f, 3f), new(20.3f, 0f, 0.5f) };
         /// <summary>Chairs round each table (degrees from east, counterclockwise), all on the land side facing the sea.</summary>
         static readonly float[] TerraceSeatAngles = { 180f, 125f, 235f };
         const float TerraceSeatHeight = 0.34f;
@@ -1237,8 +1255,8 @@ namespace CasinoMares.Editor
 
             // Patrons also come out to sit at the railing and look at the sea. Sitting, not standing: a standing cat plays
             // idle emotes, and the meow and groom ones sit it down and stand it up again.
-            AddPatronSpot(spots, "Terrace_Rail_East_A", new Vector3(17.2f, 0f, 1.6f), 90f, true, new Vector2(10f, 25f));
-            AddPatronSpot(spots, "Terrace_Rail_East_B", new Vector3(17.2f, 0f, 4.5f), 90f, true, new Vector2(10f, 25f));
+            AddPatronSpot(spots, "Terrace_Rail_East_A", new Vector3(DeckEast - 0.8f, 0f, 0.9f), 90f, true, new Vector2(10f, 25f));
+            AddPatronSpot(spots, "Terrace_Rail_East_B", new Vector3(DeckEast - 0.8f, 0f, -0.5f), 90f, true, new Vector2(10f, 25f));
 
             var pot = Lit("Sea_Terracotta", new Color(0.72f, 0.38f, 0.24f), 0.15f);
             var soil = Lit("Sea_Soil", new Color(0.18f, 0.12f, 0.08f), 0.05f);

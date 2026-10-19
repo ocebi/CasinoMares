@@ -1,4 +1,5 @@
 using CasinoMares.Core;
+using CasinoMares.Social;
 using Fusion;
 using UnityEngine;
 
@@ -18,6 +19,8 @@ namespace CasinoMares.Player
         const float FallOutHeight = -2f;
         /// <summary>Degrees a second a cat turns to face something it was told to (a clicked spot it swipes at).</summary>
         const float FaceTurnSpeed = 900f;
+        /// <summary>How fast a cat in a pool rises or sinks to the surface (stepping in off the deck, say), m/s.</summary>
+        const float FloatSpeed = 2f;
 
         /// <summary>Set while seated or otherwise not allowed to walk around.</summary>
         public bool MovementLocked { get; set; }
@@ -35,6 +38,7 @@ namespace CasinoMares.Player
         Quaternion _spawnRotation;
         Vector3 _faceDirection;
         float _faceUntil;
+        bool _wasInWater;
 
         /// <summary>Move the cat instantly (sitting down, standing up). Applied on the next network tick.</summary>
         public void RequestTeleport(Vector3 position, Quaternion rotation)
@@ -99,6 +103,13 @@ namespace CasinoMares.Player
                 return;
             }
 
+            // A pool's water (SwimmingPool) starts the swim when the cat steps in and ends it when it steps out. Only
+            // the change is written, so F9 and ?swim=1 still switch it on dry land.
+            var inWater = SwimmingPool.WaterAt(transform.position, out var surface);
+            if (_cat != null && inWater != _wasInWater)
+                _cat.Swimming = inWater;
+            _wasInWater = inWater;
+
             var input = GameInput.ReadMove();
             // A swimming cat paddles: capped speed, no sprint and no jump.
             var swimming = _cat != null && _cat.Swimming;
@@ -113,6 +124,15 @@ namespace CasinoMares.Player
             if (_jumpRequested)
                 _character.Jump(overrideImpulse: CatMotion.JumpImpulse);
             _jumpRequested = false;
+
+            // Swimming in a pool floats the cat at the surface: no gravity, just a pull up or down to the waterline.
+            if (swimming && inWater)
+            {
+                _character.gravity = 0f;
+                var floating = _character.Velocity;
+                floating.y = Mathf.Clamp((surface - transform.position.y) * Runner.TickRate, -FloatSpeed, FloatSpeed);
+                _character.Velocity = floating;
+            }
 
             // Move() also applies gravity and braking, so it runs every tick even without input. It also turns the cat
             // towards where it walks, which facing something overrides.

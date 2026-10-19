@@ -189,6 +189,14 @@ The hall is 22 × 14 m (as built):
   into a short vestibule with a velvet curtain. NPC players arrive and leave through it (§5.6).
 - The NavMesh (AI Navigation package) covers the whole walkable floor for NPCs. It is baked by the
   scene builder.
+- Seaside scene only: the terrace outside the east door runs 8 m further out to sea than at first, with
+  the glass railing round the new edge. In its corner toward the islands and the sunset is a 6 × 4 m
+  stone pool, 1.2 m deep, the water 0.15 m below the deck. Shallow steps at the hall end lead in and out.
+  Two sun loungers and a fourth café table stand beside it. Patrons never walk into it.
+  - Stepping into the water makes a cat swim (the Swim state, plan §11.1): it floats at the surface,
+    paddles slowly, and can't jump, sprint, emote or paw. Walking up the steps ends it. Other players
+    see it swim.
+  - The stone edge is too high to climb from the water, so the steps are the only way out.
 
 ### 4.3 Staff NPCs
 - **Dealer cats**: one per table. They sit behind the table and react to results (see §5.8).

@@ -66,9 +66,10 @@ namespace CasinoMares.Player
         public int CigarUntilTick { get; set; }
 
         /// <summary>
-        /// Paddling instead of walking (swim R&D, plan §11.1): the Swim animation, a sunk and nose-up body, slower
-        /// and no sprint, jump, emotes or paw. Owner writes, everyone reads. No water yet: <c>?swim=1</c> on the
-        /// web or F9 in the editor turns it on anywhere.
+        /// Paddling instead of walking (plan §11.1, §11.2): the Swim animation, a sunk and nose-up body, slower and
+        /// no sprint, jump, emotes or paw. Owner writes, everyone reads. CatMovement sets it when the cat steps into
+        /// the terrace pool and clears it when it steps out; <c>?swim=1</c> on the web or F9 in the editor turns it on
+        /// anywhere.
         /// </summary>
         [Networked]
         public NetworkBool Swimming { get; set; }
