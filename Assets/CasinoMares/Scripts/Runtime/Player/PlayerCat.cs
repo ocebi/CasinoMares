@@ -61,6 +61,7 @@ namespace CasinoMares.Player
         /// <summary>
         /// The tick until which this cat smokes its victory cigar, 0 when it never lit one (GDD §5.8). The owner
         /// stamps it on a huge win (a later one extends it); every client, late joiners included, renders from it.
+        /// To test it, <c>?cigar=1</c> on the web lights one on joining and F10 in the editor lights or puts it out.
         /// </summary>
         [Networked]
         public int CigarUntilTick { get; set; }
@@ -166,6 +167,13 @@ namespace CasinoMares.Player
                 UpdateRtt();
                 if (Application.isEditor && GameInput.KeyPressed(Key.F9))
                     Swimming = !Swimming;
+                if (Application.isEditor && GameInput.KeyPressed(Key.F10))
+                {
+                    if (IsCigarLit)
+                        CigarUntilTick = 0;
+                    else
+                        LightCigar();
+                }
                 if (Time.time >= _nextDrinkRecount)
                     RecountDrinks();
             }
@@ -326,6 +334,8 @@ namespace CasinoMares.Player
                 PlayerCameraRig.Instance?.Follow(_cameraTarget);
                 _cigar?.Bind(this);
                 Swimming = Platform.QueryParameter("swim") == "1";
+                if (Platform.QueryParameter("cigar") == "1")
+                    LightCigar();
             }
 
             ApplyAppearance();

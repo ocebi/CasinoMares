@@ -88,7 +88,8 @@ Add `?touch=1` to the URL to try the touch controls with a mouse, or `?profile=n
 in another tab. On a hot phone the game lowers its render scale and, if that isn't enough, holds the frame
 rate at 30 (the pause menu can hold it at 30 outright); `?debug=1` shows what it settled on, and
 `?fps30=0`, `?autoscale=0`, `?lighttrim=0` and `?shadows=hi` switch the phone savings off one at a time
-(GDD §15.2). To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
+(GDD §15.2). For quick looks, `?swim=1` starts your cat swimming and `?cigar=1` lights its victory cigar; in the
+editor, F9 toggles swimming and F10 lights or puts out the cigar. To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
 Controls**. Turn it off and switch the build target back to macOS before making a desktop build.
 
 ## Credits
