@@ -1786,7 +1786,9 @@
     bottom: auto;
 }
 
-.touch .hud-hint--seated {
+/* Key hints mean nothing on a phone: the strip is hidden under touch, walking and seated alike (the touch
+   controls carry their own glyphs). */
+.touch .hud-hint {
     display: none;
 }
 
