@@ -20,6 +20,10 @@ namespace CasinoMares.UI
     /// each table's shown round so the labels change together with the cards. The labels are placed every frame, so
     /// their text comes from a cache of strings built once per distinct value (<see cref="Cached{T}"/>) and only the
     /// style classes that changed are touched: on a phone, formatting a dozen strings a frame was garbage every frame.
+    /// Blackjack labels also list the cards' ranks ("4♠ Q♥ · 14"; the dealer's hidden card is "?"). The HUD is drawn
+    /// at full screen resolution whatever the 3D render scale, so the ranks read there when the cards themselves are a
+    /// few blurred pixels on a weak phone. Each table's labels are then pushed apart where they overlap and kept on
+    /// screen (<see cref="Separate"/>).
     /// </summary>
     public class TableOverlay : MonoBehaviour
     {
@@ -36,13 +40,24 @@ namespace CasinoMares.UI
 
         static readonly string[] Modifiers = { "hand-label--active", "hand-label--win", "hand-label--lose", "hand-label--push", "hand-label--tipsy" };
 
+        /// <summary>Pixels kept between labels that were pushed apart, and from the screen's edges.</summary>
+        const float LabelGap = 3f;
+        /// <summary>The colour of hearts and diamonds in a rank run (the tutors use the same).</summary>
+        const string RedSuit = "#E0605A";
+
         [SerializeField] UIDocument _document;
 
         VisualElement _layer;
         VisualElement _spectator;
         Label _spectatorName;
         Label _spectatorBody;
-        readonly List<Label> _labels = new();
+        /// <summary>The pooled labels: a row with the rank run (<c>hand-ranks</c>, hidden when empty) and the text.</summary>
+        readonly List<VisualElement> _labels = new();
+        readonly List<Label> _rankRuns = new();
+        readonly List<Label> _texts = new();
+        /// <summary>Rank runs by a hash of their cards, built once per distinct hand.</summary>
+        readonly Dictionary<ulong, string> _runs = new();
+        readonly StringBuilder _run = new();
         readonly StringBuilder _text = new();
         readonly Dictionary<BlackjackTable, BlackjackTableView> _views = new();
         readonly Dictionary<RouletteTable, RouletteView> _rouletteViews = new();
@@ -87,7 +102,9 @@ namespace CasinoMares.UI
                         continue;
                     if ((table.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
                         continue;
+                    var first = _used;
                     LabelTable(table, cam);
+                    Separate(first);
                 }
 
                 foreach (var poker in PokerTable.All)
@@ -96,7 +113,9 @@ namespace CasinoMares.UI
                         continue;
                     if ((poker.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
                         continue;
+                    var first = _used;
                     LabelPoker(poker, cam);
+                    Separate(first);
                 }
 
                 foreach (var baccarat in BaccaratTable.All)
@@ -105,7 +124,9 @@ namespace CasinoMares.UI
                         continue;
                     if ((baccarat.transform.position - cam.transform.position).sqrMagnitude > LabelRange * LabelRange)
                         continue;
+                    var first = _used;
                     LabelBaccarat(baccarat, cam);
+                    Separate(first);
                 }
 
                 foreach (var machine in SlotMachine.All)
@@ -145,6 +166,16 @@ namespace CasinoMares.UI
                 return;
 
             var shown = table.Shown;
+            // The dealer's label first: where labels overlap, the later ones (the hands) give way to it.
+            if (shown.DealerCardCount > 0)
+            {
+                var dealerValue = shown.EvaluateDealerVisible();
+                var dealer = Place(view.DealerLabelPosition,
+                    Cached(Key(Text.Dealer, dealerValue.Total, 0, dealerValue.IsSoft ? 1 : 0), dealerValue, static v => v.ToString()), cam,
+                    DealerRun(shown));
+                dealer?.EnableInClassList("hand-label--active", shown.Phase == BlackjackPhase.DealerTurn);
+            }
+
             // A drunk player can't quite read its own cards (GDD §5.8): its unsettled hands show two totals.
             var local = PlayerCat.Local;
             var tipsy = local != null && local.Object != null && local.Object.IsValid && local.IsDrunk;
@@ -176,7 +207,7 @@ namespace CasinoMares.UI
                                 static s => $"{s.Total} · {BlackjackTable.OutcomeLabel(s.outcome)}");
                     }
 
-                    var label = Place(view.HandLabelPosition(seat, hand, hands), text, cam);
+                    var label = Place(view.HandLabelPosition(seat, hand, hands), text, cam, HandRun(shown, seat, hand, cards));
                     if (label == null)
                         continue;
                     label.EnableInClassList("hand-label--tipsy", fuzzy);
@@ -188,14 +219,70 @@ namespace CasinoMares.UI
                     label.EnableInClassList("hand-label--push", outcome == HandOutcome.Push);
                 }
             }
+        }
 
-            if (shown.DealerCardCount > 0)
+        /// <summary>"4♠ Q♥ ·": a hand's cards, red suits coloured, ready to go before its total.</summary>
+        string HandRun(BlackjackTable.Snapshot shown, int seat, int hand, int cards)
+        {
+            var hash = RunSeed;
+            for (var i = 0; i < cards; i++)
+                hash = RunStep(hash, shown.CardAt(seat, hand, i));
+            if (_runs.TryGetValue(hash, out var run))
+                return run;
+
+            _run.Clear();
+            for (var i = 0; i < cards; i++)
+                AppendCard(shown.CardAt(seat, hand, i));
+            return AddRun(hash);
+        }
+
+        /// <summary>"Dealer 5♥ ? ·": the dealer's cards, the hole card a "?" until it's turned.</summary>
+        string DealerRun(BlackjackTable.Snapshot shown)
+        {
+            var count = (int)shown.DealerCardCount;
+            var hash = RunStep(RunSeed, HiddenCard);
+            for (var i = 0; i < count; i++)
+                hash = RunStep(hash, i == 1 && !shown.HoleRevealed ? HiddenCard : shown.DealerCardAt(i));
+            if (_runs.TryGetValue(hash, out var run))
+                return run;
+
+            _run.Clear();
+            _run.Append("Dealer");
+            for (var i = 0; i < count; i++)
             {
-                var dealerValue = shown.EvaluateDealerVisible();
-                var dealer = Place(view.DealerLabelPosition,
-                    Cached(Key(Text.Dealer, dealerValue.Total, 0, dealerValue.IsSoft ? 1 : 0), dealerValue, static v => $"Dealer {v}"), cam);
-                dealer?.EnableInClassList("hand-label--active", shown.Phase == BlackjackPhase.DealerTurn);
+                if (i == 1 && !shown.HoleRevealed)
+                    _run.Append(" ?");
+                else
+                    AppendCard(shown.DealerCardAt(i));
             }
+
+            return AddRun(hash);
+        }
+
+        const ulong RunSeed = 14695981039346656037UL;
+        /// <summary>Stands for the dealer's face-down card (and marks a dealer run) in a run's hash.</summary>
+        const byte HiddenCard = 254;
+
+        static ulong RunStep(ulong hash, byte card) => (hash ^ card) * 1099511628211UL;
+
+        void AppendCard(byte card)
+        {
+            if (_run.Length > 0)
+                _run.Append(' ');
+            if (Cards.IsRed(card))
+                _run.Append("<color=").Append(RedSuit).Append('>').Append(Cards.Label(card)).Append("</color>");
+            else
+                _run.Append(Cards.Label(card));
+        }
+
+        string AddRun(ulong hash)
+        {
+            _run.Append(" ·");
+            if (_runs.Count >= MaxCachedStrings)
+                _runs.Clear();
+            var run = _run.ToString();
+            _runs.Add(hash, run);
+            return run;
         }
 
         void LabelPoker(PokerTable table, Camera cam)
@@ -305,31 +392,89 @@ namespace CasinoMares.UI
             label.AddToClassList(shown.Result == 0 ? "hand-label--win" : Rules.RouletteRules.IsRed(shown.Result) ? "hand-label--lose" : "hand-label--push");
         }
 
-        Label Place(Vector3 world, string text, Camera cam)
+        VisualElement Place(Vector3 world, string text, Camera cam, string ranks = null)
         {
             if (Vector3.Dot(world - cam.transform.position, cam.transform.forward) <= 0f)
                 return null;
 
             if (_used >= _labels.Count)
             {
-                var created = new Label { pickingMode = PickingMode.Ignore };
+                var created = new VisualElement { pickingMode = PickingMode.Ignore };
                 created.AddToClassList("hand-label");
+                var run = new Label { pickingMode = PickingMode.Ignore };
+                run.AddToClassList("hand-ranks");
+                var body = new Label { pickingMode = PickingMode.Ignore };
+                body.AddToClassList("hand-text");
+                created.Add(run);
+                created.Add(body);
                 _layer.Add(created);
                 _labels.Add(created);
+                _rankRuns.Add(run);
+                _texts.Add(body);
             }
 
-            var label = _labels[_used++];
+            var index = _used++;
+            var label = _labels[index];
             var position = RuntimePanelUtils.CameraTransformWorldToPanel(_layer.panel, world, cam);
             label.style.display = DisplayStyle.Flex;
             label.style.left = position.x;
             label.style.top = position.y;
-            label.text = text;
+            _texts[index].text = text;
+            var rankRun = _rankRuns[index];
+            var showRun = !string.IsNullOrEmpty(ranks);
+            rankRun.style.display = showRun ? DisplayStyle.Flex : DisplayStyle.None;
+            if (showRun)
+                rankRun.text = ranks;
             // Back to a plain, upright label; the caller adds its modifiers (and the tipsy wobble). Only a class that
             // was there is a style change, and an unchanged inline rotate is skipped by the style accessor.
             label.style.rotate = new Rotate(0f);
             foreach (var modifier in Modifiers)
                 label.EnableInClassList(modifier, false);
             return label;
+        }
+
+        /// <summary>
+        /// Pushes apart the labels placed since <paramref name="first"/> (one table's) where they overlap: each later
+        /// label moves down the screen, toward the players, below the earlier one it hits, so a hand's label gives
+        /// way to the dealer's. Then all of them are kept on screen. Sizes are from the last layout, so a label's
+        /// first frame isn't moved.
+        /// </summary>
+        void Separate(int first)
+        {
+            var screen = _layer.layout.size;
+            for (var i = first; i < _used; i++)
+            {
+                var label = _labels[i];
+                var size = label.layout.size;
+                if (float.IsNaN(size.x) || size.x <= 0f)
+                    continue;
+
+                // style left/top is the label's bottom centre (the USS translates it up and left).
+                var x = label.style.left.value.value;
+                var y = label.style.top.value.value;
+                for (var j = first; j < i; j++)
+                {
+                    var other = _labels[j];
+                    var otherSize = other.layout.size;
+                    if (float.IsNaN(otherSize.x) || otherSize.x <= 0f)
+                        continue;
+                    var otherX = other.style.left.value.value;
+                    var otherY = other.style.top.value.value;
+                    var apartX = Mathf.Abs(x - otherX) >= (size.x + otherSize.x) / 2f + LabelGap;
+                    var apartY = y <= otherY - otherSize.y - LabelGap || y - size.y >= otherY + LabelGap;
+                    if (!apartX && !apartY)
+                        y = otherY + size.y + LabelGap;
+                }
+
+                if (!float.IsNaN(screen.x) && screen.x > 0f)
+                {
+                    x = Mathf.Clamp(x, size.x / 2f + LabelGap, Mathf.Max(size.x / 2f + LabelGap, screen.x - size.x / 2f - LabelGap));
+                    y = Mathf.Clamp(y, size.y + LabelGap, Mathf.Max(size.y + LabelGap, screen.y - LabelGap));
+                }
+
+                label.style.left = x;
+                label.style.top = y;
+            }
         }
 
         void UpdateSpectator()

@@ -346,6 +346,13 @@ Since cats have no hands, everything moves by **magic**:
 - The whole dealing animation for one round must fit within ~3 s so the pace stays good.
 - Late joiners and spectators arriving mid-round see the current layout straight away, without
   replaying animations.
+- Each hand's world label (`TableOverlay`) lists its cards before the total, e.g. "4♠ Q♥ · 14", with
+  hearts and diamonds in red. The dealer's reads "Dealer 5♥ ? · 5" until the hole card turns. The HUD
+  is drawn at full screen resolution whatever the 3D render scale, so the ranks stay readable on a
+  weak phone where the cards themselves blur.
+  - A drunk player's own hand shows the ranks and the "11 or 8?" decoy, never the true total.
+  - Labels that overlap are pushed apart: the hands' labels move down, away from the dealer's. All
+    of them stay on screen.
 
 ### 5.6 NPC seat players
 - **Random** (the default): NPC cats come and go between rounds on their own. Every 30–80 s the
