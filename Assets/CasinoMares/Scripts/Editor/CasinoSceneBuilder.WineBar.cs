@@ -58,7 +58,12 @@ namespace CasinoMares.Editor
                 var camera = TableOrbitCamera(anchors[i]);
                 var orbit = camera.GetComponent<CinemachineOrbitalFollow>();
                 orbit.Radius = 1.9f;
-                orbit.HorizontalAxis.Range = new Vector2(-100f, 100f);
+                // The rig starts the orbit at the seat's world yaw (across the counter, at the bartender), so the range
+                // is centred on it: a fixed -100..100 clamped the pool bar's south-facing 180° to a view along the counter.
+                var yaw = anchors[i].eulerAngles.y;
+                orbit.HorizontalAxis.Range = new Vector2(yaw - 100f, yaw + 100f);
+                orbit.HorizontalAxis.Center = yaw;
+                orbit.HorizontalAxis.Value = yaw;
                 orbit.HorizontalAxis.Wrap = false;
                 cameras[i] = camera;
 
