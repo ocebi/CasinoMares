@@ -6,7 +6,8 @@ namespace CasinoMares.Blackjack
 {
     /// <summary>
     /// Builds the 52 card faces plus a card back into one texture at runtime, using a tiny built-in pixel font,
-    /// so no card art or font assets are needed. Crisp retro look with point filtering.
+    /// so no card art or font assets are needed. Crisp retro look with point filtering. The faces use a jumbo
+    /// index (a large rank and suit in two corners, a small pip between) so they read on a small screen.
     /// </summary>
     public static class CardFaces
     {
@@ -123,6 +124,16 @@ namespace CasinoMares.Blackjack
                 Set(pixels, column, row, x, y, color);
         }
 
+        /// <summary>
+        /// The rank's pixel scale in the corner index: 21 px of the 70 px card, with the suit under it the index fills
+        /// about 40% of the height ("jumbo index"), so the rank still reads where the card covers only a few screen
+        /// pixels (a phone at a low render scale).
+        /// </summary>
+        const int IndexRankScale = 3;
+        /// <summary>The suit under the rank, and the reduced pip in the middle.</summary>
+        const int IndexSuitScale = 1;
+        const int PipScale = 2;
+
         static void DrawFace(Color32[] pixels, int rank, int suit)
         {
             Fill(pixels, rank, suit, Border);
@@ -131,18 +142,22 @@ namespace CasinoMares.Blackjack
             var color = suit is 1 or 2 ? Red : Black;
             var suitGlyph = PixelFont.Suits[suit];
             void Plot(int x, int y) => Set(pixels, rank, suit, x, y, color);
+            // The same index again in the bottom-right corner, turned half round, as on real cards.
+            void PlotTurned(int x, int y) => Set(pixels, rank, suit, CellWidth - 1 - x, CellHeight - 1 - y, color);
 
-            // Corner index: rank (scale 2) with a small suit underneath, and a small suit in the opposite corner.
             var label = Cards.RankLabel(Cards.Make(rank, suit));
-            PixelFont.DrawText(Plot, label, 3, 3, 2);
-            PixelFont.Draw(Plot, suitGlyph, 4, 19, 1);
-            PixelFont.Draw(Plot, suitGlyph, CellWidth - 11, CellHeight - 26, 1);
+            const int left = 3;
+            const int top = 3;
+            const int suitTop = top + PixelFont.GlyphHeight * IndexRankScale + 2;
+            foreach (var plot in new System.Action<int, int>[] { Plot, PlotTurned })
+            {
+                PixelFont.DrawText(plot, label, left, top, IndexRankScale);
+                PixelFont.Draw(plot, suitGlyph, left + 1, suitTop, IndexSuitScale);
+            }
 
-            // Centre: big letter for faces, big suit for number cards and aces.
-            if (rank >= Cards.Jack)
-                PixelFont.Draw(Plot, PixelFont.Glyph(label[0]), (CellWidth - 5 * 4) / 2, (CellHeight - 7 * 4) / 2 + 4, 4);
-            else
-                PixelFont.Draw(Plot, suitGlyph, (CellWidth - 7 * 3) / 2, (CellHeight - 7 * 3) / 2 + 5, 3);
+            // A smaller suit in the middle, between the two indexes.
+            const int pip = 7 * PipScale;
+            PixelFont.Draw(Plot, suitGlyph, (CellWidth - pip) / 2, (CellHeight - pip) / 2, PipScale);
         }
 
         static void DrawBack(Color32[] pixels)

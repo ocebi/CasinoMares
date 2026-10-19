@@ -678,6 +678,10 @@ in-game credits screen (title, author, link, license).
 - **Playing cards**: no art needed. Faces, backs, the roulette wheel and slot reels are painted into
   textures at runtime with a built-in 5×7 pixel font (`PixelFont`, `CardFaces`,
   `RouletteWheelTexture`, `SlotSymbols`).
+  Card faces use a jumbo index: the rank three times the font's size with its suit under it, in the
+  top-left corner and again turned in the bottom-right, about 40% of the card's height each, with a small
+  suit between. The rank stays readable on a phone at a low render scale. The atlas is unchanged
+  (50 × 70 px cells, 1024 × 512, point filtered).
 - **Sounds**: [Kenney Casino Audio](https://kenney.nl/assets/casino-audio) and a subset of
   [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds), both CC0, in
   `Assets/ThirdParty/Kenney/` with their license files.
