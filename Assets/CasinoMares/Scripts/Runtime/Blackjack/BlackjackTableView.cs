@@ -17,6 +17,12 @@ namespace CasinoMares.Blackjack
         const int DealerKeyBase = 100000;
 
         [SerializeField] BlackjackTable _table;
+        /// <summary>
+        /// How far each later card in a hand sits right of and above (toward the dealer) the one before, in metres: wide
+        /// enough to leave the rank corner of every card, "10" included, readable from the seat and overhead views.
+        /// </summary>
+        public static readonly Vector2 CardFan = new(0.08f, 0.02f);
+
         [SerializeField] Material _cardMaterial;
         [SerializeField] Material _chipMaterial;
         [SerializeField] Mesh _chipMesh;
@@ -84,7 +90,8 @@ namespace CasinoMares.Blackjack
         public Vector3 HandCenter(int seat, int hand, int handCount)
         {
             var anchor = _handAnchors[seat];
-            var offset = (hand - (handCount - 1) * 0.5f) * (CardFaces.CardSize.x + 0.06f);
+            // Room for a fanned hand of three cards before the next split hand starts.
+            var offset = (hand - (handCount - 1) * 0.5f) * (CardFaces.CardSize.x + 2f * CardFan.x + 0.06f);
             return anchor.position + anchor.right * offset;
         }
 
@@ -96,16 +103,14 @@ namespace CasinoMares.Blackjack
         Vector3 CardPosition(int seat, int hand, int handCount, int index)
         {
             var anchor = _handAnchors[seat];
-            return HandCenter(seat, hand, handCount)
-                   + anchor.right * (index * 0.028f)
-                   + anchor.forward * (index * 0.045f)
-                   + Vector3.up * (0.002f + index * 0.0015f);
+            return Fan(HandCenter(seat, hand, handCount), anchor, index);
         }
 
-        Vector3 DealerCardPosition(int index)
-        {
-            return _dealerCards.position + _dealerCards.right * (index * (CardFaces.CardSize.x * 0.62f)) + Vector3.up * (0.002f + index * 0.0015f);
-        }
+        Vector3 DealerCardPosition(int index) => Fan(_dealerCards.position, _dealerCards, index);
+
+        /// <summary>Each card sits a little right of and above the one before, clear of its rank corner.</summary>
+        static Vector3 Fan(Vector3 start, Transform anchor, int index) =>
+            start + anchor.right * (index * CardFan.x) + anchor.forward * (index * CardFan.y) + Vector3.up * (0.002f + index * 0.0015f);
 
         // ---------------------------------------------------------------- Cards & chips
 
