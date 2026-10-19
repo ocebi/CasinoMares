@@ -46,13 +46,14 @@ namespace CasinoMares.Social
         /// <summary>The wine cylinder inside the glass prefab: where its bottom sits and its half-height when full.</summary>
         public const float LiquidBottom = 0.07f;
         public const float LiquidHalfHeight = 0.03f;
-        /// <summary>Where the glass sits while the cat drinks, from the seat anchor: forward (toward the counter) and up.</summary>
-        const float MuzzleForward = 0.22f;
-        const float MuzzleUp = 0.30f;
-        /// <summary>Seconds the glass takes to lift from the counter to the muzzle, and to go back down.</summary>
-        const float LiftSeconds = 0.4f;
-        /// <summary>Tilt toward the cat while it drinks, degrees.</summary>
-        const float DrinkTilt = 28f;
+        /// <summary>
+        /// Where the glass stands while the cat drinks: this far along the seat's forward from its anchor, on the counter
+        /// top, under the cat's snout in the Drink pose. The counter top's front edge is 0.415 m ahead of the anchor (the
+        /// CounterTop box in CasinoSceneBuilder.BuildBar), so the 0.035 m glass base stands fully on it with room to spare.
+        /// </summary>
+        public const float DrinkForward = 0.48f;
+        /// <summary>Seconds the glass takes to move from the slide lane to the counter's edge, under the cat's snout.</summary>
+        const float NudgeSeconds = 0.4f;
         /// <summary>Yaw the sliding glass turns through on its way down the counter.</summary>
         const float SlideSpin = 90f;
         /// <summary>The bartender stays up (and turned to the stool) this long after the glass leaves its paw.</summary>
@@ -309,7 +310,9 @@ namespace CasinoMares.Social
 
             var anchor = _table.GetSeatAnchor(seat);
             var counterSpot = new Vector3(anchor.position.x, _slideLane.position.y, _slideLane.position.z);
-            var muzzle = anchor.position + anchor.forward * MuzzleForward + Vector3.up * MuzzleUp;
+            var flatForward = Vector3.ProjectOnPlane(anchor.forward, Vector3.up).normalized;
+            var drinkSpot = anchor.position + flatForward * DrinkForward;
+            drinkSpot.y = _slideLane.position.y;
             var level = 1f;
             var position = counterSpot;
             var rotation = Quaternion.identity;
@@ -333,16 +336,14 @@ namespace CasinoMares.Social
                 }
                 case WinePhase.Drink:
                 {
+                    // The glass stands on the counter at the edge and the cat laps at it; it's drawn in from the lane first.
                     var since = elapsed - SlideEnd;
-                    var remaining = DrinkEnd - elapsed;
-                    var lift = Mathf.SmoothStep(0f, 1f, Mathf.Min(since / LiftSeconds, remaining / LiftSeconds));
-                    position = Vector3.Lerp(counterSpot, muzzle, lift);
-                    // Tipped toward the cat (its forward points at the counter, so the top leans back toward it).
-                    rotation = Quaternion.AngleAxis(-DrinkTilt * lift, anchor.right);
+                    position = Vector3.Lerp(counterSpot, drinkSpot, Mathf.SmoothStep(0f, 1f, since / NudgeSeconds));
                     level = 1f - Mathf.Clamp01(since / (DrinkEnd - SlideEnd));
                     break;
                 }
                 case WinePhase.Empty:
+                    position = drinkSpot;
                     level = 0f;
                     break;
             }
