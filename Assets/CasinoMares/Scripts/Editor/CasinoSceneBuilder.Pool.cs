@@ -28,12 +28,12 @@ namespace CasinoMares.Editor
         /// <summary>Where the hall's outside south-east corner is: west of the extension north of here is the hall's wall.</summary>
         const float HallCornerSouth = -HallDepth / 2f - WallThickness / 2f - CladdingThickness;
         /// <summary>
-        /// The pool's water, north–south (from the steps) and east–west; its gap to the east railing (room for the
-        /// loungers) and to the old terrace's edge, where the steps start.
+        /// The pool's water, north–south (from the steps) and east–west; its gap to the east railing and to the old
+        /// terrace's edge, where the steps start.
         /// </summary>
         const float PoolLength = 5.5f;
         const float PoolWidth = 4f;
-        const float PoolEastMargin = 1.3f;
+        const float PoolEastMargin = 0.7f;
         const float PoolNorthMargin = 0.5f;
         const float PoolEast = TerraceEast - PoolEastMargin;
         const float PoolWest = PoolEast - PoolWidth;
@@ -100,10 +100,11 @@ namespace CasinoMares.Editor
             NotWalkable(pool.gameObject);
 
             var pad = Lit("Sea_LoungerPad", new Color(0.9f, 0.93f, 0.95f), 0.1f);
-            // Between the pool and the east railing, lying along it, so a cat on one looks out sideways at the sea.
-            var loungerX = (PoolEast + PoolCopingWidth + TerraceEast) / 2f;
-            Lounger(terrace, "Lounger_1", new Vector3(loungerX, 0f, PoolNorth - 2f), LoungerYaw, teak, pad);
-            Lounger(terrace, "Lounger_2", new Vector3(loungerX, 0f, PoolNorth - 3.5f), LoungerYaw, teak, pad);
+            // On the hall side, along the pool's west edge, so a cat on one looks sideways across the water. South of
+            // the steps, and close to the coping, so the path along the hall wall stays wide enough for patrons.
+            var loungerX = PoolWest - PoolCopingWidth - LoungerPoolGap - LoungerHalfWidth;
+            for (var i = 0; i < 2; i++)
+                Lounger(terrace, $"Lounger_{i + 1}", new Vector3(loungerX, 0f, PoolNorth - LoungerFromNorth - i * LoungerSpacing), LoungerYaw, teak, pad);
         }
 
         /// <summary>
@@ -214,8 +215,15 @@ namespace CasinoMares.Editor
 
         /// <summary>The loungers' size against a person-sized one (1.9 m long): about a cat's.</summary>
         const float LoungerScale = 0.6f;
-        /// <summary>Which way their foot ends point (degrees from east, clockwise seen from above).</summary>
+        /// <summary>Which way their foot ends point (degrees from east, clockwise seen from above): south, along the pool.</summary>
         const float LoungerYaw = 90f;
+        /// <summary>Half a lounger's width at <see cref="LoungerScale"/> (its frame is 0.65 m wide full size).</summary>
+        const float LoungerHalfWidth = 0.65f * LoungerScale / 2f;
+        /// <summary>The gap from a lounger's side to the pool's coping.</summary>
+        const float LoungerPoolGap = 0.1f;
+        /// <summary>The first lounger's middle, south of the pool's north edge (past the steps), and the next one's spacing.</summary>
+        const float LoungerFromNorth = 2.5f;
+        const float LoungerSpacing = 1.5f;
 
         /// <summary>
         /// A teak sun lounger with a pad, <see cref="LoungerScale"/> of a person-sized one, its back raised at the head
