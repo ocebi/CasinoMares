@@ -175,6 +175,9 @@ namespace CasinoMares.UI
                 return _machine.Teases && _machine.SpinElapsed > SlotMachine.ReelStops[1] ? $"{a} {b} ...come on!" : "Spinning...";
             }
 
+            // One paw pays exactly the bet: it comes back, it isn't a win.
+            if (_machine.LastPayout == _machine.Bet)
+                return $"{a} {b} {c}: bet back";
             return _machine.LastPayout > 0 ? $"{a} {b} {c}: won {_machine.LastPayout:N0}" : $"{a} {b} {c}: no luck";
         }
 

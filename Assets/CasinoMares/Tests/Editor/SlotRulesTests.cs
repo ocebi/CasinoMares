@@ -16,7 +16,7 @@ namespace CasinoMares.Rules.Tests
         }
 
         [TestCase(SlotRules.Seven, SlotRules.Seven, SlotRules.Seven, 120)]
-        [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 3)]
+        [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 7)]
         [TestCase(SlotRules.Paw, SlotRules.Paw, SlotRules.Paw, 50)]
         [TestCase(SlotRules.Paw, SlotRules.Fish, SlotRules.Paw, 4)]
         [TestCase(SlotRules.Milk, SlotRules.Paw, SlotRules.Yarn, 1)]

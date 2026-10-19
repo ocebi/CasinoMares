@@ -757,9 +757,9 @@ and the floating cards.
 - **Three reels**: the authority rolls weighted reels (fish, milk, yarn, mouse, paw, 7) and every
   nearby client sees the same reels stop. When the first two match, the third slows down, ticking
   and glowing, before it stops.
-  - Paytable: three of a kind pays 3× to 120×, two paws pay 4×, one paw hands the bet back (1×).
-    About 10% of spins win and 25% return the bet, at about 73.6% RTP (it was 98.6% with one paw at
-    2×; the RTP test expects 90–100% and fails until another line is raised).
+  - Paytable: three of a kind pays 6× to 120× (fish 7×, milk 6×, yarn 12×, mouse 24×, paw 50×, 7
+    120×), two paws pay 4×, one paw hands the bet back (1×, "Bet back" on the HUD). About 10% of
+    spins win and 25% return the bet, at about 94.7% RTP, tested.
 - **Yarn Tumble**: a 5×5 grid of yarn balls (blue, green, pink), fish, mice and golden paws. A group
   of 5 or more touching side by side pays (1× to 2× for five, a quarter more for each one more, up
   to 10). The cat bats the winners away, the rest fall, and new symbols drop in, a quarter of them

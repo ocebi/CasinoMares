@@ -220,7 +220,7 @@ namespace CasinoMares.Slots
                 text.AppendLine($"{SlotRules.Names[Reels[0]]} · {SlotRules.Names[Reels[1]]} · {SlotRules.Names[Reels[2]]}");
             else if (Tumble.Cascades.Count > 1)
                 text.AppendLine($"{Tumble.Cascades.Count} chains, up to ×{YarnTumbleRules.MultiplierText(Tumble.Cascades[^1].Multiplier)}");
-            text.AppendLine(LastPayout > 0 ? $"Won {LastPayout:N0} on a {Bet:N0} bet" : $"Lost {Bet:N0}");
+            text.AppendLine(LastPayout == Bet ? $"Bet back ({Bet:N0})" : LastPayout > 0 ? $"Won {LastPayout:N0} on a {Bet:N0} bet" : $"Lost {Bet:N0}");
             return true;
         }
 
