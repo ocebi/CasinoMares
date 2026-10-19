@@ -36,7 +36,8 @@ namespace CasinoMares.Social
         public const float PawEnd = 1.3f;
         public const float SlideEnd = 2.5f;
         public const float DrinkEnd = 6.5f;
-        public const float EmptyEnd = 20f;
+        /// <summary>The empty glass only lingers a moment, so a cat that wants to can order its next one at once.</summary>
+        public const float EmptyEnd = 7.5f;
         /// <summary>Seconds into the paw before it hits the glass (the clink).</summary>
         const float PawHitOffset = 0.2f;
         /// <summary>How long a sent order waits for the authority's stamp before the HUD offers the button again.</summary>

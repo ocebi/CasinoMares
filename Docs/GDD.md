@@ -195,13 +195,14 @@ The hall is 22 × 14 m (as built):
 - **Dealer cats**: one per table. They sit behind the table and react to results (see §5.8).
 - **Cashier cat**: this is where a broke player gets a refill (§7.2).
 - **Bartender cat**: serves wine at the bar stools (sea scene). A cat seated on a stool orders a glass
-  (**Order wine · 20**, or **Space**; 20 chips, paid at once, refused with a toast when short). The bar
+  (**Order wine · 20**, or **Space**; 20 chips, paid once the bar accepts the order, refused with a toast when short). The bar
   (`WineBar`, on the stools' `TerraceTable`, master-client authority) stamps an order id and tick per
-  seat; every client plays the same 20 s sequence from the tick, so late joiners agree: the glass is
+  seat; every client plays the same 7.5 s sequence from the tick, so late joiners agree: the glass is
   poured in front of the bartender (0.8 s), the bartender stands, turns and swats it (`PlaySwipe`), it
   slides down the counter to the stool (to 2.5 s), the cat laps at it (the `Drink` animator state,
   `licking`, 4 s) while the glass lifts to its muzzle and empties, then the empty glass sits on the
-  counter until 20 s, when the seat can order again. Chat line: "<name> ordered a glass of wine."
+  counter for a second and the seat can order again at once (three glasses in about 25 s). A glass
+  belongs to the cat that ordered it; if that cat leaves the stool, the glass is cleared. Chat line: "<name> ordered a glass of wine."
 - **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
   (networked, not saved: a reload sobers you). At **3** glasses the cat is drunk: everyone sees a slow
   sway of the model (roll ±4°, yaw ±3° at 0.7 Hz, a fifth stronger per extra glass up to 5), the chat
