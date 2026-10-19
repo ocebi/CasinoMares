@@ -200,7 +200,8 @@ The hall is 22 × 14 m (as built):
   seat; every client plays the same 7.5 s sequence from the tick, so late joiners agree: the glass is
   poured in front of the bartender (0.8 s), the bartender stands, turns and swats it (`PlaySwipe`), it
   slides down the counter to the stool (to 2.5 s), the cat laps at it (the `Drink` animator state,
-  `licking`, 4 s) while the glass lifts to its muzzle and empties, then the empty glass sits on the
+  `licking`, 4 s) while the glass stands on the counter's edge under its snout and empties (it
+  doesn't ride on the cat), then the empty glass sits on the
   counter for a second and the seat can order again at once (three glasses in about 25 s). A glass
   belongs to the cat that ordered it; if that cat leaves the stool, the glass is cleared. Chat line: "<name> ordered a glass of wine."
 - **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
@@ -213,7 +214,7 @@ The hall is 22 × 14 m (as built):
   "Tipsy" from the third. At blackjack the drunk player's own unsettled hand labels show two totals,
   "17 or 21?" (the real one and a decoy within 4, never a bust, fixed per hand until a card is added),
   and the turn banner drops the total; bust and settled hands, the dealer and other players are honest.
-  The upside: net wins pay **10% extra** while drunk (§7.2).
+  The upside: net wins pay extra while drunk, **20%** at blackjack and **10%** at poker (§7.2).
 
 ### 4.4 Ambient patrons
 - 10 NPC cats wander between points of interest: the bar, near tables, lounge cushions. The
@@ -422,9 +423,16 @@ You can watch a friend just by walking up to them, and this works the same way f
     **5 minutes**. Only a paw that lands pays (a patron still spooked from an earlier paw ignores
     it, so it doesn't). Other players' cats and the NPCs seated at tables can't be pawed.
   - **Topping the cat wall**: **100 chips**, at most once every **10 minutes**.
-  - **Tipsy bonus** (`TipsyBonus`): while drunk (§4.3), a net win at any table or machine pays an
-    extra **10%** (rounded down, at least 1 chip), shown as "+N" with a toast. No cooldown; it's
-    bounded by the wins themselves. A glass of wine costs 20 chips.
+  - **Tipsy bonus** (`TipsyBonus`): while drunk (§4.3), a net win at a skill game pays extra
+    (rounded down, at least 1 chip), shown as "+N" with a toast. No cooldown; it's bounded by the
+    wins themselves. The rates live in `TipsyBonus.RateFor`:
+
+    | Game | Bonus | Why |
+    |---|---|---|
+    | Blackjack | **20%** | the hard game |
+    | Poker (pots won) | **10%** | skill game |
+    | Baccarat, roulette, slots | none | pure chance |
+ A glass of wine costs 20 chips.
 - A "+10" pops up beside the balance with a coin sound; the cat wall and welfare show a bigger
   "+100"/"+500" with a chime. A paw on cooldown pays nothing and says nothing.
 - The balance is client-side, so these cooldowns are the only guard against farming. They're saved

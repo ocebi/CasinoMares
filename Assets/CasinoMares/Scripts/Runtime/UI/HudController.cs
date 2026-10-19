@@ -231,7 +231,7 @@ namespace CasinoMares.UI
                         Toasts.Show("One more glass and you'll be tipsy.");
                         break;
                     case PlayerCat.DrunkAt:
-                        Toasts.Show("You're tipsy. The room sways, and wins pay 10% extra.");
+                        Toasts.Show("You're tipsy. The room sways, and blackjack wins pay 20% extra (poker 10%).");
                         break;
                     case MaxDrinkPips:
                         Toasts.Show("That's plenty. Everything's a bit of a blur.");
