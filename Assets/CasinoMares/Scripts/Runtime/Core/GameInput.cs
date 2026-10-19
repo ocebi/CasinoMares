@@ -248,5 +248,62 @@ namespace CasinoMares.Core
                 return _touchLook;
             return Mouse.current != null && Mouse.current.rightButton.isPressed ? Look.ReadValue<Vector2>() : Vector2.zero;
         }
+
+        /// <summary>How much one notch of the scroll wheel zooms: the distance times this, or divided by it.</summary>
+        const float ScrollZoomStep = 0.92f;
+        /// <summary>The two touches' distance apart last frame, 0 while there's no pinch.</summary>
+        static float _pinchDistance;
+
+        /// <summary>
+        /// Zoom for the overhead table view, as a factor on the camera's distance (1 = none, below 1 = closer): the
+        /// scroll wheel by notches (only its sign, since browsers report very different amounts), or a two-finger pinch
+        /// on a touch screen. Read once a frame while that view is up.
+        /// </summary>
+        public static float ReadZoom()
+        {
+            if (!GameplayEnabled)
+            {
+                _pinchDistance = 0f;
+                return 1f;
+            }
+
+            if (Platform.IsTouch)
+                return ReadPinch();
+            var scroll = Mouse.current != null ? Mouse.current.scroll.ReadValue().y : 0f;
+            return scroll > 0f ? ScrollZoomStep : scroll < 0f ? 1f / ScrollZoomStep : 1f;
+        }
+
+        /// <summary>Spreading two fingers zooms in: the distance shrinks by how much further apart they moved.</summary>
+        static float ReadPinch()
+        {
+            var screen = Touchscreen.current;
+            Vector2 first = default, second = default;
+            var found = 0;
+            if (screen != null)
+            {
+                foreach (var touch in screen.touches)
+                {
+                    if (!touch.isInProgress)
+                        continue;
+                    if (found == 0)
+                        first = touch.position.ReadValue();
+                    else
+                        second = touch.position.ReadValue();
+                    if (++found == 2)
+                        break;
+                }
+            }
+
+            if (found < 2)
+            {
+                _pinchDistance = 0f;
+                return 1f;
+            }
+
+            var distance = Vector2.Distance(first, second);
+            var previous = _pinchDistance;
+            _pinchDistance = distance;
+            return previous > 0f && distance > 1f ? previous / distance : 1f;
+        }
     }
 }

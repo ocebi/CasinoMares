@@ -23,7 +23,8 @@ namespace CasinoMares.CameraRig
     /// (the cat wall) the orbit tips down to stay under it, rather than being pulled in to the cat by the ceiling's
     /// camera blocker. At a table, A/D (or a right-drag) swing the seat camera a little way around the table (to see
     /// the other players' cards) and W/S tilt it; the view stays where it's left until the next time you sit down.
-    /// A card table also offers an overhead view (<see cref="TableView"/>), remembered per game. A seat
+    /// A card table also offers an overhead view (<see cref="TableView"/>), remembered per game, that pinch or the
+    /// scroll wheel zooms (<see cref="OverheadFraming"/>, remembered per table). A seat
     /// camera with its own orbit (the terrace café tables) goes all the way round the table instead, starting behind
     /// your seat. A table can briefly hand the view to a focus camera (the roulette wheel during a spin) and take it
     /// back without losing that seated look.
@@ -36,6 +37,8 @@ namespace CasinoMares.CameraRig
         const string DistanceKey = "CameraDistance";
         /// <summary>PlayerPrefs key prefix for the remembered table view, followed by the game ("TableView.Blackjack").</summary>
         const string TableViewKeyPrefix = "TableView.";
+        /// <summary>PlayerPrefs key prefix for the overhead view's zoom, followed by the table's name.</summary>
+        const string OverheadZoomKeyPrefix = "OverheadZoom.";
         public const float MinDistance = 1f;
         public const float MaxDistance = 3.5f;
         const int ActivePriority = 20;
@@ -105,6 +108,8 @@ namespace CasinoMares.CameraRig
         CinemachineOrbitalFollow _overrideOrbit;
         CinemachineCamera _focus;
         CinemachineCamera _overhead;
+        OverheadFraming _overheadFraming;
+        string _overheadZoomKey;
         Vector3 _overrideBasePosition;
         Quaternion _overrideBaseRotation;
         string _tableViewKey;
@@ -232,6 +237,14 @@ namespace CasinoMares.CameraRig
             // Table views only make sense for a fixed seat camera; an orbiting one places itself.
             _overhead = _overrideOrbit == null ? overhead : null;
             _tableViewKey = _overrideOrbit == null ? viewKey : null;
+            _overheadFraming = _overhead != null ? _overhead.GetComponent<OverheadFraming>() : null;
+            if (_overheadFraming != null)
+            {
+                var table = _overhead.transform.parent;
+                _overheadZoomKey = OverheadZoomKeyPrefix + (table != null ? table.name : _overhead.name);
+                _overheadFraming.Zoom = PlayerPrefs.GetFloat(_overheadZoomKey, 1f);
+            }
+
             var remembered = _tableViewKey != null ? (TableView)PlayerPrefs.GetInt(TableViewKeyPrefix + _tableViewKey, (int)TableView.Seat) : TableView.Seat;
             ApplyTableView(remembered, instant: true);
             if (_overrideOrbit == null)
@@ -255,6 +268,7 @@ namespace CasinoMares.CameraRig
             _override = null;
             _overrideOrbit = null;
             _overhead = null;
+            _overheadFraming = null;
             _tableViewKey = null;
             _tableView = TableView.Seat;
         }
@@ -382,11 +396,20 @@ namespace CasinoMares.CameraRig
 
         /// <summary>
         /// WASD (or the arrows), or a drag with touch controls, turns the seat camera within limits; it stays where
-        /// it's left. The overhead view takes no look input.
+        /// it's left. The overhead view takes no look input, only zoom (a pinch or the scroll wheel), remembered per table.
         /// </summary>
         void UpdateSeatLook()
         {
-            if (_tableView != TableView.Overhead)
+            if (_tableView == TableView.Overhead)
+            {
+                var zoom = _overheadFraming != null ? GameInput.ReadZoom() : 1f;
+                if (!Mathf.Approximately(zoom, 1f))
+                {
+                    _overheadFraming.Zoom *= zoom;
+                    PlayerPrefs.SetFloat(_overheadZoomKey, _overheadFraming.Zoom);
+                }
+            }
+            else
             {
                 var move = GameInput.ReadMove();
                 var step = _seatTurnSpeed * Time.deltaTime;

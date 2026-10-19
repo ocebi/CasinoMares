@@ -142,10 +142,14 @@ Seated shortcuts (every action also has a clickable button; the cursor is free w
     stays where it's left and resets the next time you sit down.
   - **Table views** (blackjack, baccarat and poker; `TableViewControl` is the shared button/caption/key):
     the View button (**V**) switches between **Seat** and **Overhead** (a Wide view, the seat camera moved
-    back and up, was dropped after the 2026-10-19 playtest). Overhead is a fixed camera the scene builder solves per
-    table (`CasinoSceneBuilder.TableViews`): on the players' side above the felt, pitched 70°, backed
-    away until every seat, the dealer's cards and the chip circles fit a 16:9 phone held sideways, kept
-    under the ceiling beams (≤ 3.1 m) by widening the lens (50° up to 70°) instead; no look input. The
+    back and up, was dropped after the 2026-10-19 playtest). Overhead is a camera on the players' side above the felt,
+    pitched 70° with a fixed 50° lens (`CasinoSceneBuilder.TableViews`, `OverheadFraming`). It frames the
+    felt only, not the stools. At runtime it backs away just far enough for the felt to fit the screen's
+    actual aspect, so a phone held sideways gets a much closer view than a monitor. The fitted camera is
+    at most 2.2 m high.
+    - Zoom: pinch on touch, or the scroll wheel, from 0.7× to 1.3× of the fitted distance. The zoom is
+      remembered per table (`PlayerPrefs` "OverheadZoom.<table>") and kept under the ceiling beams (3.1 m).
+    - No look input. The
     brain's 0.8 s blend carries each change, a caption names the view for 1.5 s, standing up goes back
     to Seat, and the last choice is remembered per game (`PlayerPrefs` "TableView.Blackjack",
     "TableView.Baccarat", "TableView.Poker") and restored on sitting down.
@@ -938,11 +942,8 @@ players join the same room as the desktop builds.
     Mobile quality level their range is cut to 70 %, so at most three lights reach any pixel (the lamps
     over the games are untouched; the slot machines' lights are off on Mobile, `SlotCelebration`).
     `?lighttrim=0` turns it off, `?lighttrim=1` turns it on anywhere.
-  - **Auto render scale** (`AutoRenderScale`): steps the render scale down (1, 0.85, 0.7; never below
-    0.7) after 5 s under 45 fps, back up after 20 s at 50 fps or more (Safari caps a phone at 60, where
-    a busy scene measures 55–59). It doesn't judge for 20 s after the cat spawns, nor while bundles load
-    (`LazyContent`) or for 10 s after each: that stutter isn't a slow GPU. `?autoscale=0/1`;
-    `?scale=1` (0.7–1) pins the scale.
+  - **Auto render scale** (`AutoRenderScale`): steps the render scale down to 0.6 while under 45 fps,
+    back up after a steady 57 fps. `?autoscale=0/1`.
   - **Frame rate cap** (`FrameRateCap`): when the lowest render scale still leaves it under 45 fps for
     10 s, the frame rate is held at 30 (steady beats judder, and the phone cools); it's tried off again
     after 30 s, then 60, up to 4 minutes. The pause menu's **Hold the frame rate at 30** toggle (touch
@@ -951,8 +952,7 @@ players join the same room as the desktop builds.
     `setTimeout` loop instead of `requestAnimationFrame`); if it judders, the alternative is
     `OnDemandRendering.renderFrameInterval = 2`, which keeps the browser's loop and renders every other
     frame.
-  - `?debug=1` shows what the phone settled on: render scale step and why (or why it's waiting), frame
-    rate target, light trim.
+  - `?debug=1` shows what the phone settled on: render scale step, frame rate target, light trim.
 
 ### 15.3 Touch controls (`TouchControls`, `Platform.IsTouch`)
 Phones and tablets get on-screen controls, detected from a coarse pointer, since iPadOS reports a

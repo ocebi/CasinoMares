@@ -1916,7 +1916,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
-            BuildOverheadCamera(t, table, new Vector3(-1.9f, feltTop, -1.5f), new Vector3(1.9f, feltTop + OverheadHeadroom, 0.75f));
+            BuildOverheadCamera(t, table, new Vector3(-feltRadiusX, feltTop, -feltRadiusZ), new Vector3(feltRadiusX, feltTop + OverheadHeadroom, feltRadiusZ));
             SetString(table, "_displayName", name.Replace("Blackjack ", ""));
 
             SetFields(view,
@@ -2113,7 +2113,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
-            BuildOverheadCamera(t, table, new Vector3(-1.3f, feltTop, -1.2f), new Vector3(1.3f, feltTop + OverheadHeadroom, 0.6f));
+            BuildOverheadCamera(t, table, new Vector3(-1.2f, feltTop, -0.6f), new Vector3(1.2f, feltTop + OverheadHeadroom, 0.6f));
             SetString(table, "_displayName", name);
             SetFields(view,
                 ("_table", table),
@@ -2215,7 +2215,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
-            BuildOverheadCamera(t, table, new Vector3(-(radiusX + 0.6f), feltTop, -(radiusZ + 0.6f)), new Vector3(radiusX + 0.6f, feltTop + OverheadHeadroom, 0.8f));
+            BuildOverheadCamera(t, table, new Vector3(-radiusX, feltTop, -radiusZ), new Vector3(radiusX, feltTop + OverheadHeadroom, radiusZ));
             SetString(table, "_displayName", name);
             SetFields(view,
                 ("_table", table),
