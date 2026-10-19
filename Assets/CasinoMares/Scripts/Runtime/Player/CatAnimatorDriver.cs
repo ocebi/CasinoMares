@@ -61,7 +61,7 @@ namespace CasinoMares.Player
         void LateUpdate()
         {
             var deltaTime = Time.deltaTime;
-            if (deltaTime <= 0f || _animator == null)
+            if (deltaTime <= 0f || _animator == null || _animator.runtimeAnimatorController == null)
                 return;
 
             var delta = transform.position - _lastPosition;
