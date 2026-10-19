@@ -215,6 +215,37 @@
       });
 
       var buildUrl = "Build";
+      // The deploy script (Tools/deploy_pages.py) points buildUrl at jsDelivr, which sends the game files much faster
+      // than GitHub Pages on some networks. jsDelivr fetches a file from GitHub again once it has dropped it from its
+      // cache, and for the big files that can fail (a 503 after half a minute or more). Any build file it doesn't send
+      // comes from this page's own copy instead.
+      var mirrorUrl = "Build";
+      // How long jsDelivr gets to start sending a file. A cached one starts at once; one it has to fetch from GitHub
+      // first can take 10-20 s, which is still quicker than GitHub Pages where that is slow.
+      var cdnWaitMs = 25000;
+      if (buildUrl != mirrorUrl) {
+        // Unity's loader downloads every file with fetch().
+        var pageFetch = window.fetch;
+        window.fetch = function (resource, init) {
+          if (typeof resource != "string" || resource.indexOf(buildUrl + "/") != 0)
+            return pageFetch.apply(window, arguments);
+          var file = resource.substring(buildUrl.length + 1);
+          var useMirror = function (reason) {
+            console.warn("jsDelivr " + reason + " for " + file + ", loading it from GitHub Pages");
+            return pageFetch(mirrorUrl + "/" + file, init);
+          };
+          var abort = new AbortController();
+          var timer = setTimeout(function () { abort.abort(); }, cdnWaitMs);
+          return pageFetch(resource, Object.assign({}, init, { signal: abort.signal })).then(function (response) {
+            clearTimeout(timer);
+            // 304: the game's own cache asked whether its copy is still current.
+            return response.ok || response.status == 304 ? response : useMirror("answered " + response.status);
+          }, function (error) {
+            clearTimeout(timer);
+            return useMirror(abort.signal.aborted ? "sent nothing in " + cdnWaitMs / 1000 + " s" : "failed (" + error + ")");
+          });
+        };
+      }
       var config = {
         arguments: [],
         dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
@@ -231,6 +262,15 @@
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
         // The chip balance lives in a file in persistentDataPath (IndexedDB); keep it across visits.
         autoSyncPersistentDataPath: true,
+        // Unity keeps the data file in the browser and by default asks the server each visit whether it's still
+        // current, which waits on jsDelivr like a download does. The deployed page's buildUrl names the commit that
+        // holds the files, so a saved copy is always current there: use it without asking. A local build changes its
+        // files at the same address, so it keeps asking.
+        cacheControl: function (url) {
+          if (url != config.dataUrl)
+            return "no-store";
+          return buildUrl != mirrorUrl ? "immutable" : "must-revalidate";
+        },
         showBanner: function (message, type) {
           if (type == "error")
             showError(message);
@@ -279,8 +319,8 @@
         var mobileUrl = config.dataUrl.replace(/\.data/, "_Mobile.data");
         if (textureVariant() != "mobile")
           return Promise.resolve(config.dataUrl);
-        // A desktop-only build has no mobile data file.
-        return fetch(mobileUrl, { method: "HEAD" })
+        // A desktop-only build has no mobile data file. Asked of the page's own copy, which answers at once.
+        return fetch(mirrorUrl + mobileUrl.substring(buildUrl.length), { method: "HEAD" })
           .then(function (response) { return response.ok ? mobileUrl : config.dataUrl; })
           .catch(function () { return config.dataUrl; });
       }
@@ -298,26 +338,56 @@
       var fill = document.getElementById("loading-fill");
       var statusLabel = document.getElementById("loading-status");
 
+      // Unity reports no progress until every file has started to arrive, which can take half a minute when one falls
+      // back to GitHub Pages. So the bar creeps along by itself, slowing down as it nears 60%, until the real progress
+      // passes it, and it eases towards whichever is ahead rather than jumping.
+      var loadingStart = performance.now();
+      var realProgress = 0, shownProgress = 0, gameLoaded = false, lastFrame = loadingStart;
+      function drawProgress(now) {
+        var creep = 0.6 * (1 - Math.exp(-(now - loadingStart) / 15000));
+        var target = gameLoaded ? 1 : Math.max(realProgress, creep);
+        shownProgress += (target - shownProgress) * (1 - Math.exp(-(now - lastFrame) / 150));
+        lastFrame = now;
+        fill.style.width = (100 * shownProgress) + "%";
+        statusLabel.textContent = realProgress < 0.9 && !gameLoaded ?
+          "Loading… " + Math.round(100 * shownProgress) + "%" : "Shuffling the cards…";
+        if (!gameLoaded || shownProgress < 0.999)
+          requestAnimationFrame(drawProgress);
+        else
+          fill.style.width = "100%";
+      }
+      requestAnimationFrame(drawProgress);
+
+      function startGame() {
+        createUnityInstance(canvas, config, function (progress) {
+          realProgress = progress;
+        }).then(function (instance) {
+          window.unityInstance = instance;
+          gameLoaded = true;
+          setTimeout(hideSplash, Math.max(0, splashUntil - performance.now()));
+        }).catch(function (message) {
+          showError(message);
+        });
+      }
+
+      // The loader is a script tag, not a fetch, so its fallback to the page's own copy is here.
+      function loadLoader(base) {
+        var script = document.createElement("script");
+        script.src = base + "/{{{ LOADER_FILENAME }}}";
+        script.onload = startGame;
+        script.onerror = function () {
+          if (base == mirrorUrl)
+            return showError("Could not load the game files.");
+          console.warn("jsDelivr didn't send the loader, loading it from GitHub Pages");
+          loadLoader(mirrorUrl);
+        };
+        document.body.appendChild(script);
+      }
+
       pickDataUrl().then(function (dataUrl) {
         config.dataUrl = dataUrl;
         window.cmTextureFormat = dataUrl.indexOf("_Mobile.data") >= 0 ? "ASTC" : "DXT";
-        var script = document.createElement("script");
-        script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
-        script.onload = function () {
-          createUnityInstance(canvas, config, function (progress) {
-            fill.style.width = (100 * progress) + "%";
-            statusLabel.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Shuffling the cards…";
-          }).then(function (instance) {
-            window.unityInstance = instance;
-            fill.style.width = "100%";
-            statusLabel.textContent = "Shuffling the cards…";
-            setTimeout(hideSplash, Math.max(0, splashUntil - performance.now()));
-          }).catch(function (message) {
-            showError(message);
-          });
-        };
-        script.onerror = function () { showError("Could not load the game files."); };
-        document.body.appendChild(script);
+        loadLoader(buildUrl);
       });
     </script>
   </body>

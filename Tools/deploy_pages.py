@@ -7,6 +7,10 @@ GitHub Pages sends big files slowly on some networks (about 100 KB/s where other
 page stays on GitHub Pages but loads the game files through jsDelivr's CDN, pinned to the commit that holds them.
 That takes two commits in the Pages repo: the game files, then the page pointing at that commit. jsDelivr serves files
 of up to 20 MB from GitHub, so a bigger file stops the deploy.
+
+jsDelivr drops files from its cache when few people load them, and fetching a big one from GitHub again can fail (a 503
+after half a minute or more). The page then loads that file from its own copy on GitHub Pages (mirrorUrl in the
+template), so a deploy needs a page built from a template that has that fallback.
 """
 import argparse
 import os
@@ -18,6 +22,7 @@ import urllib.request
 SITE_FOLDER = "casino"
 MAX_FILE_BYTES = 20 * 1024 * 1024
 BUILD_URL_LINE = 'var buildUrl = "Build";'
+MIRROR_URL_LINE = 'var mirrorUrl = "Build";'
 
 
 def git(repo, *args):
@@ -67,6 +72,8 @@ def main():
     page = open(page_path, encoding="utf-8").read()
     if BUILD_URL_LINE not in page:
         sys.exit(f"index.html has no line {BUILD_URL_LINE!r} to point at the CDN.")
+    if MIRROR_URL_LINE not in page:
+        sys.exit(f"index.html has no line {MIRROR_URL_LINE!r}: it can't fall back to GitHub Pages when jsDelivr fails.")
     with open(page_path, "w", encoding="utf-8") as file:
         file.write(page.replace(BUILD_URL_LINE, f'var buildUrl = "{cdn}";'))
     commit_if_changed(args.repo, [SITE_FOLDER], "Update Casino Mares page")
@@ -78,10 +85,18 @@ def main():
     print("Pushed.")
 
     # The first request for each file makes jsDelivr fetch it from GitHub; do that now rather than for the first player.
+    # It can fail for a big file. That's not fatal, since the page falls back to GitHub Pages, so try again a few times.
     for name in sorted(os.listdir(build_files)):
-        with urllib.request.urlopen(f"{cdn}/{name}", timeout=300) as response:
-            size = len(response.read())
-        print(f"Cached on jsDelivr: {name} ({size / 1048576:.1f} MB)")
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(f"{cdn}/{name}", timeout=300) as response:
+                    size = len(response.read())
+                print(f"Cached on jsDelivr: {name} ({size / 1048576:.1f} MB)")
+                break
+            except OSError as error:
+                print(f"jsDelivr didn't send {name} ({error}){', trying again' if attempt < 2 else ''}")
+        else:
+            print(f"  Players load {name} from GitHub Pages until jsDelivr has it.")
 
 
 if __name__ == "__main__":
