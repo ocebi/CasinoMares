@@ -3,12 +3,14 @@
     <ui:VisualElement name="terrace-root" class="screen hidden" picking-mode="Ignore">
         <!-- Only at the bar (TerraceTable.IsBar): the wine order and the tipsy meter, a segment per glass, full at the full effect. -->
         <ui:VisualElement name="bar-bottom" class="bj-bottom hidden" picking-mode="Ignore">
-            <ui:VisualElement name="bar-panel" class="bj-panel">
+            <ui:VisualElement name="bar-panel" class="bj-panel bar-panel">
                 <ui:VisualElement class="bar-meter" picking-mode="Ignore">
                     <ui:Label name="bar-count" text="Sober" class="bar-count" picking-mode="Ignore" />
                     <ui:VisualElement name="bar-meter-track" class="bar-meter-track" picking-mode="Ignore" />
                 </ui:VisualElement>
-                <ui:Button name="order-button" text="Order wine · 20 (Space)" class="bj-button icon-labelled">
+                <!-- The text is a Label child: a button with children isn't measured by its own text, so it couldn't grow to it. -->
+                <ui:Button name="order-button" class="bj-button icon-labelled bar-order">
+                    <ui:Label name="order-label" text="Order wine · 20 (Space)" class="bar-order-label" picking-mode="Ignore" />
                     <ui:VisualElement class="btn-icon icon--wine" picking-mode="Ignore" />
                 </ui:Button>
             </ui:VisualElement>

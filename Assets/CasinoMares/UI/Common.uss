@@ -800,10 +800,38 @@
     opacity: 0.9;
 }
 
+/* The bar's panel wraps (meter over button) rather than squeezing them into each other on a narrow screen. */
+.bar-panel {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 94%;
+}
+
+/* The Order pill grows to its text (a Label child; see Terrace.uxml); the min-width holds the busy texts, so the
+   pill doesn't jump between "Drinking…" and "Coming your way…". */
+.bar-order {
+    flex-shrink: 0;
+    min-width: 190px;
+    padding: 0 16px;
+}
+
+.bar-order-label {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+    -unity-text-align: middle-center;
+}
+
+.touch .bar-order-label {
+    -unity-text-align: lower-center;
+}
+
 /* The bar's tipsy meter: a segment per glass still in effect, the tipsy ones brighter, full at the full effect. */
 .bar-meter {
+    flex-shrink: 0;
     min-width: 128px;
-    margin-right: 10px;
+    margin: 3px 10px 3px 0;
     justify-content: center;
 }
 

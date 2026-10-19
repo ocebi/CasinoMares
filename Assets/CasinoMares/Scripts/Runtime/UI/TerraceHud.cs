@@ -26,6 +26,7 @@ namespace CasinoMares.UI
         VisualElement _meter;
         readonly VisualElement[] _segments = new VisualElement[TipsyEffect.VeryDrunkAt];
         Button _orderButton;
+        Label _orderLabel;
         TerraceTable _table;
         WineBar _bar;
         int _seat;
@@ -53,6 +54,7 @@ namespace CasinoMares.UI
             }
 
             _orderButton = ui.Q<Button>("order-button");
+            _orderLabel = _orderButton.Q<Label>("order-label");
             ui.Q<Button>("leave-button").clicked += () => _table?.RequestLeave(_seat);
             _orderButton.clicked += Order;
             SeatingController.LocalSeatChanged += OnLocalSeatChanged;
@@ -103,7 +105,7 @@ namespace CasinoMares.UI
                 return;
             _orderText = text;
             _orderReady = ready;
-            _orderButton.text = text;
+            _orderLabel.text = text;
             _orderButton.SetEnabled(ready);
             _orderButton.EnableInClassList("bj-button--wait", !ready);
         }
