@@ -60,6 +60,9 @@ namespace CasinoMares.Core
         /// Browsers start on WebGL's default quality level (Mobile). Desktop browsers get the PC level; phones and
         /// tablets stay on Mobile, which renders the same way at full resolution but skips SSAO and uses smaller
         /// shadow maps. <c>?hdr=0</c> renders without HDR, to rule out a GPU that can't render to float targets.
+        /// <c>?shadows=hi</c> gives the main light the PC level's shadow map (1024, 2 cascades, 50 m) on a phone and
+        /// <c>?shadows=lo</c> the Mobile level's (512, 1 cascade, 25 m) on a desktop, to compare; the Mobile level's
+        /// other shadow savings (no additional light shadows, no soft shadows) are fixed in the asset.
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void ApplyQualityLevel()
@@ -71,8 +74,25 @@ namespace CasinoMares.Core
             if (level >= 0 && level != QualitySettings.GetQualityLevel())
                 QualitySettings.SetQualityLevel(level, true);
 
-            if (QueryParameter("hdr") == "0" && UniversalRenderPipeline.asset != null)
-                UniversalRenderPipeline.asset.supportsHDR = false;
+            var pipeline = UniversalRenderPipeline.asset;
+            if (pipeline == null)
+                return;
+            if (QueryParameter("hdr") == "0")
+                pipeline.supportsHDR = false;
+
+            switch (QueryParameter("shadows"))
+            {
+                case "hi":
+                    pipeline.mainLightShadowmapResolution = 1024;
+                    pipeline.shadowCascadeCount = 2;
+                    pipeline.shadowDistance = 50f;
+                    break;
+                case "lo":
+                    pipeline.mainLightShadowmapResolution = 512;
+                    pipeline.shadowCascadeCount = 1;
+                    pipeline.shadowDistance = 25f;
+                    break;
+            }
         }
 
         static bool DetectTouch()

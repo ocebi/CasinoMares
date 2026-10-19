@@ -10,7 +10,8 @@ namespace CasinoMares.Core
 {
     /// <summary>
     /// <c>?debug=1</c> in the page URL shows render stats in the top-left corner: frame rate, how much of each frame
-    /// the CPU was busy, quality level, texture format, render size, HDR and the GPU. It's for checking how the game
+    /// the CPU was busy, quality level, texture format, render size and the <see cref="AutoRenderScale"/> step, HDR,
+    /// the frame rate target (<see cref="FrameRateCap"/>), the light trim and the GPU. It's for checking how the game
     /// looks and runs on a phone: when the frame rate is low but the CPU time is well under the frame time, the GPU is
     /// what's slow. Once connected, another line shows the network: round trip to the server, how far behind other
     /// cats are drawn (Fusion's snapshot buffer), and how often another cat froze in the last 10 s because its
@@ -66,8 +67,10 @@ namespace CasinoMares.Core
             // URP quietly renders without HDR where the GPU can't render to a float format.
             var hdr = pipeline != null && pipeline.supportsHDR &&
                       SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, GraphicsFormatUsage.Render);
+            // What the phone settled on: the render scale step, the frame rate cap and the light trim (for reports).
             _text = $"{fps:0} fps  cpu {cpuMs:0.0} ms  {QualitySettings.names[QualitySettings.GetQualityLevel()]}  " +
-                    $"{Platform.TextureFormat}  {Screen.width}x{Screen.height} x{scale:0.##}  HDR {(hdr ? "on" : "off")}\n" +
+                    $"{Platform.TextureFormat}  {Screen.width}x{Screen.height} x{scale:0.##} (step {AutoRenderScale.Level}/{AutoRenderScale.MaxLevel})  " +
+                    $"HDR {(hdr ? "on" : "off")}\ntarget {FrameRateCap.Describe}  light trim {(MobileLightTrim.Active ? "on" : "off")}  " +
                     SystemInfo.graphicsDeviceName;
 
             // Fusion's room settings (who the master client is) only arrive with the first state update, after joining.
