@@ -455,6 +455,7 @@ namespace CasinoMares.Editor
             ExitTransition(standUp, locomotion, 0.85f, 0.15f);
             Transition(standUp, sit, 0.15f, ("Sitting", AnimatorConditionMode.If));
             BuildDrinkState(controller, machine, sit, standUp);
+            BuildSwimState(controller, machine, locomotion, jump, sit);
 
             Transition(locomotion, angry, 0.1f, ("Angry", AnimatorConditionMode.If));
             Transition(sit, angry, 0.1f, ("Angry", AnimatorConditionMode.If));

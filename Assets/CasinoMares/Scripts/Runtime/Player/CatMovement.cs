@@ -26,6 +26,7 @@ namespace CasinoMares.Player
         public bool IsAirborne => Object != null && Object.IsValid && !_character.Grounded;
 
         NetworkCharacterController _character;
+        PlayerCat _cat;
         bool _jumpRequested;
         bool _teleportRequested;
         Vector3 _teleportPosition;
@@ -59,6 +60,7 @@ namespace CasinoMares.Player
         void Awake()
         {
             _character = GetComponent<NetworkCharacterController>();
+            _cat = GetComponent<PlayerCat>();
             _character.rotationSpeed = CatMotion.TurnSharpness;
         }
 
@@ -98,7 +100,13 @@ namespace CasinoMares.Player
             }
 
             var input = GameInput.ReadMove();
-            _character.maxSpeed = MaxSpeedFor(input.magnitude, GameInput.IsSprinting());
+            // A swimming cat paddles: capped speed, no sprint and no jump.
+            var swimming = _cat != null && _cat.Swimming;
+            _character.maxSpeed = swimming
+                ? Mathf.Min(MaxSpeedFor(input.magnitude, false), CatMotion.SwimSpeed)
+                : MaxSpeedFor(input.magnitude, GameInput.IsSprinting());
+            if (swimming)
+                _jumpRequested = false;
 
             // Floaty cat jumps: full gravity on the way up, gentler on the way down.
             _character.gravity = _character.Grounded || _character.Velocity.y > 0f ? CatMotion.RiseGravity : CatMotion.FallGravity;

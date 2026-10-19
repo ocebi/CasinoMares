@@ -96,14 +96,14 @@ namespace CasinoMares.Player
 
             if (_aiming)
             {
-                if (_cat == null || _cat.IsSeated)
+                if (_cat == null || _cat.IsSeated || _cat.Swimming)
                     _aiming = false;
                 else if (Vector3.Angle(transform.forward, _aimDirection) <= AimTolerance || Time.time >= _aimUntil)
                     Swipe();
                 return;
             }
 
-            if (!GameInput.PawPressed() || _cat == null || _cat.IsSeated || Time.time < _nextSwipe)
+            if (!GameInput.PawPressed() || _cat == null || _cat.IsSeated || _cat.Swimming || Time.time < _nextSwipe)
                 return;
 
             _nextSwipe = Time.time + _cooldown;

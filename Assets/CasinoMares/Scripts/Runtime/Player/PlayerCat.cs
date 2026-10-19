@@ -4,6 +4,7 @@ using CasinoMares.CameraRig;
 using CasinoMares.Core;
 using Fusion;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace CasinoMares.Player
 {
@@ -21,6 +22,7 @@ namespace CasinoMares.Player
 
         [SerializeField] CatFurPalette _palette;
         [SerializeField] Renderer[] _furRenderers = Array.Empty<Renderer>();
+        Action<Material> _onFurLoaded;
         [SerializeField] Transform _cameraTarget;
         [SerializeField] Transform _nameplateAnchor;
 
@@ -54,6 +56,14 @@ namespace CasinoMares.Player
         /// </summary>
         [Networked]
         public int CigarUntilTick { get; set; }
+
+        /// <summary>
+        /// Paddling instead of walking (swim R&D, plan §11.1): the Swim animation, a sunk and nose-up body, slower
+        /// and no sprint, jump, emotes or paw. Owner writes, everyone reads. No water yet: <c>?swim=1</c> on the
+        /// web or F9 in the editor turns it on anywhere.
+        /// </summary>
+        [Networked]
+        public NetworkBool Swimming { get; set; }
 
         /// <summary>
         /// Glasses of wine still in effect (GDD §4.3): the owner counts the ones drunk in the last
@@ -134,7 +144,10 @@ namespace CasinoMares.Player
         public override void Render()
         {
             if (_animatorDriver != null)
+            {
                 _animatorDriver.Sitting = IsSeated;
+                _animatorDriver.Swimming = Swimming;
+            }
 
             if (_cigar != null)
                 _cigar.SetLit(IsCigarLit);
@@ -142,6 +155,8 @@ namespace CasinoMares.Player
             if (HasStateAuthority)
             {
                 UpdateRtt();
+                if (Application.isEditor && GameInput.KeyPressed(Key.F9))
+                    Swimming = !Swimming;
                 if (Time.time >= _nextDrinkRecount)
                     RecountDrinks();
             }
@@ -247,7 +262,7 @@ namespace CasinoMares.Player
         /// <summary>Play an emote on this cat for everyone. Only standing cats emote.</summary>
         public void PlayEmote(CatEmote emote)
         {
-            if (IsLocal && !IsSeated && emote != CatEmote.None)
+            if (IsLocal && !IsSeated && !Swimming && emote != CatEmote.None)
                 RPC_Emote((byte)emote);
         }
 
@@ -301,6 +316,7 @@ namespace CasinoMares.Player
                 ProfileStore.Changed += OnProfileChanged;
                 PlayerCameraRig.Instance?.Follow(_cameraTarget);
                 _cigar?.Bind(this);
+                Swimming = Platform.QueryParameter("swim") == "1";
             }
 
             ApplyAppearance();
@@ -333,12 +349,19 @@ namespace CasinoMares.Player
 
         void ApplyAppearance()
         {
-            var material = _palette.Get(FurIndex).Material;
-            foreach (var furRenderer in _furRenderers)
-                SetFur(furRenderer, material);
+            ApplyFur();
 
             gameObject.name = $"PlayerCat [{DisplayName}]";
             AppearanceChanged?.Invoke();
+        }
+
+        /// <summary>The fur shows the black fallback until its own has loaded (<see cref="CatFurPalette.Resolve"/>).</summary>
+        void ApplyFur()
+        {
+            _onFurLoaded ??= _ => { if (this != null) ApplyFur(); };
+            var material = _palette.Resolve(FurIndex, _onFurLoaded);
+            foreach (var furRenderer in _furRenderers)
+                SetFur(furRenderer, material);
         }
 
         /// <summary>Swap the fur material (slot 0) and keep any extra passes, such as the rim light, in place.</summary>

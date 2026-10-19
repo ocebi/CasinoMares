@@ -13,6 +13,8 @@ namespace CasinoMares.Player
         /// <summary>A full push (or any key): the trot.</summary>
         public const float WalkSpeed = 1.4f;
         public const float RunSpeed = 2.6f;
+        /// <summary>Top speed in the water: no sprint, a steady paddle.</summary>
+        public const float SwimSpeed = 0.9f;
 
         /// <summary>
         /// Input magnitude where the slow walk starts (matches the joystick's deadzone) and where the full walk speed is

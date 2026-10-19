@@ -43,6 +43,13 @@ namespace CasinoMares.Player
         const float SwayPerExtraGlass = 0.2f;
         const int SwayMaxGlasses = 5;
         const float SwayBlendSeconds = 2f;
+        /// <summary>
+        /// Swimming (PlayerCat.Swimming, swim R&D): the model sinks so the legs would be under the surface and
+        /// tips nose-up, blended in and out over <see cref="SwimBlendSeconds"/>. Metres and degrees.
+        /// </summary>
+        const float SwimSink = 0.25f;
+        const float SwimPitchDegrees = 8f;
+        const float SwimBlendSeconds = 0.4f;
 
         [SerializeField] Transform _model;
         [SerializeField] Animator _animator;
@@ -66,6 +73,7 @@ namespace CasinoMares.Player
         PlayerCat _cat;
         float _swayNow;
         float _swayPhase;
+        float _swimNow;
 
         /// <summary>A short random wait so a table of cats doesn't react in perfect unison.</summary>
         public static float StaggerDelay() => Random.Range(0.05f, 0.7f);
@@ -159,11 +167,12 @@ namespace CasinoMares.Player
             }
 
             UpdateSounds();
-            var posed = _swipeTime >= 0f || _hopTime >= 0f || _swayNow > 0f;
+            var posed = _swipeTime >= 0f || _hopTime >= 0f || _swayNow > 0f || _swimNow > 0f;
             UpdateSwipe();
             UpdateHop();
             UpdateSway();
-            if (posed || _swayNow > 0f)
+            UpdateSwim();
+            if (posed || _swayNow > 0f || _swimNow > 0f)
                 ApplyModelPose();
         }
 
@@ -176,7 +185,13 @@ namespace CasinoMares.Player
             _swayNow = Mathf.MoveTowards(_swayNow, goal, Time.deltaTime / SwayBlendSeconds);
         }
 
-        /// <summary>Hop (up and squash), swipe rear-up (pitch around the hind paws) and the drunk sway combined on the model.</summary>
+        void UpdateSwim()
+        {
+            var swimming = _cat != null && _cat.Object != null && _cat.Object.IsValid && _cat.Swimming && !_cat.IsSeated;
+            _swimNow = Mathf.MoveTowards(_swimNow, swimming ? 1f : 0f, Time.deltaTime / SwimBlendSeconds);
+        }
+
+        /// <summary>Hop (up and squash), swipe rear-up (pitch around the hind paws), the drunk sway and the swim pose combined on the model.</summary>
         void ApplyModelPose()
         {
             var pitch = Quaternion.Euler(-_rearNow, 0f, 0f);
@@ -189,8 +204,12 @@ namespace CasinoMares.Player
                 rotation *= Quaternion.Euler(0f, yaw, roll);
             }
 
+            var swim = Mathf.SmoothStep(0f, 1f, _swimNow);
+            if (swim > 0f)
+                rotation *= Quaternion.Euler(-SwimPitchDegrees * swim, 0f, 0f);
+
             _model.localRotation = rotation;
-            _model.localPosition = _restPosition + Vector3.up * _hopHeightNow + (HindPivot - pitch * HindPivot);
+            _model.localPosition = _restPosition + Vector3.up * (_hopHeightNow - SwimSink * swim) + (HindPivot - pitch * HindPivot);
             _model.localScale = new Vector3(_restScale.x / _squashNow, _restScale.y * _squashNow, _restScale.z / _squashNow);
         }
 
