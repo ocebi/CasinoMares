@@ -157,10 +157,10 @@ namespace CasinoMares.Player
 
         /// <summary>
         /// The paw landed on <paramref name="target"/>. Keyed by the object's place in the scene, so a reload doesn't
-        /// reset its cooldown.
+        /// reset its cooldown. Quiet: paws land all the time, so the "+N" shows without the coin sound.
         /// </summary>
         static void EarnPawReward(Component target) =>
-            ChipRewards.TryEarn("paw:" + ChipRewards.ScenePath(target.transform), PawReward, PawRewardCooldown);
+            ChipRewards.TryEarn("paw:" + ChipRewards.ScenePath(target.transform), PawReward, PawRewardCooldown, quiet: true);
 
         /// <summary>
         /// Where the mouse points, as a flat direction from the cat, when there's a cursor on screen to aim with (not

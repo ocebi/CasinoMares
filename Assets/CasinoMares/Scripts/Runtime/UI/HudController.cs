@@ -333,9 +333,10 @@ namespace CasinoMares.UI
         /// "+10" pops up beside the balance with a coin sound, drifts up and fades; a big reward is larger, stays
         /// longer and chimes. Rewards close together (a prop and a patron in one swipe) add up in the same label.
         /// </summary>
-        void OnChipsEarned(int amount, bool big)
+        void OnChipsEarned(int amount, bool big, bool quiet)
         {
-            Sfx.Play(big ? SoundId.SlotChime : SoundId.Coin, big ? 0.9f : 0.7f);
+            if (!quiet)
+                Sfx.Play(big ? SoundId.SlotChime : SoundId.Coin, big ? 0.9f : 0.7f);
             _gainAmount = _gainShowing ? _gainAmount + amount : amount;
             _gainBig = big || (_gainShowing && _gainBig);
             _gainShowing = true;

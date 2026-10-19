@@ -13,8 +13,11 @@ namespace CasinoMares.Core
     /// </summary>
     public static class ChipRewards
     {
-        /// <summary>Chips just earned, and whether it's a big reward (cat wall, welfare) that deserves more fuss.</summary>
-        public static event Action<int, bool> Earned;
+        /// <summary>
+        /// Chips just earned, whether it's a big reward (cat wall, welfare) that deserves more fuss, and whether it's a
+        /// quiet one (a paw that landed, which happens often) that shows its "+N" without the coin sound.
+        /// </summary>
+        public static event Action<int, bool, bool> Earned;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => Earned = null;
@@ -40,9 +43,9 @@ namespace CasinoMares.Core
 
         /// <summary>
         /// Pays <paramref name="amount"/> chips and starts the cooldown of <paramref name="key"/>, unless it's still
-        /// cooling down. Returns whether it paid.
+        /// cooling down. Returns whether it paid. A <paramref name="quiet"/> reward makes no sound.
         /// </summary>
-        public static bool TryEarn(string key, int amount, TimeSpan cooldown, bool big = false)
+        public static bool TryEarn(string key, int amount, TimeSpan cooldown, bool big = false, bool quiet = false)
         {
             if (SecondsLeft(key, cooldown) > 0)
                 return false;
@@ -53,7 +56,7 @@ namespace CasinoMares.Core
             Cooldowns.Add(new RewardCooldown { Key = key, ReadyAt = now + (long)cooldown.TotalSeconds });
             // Saves the profile (cooldowns included) and updates the networked balance.
             ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
-            Earned?.Invoke(amount, big);
+            Earned?.Invoke(amount, big, quiet);
             return true;
         }
 
@@ -63,7 +66,7 @@ namespace CasinoMares.Core
             if (amount <= 0)
                 return;
             ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
-            Earned?.Invoke(amount, big);
+            Earned?.Invoke(amount, big, false);
         }
 
         /// <summary>
