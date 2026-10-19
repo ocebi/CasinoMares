@@ -418,7 +418,14 @@ You can watch a friend just by walking up to them, and this works the same way f
 
 ### 7.4 Leaderboard
 - An in-world board on the wall (world-space UI Toolkit panel), plus a **Tab** overlay.
-- It ranks everyone **currently in the room** by balance and shows name, fur swatch and balance.
+- "Top cats": it ranks everyone **currently in the room** by **chips earned this session**
+  (`PlayerCat.SessionNet`, networked, kept by the owner): every game's net result plus paw, cat-wall and
+  tipsy-bonus rewards; the Cat Welfare refill doesn't count. Highest first, ties by name (`SessionRanking`, shared
+  by the overlay, the wall board and the nameplates).
+- The overlay shows a podium for the top three, rows 4–10 (4–6 on a phone) with an up/down arrow for 3 s after a
+  rank change, and your own row pinned under a "···" gap when you're further down. Until anyone has won or lost
+  anything it reads "Earn your first chips". The wall board shows the top ten the same way.
+- The #1 cat wears a crown over its nameplate while its net is above 0.
 - NPCs aren't on it.
 
 ---

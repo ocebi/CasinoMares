@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using CasinoMares.Audio;
 using CasinoMares.CameraRig;
 using CasinoMares.Core;
@@ -36,7 +35,7 @@ namespace CasinoMares.UI
         Label _promptLabel;
         VisualElement _toastStack;
         VisualElement _leaderboard;
-        VisualElement _leaderboardRows;
+        LeaderboardPanel _leaderboardPanel;
         Label _balance;
         Label _gain;
         Label _players;
@@ -74,7 +73,7 @@ namespace CasinoMares.UI
             _promptLabel = ui.Q<Label>("prompt-label");
             _toastStack = ui.Q("toast-stack");
             _leaderboard = ui.Q("leaderboard");
-            _leaderboardRows = ui.Q("leaderboard-rows");
+            _leaderboardPanel = new LeaderboardPanel(_leaderboard);
             _balance = ui.Q<Label>("balance-label");
             _gain = ui.Q<Label>("balance-gain");
             _players = ui.Q<Label>("players-label");
@@ -375,30 +374,7 @@ namespace CasinoMares.UI
             if (!show)
                 return;
 
-            _leaderboardRows.Clear();
-            var rank = 1;
-            foreach (var cat in PlayerCat.All.Where(c => c != null && c.Object != null && c.Object.IsValid).OrderByDescending(c => c.Balance))
-                _leaderboardRows.Add(LeaderboardRow(rank++, cat));
-        }
-
-        public static VisualElement LeaderboardRow(int rank, PlayerCat cat)
-        {
-            var row = new VisualElement { pickingMode = PickingMode.Ignore };
-            row.AddToClassList("leader-row");
-            var rankLabel = new Label($"{rank}.") { pickingMode = PickingMode.Ignore };
-            rankLabel.AddToClassList("leader-rank");
-            var swatch = new VisualElement { pickingMode = PickingMode.Ignore };
-            swatch.AddToClassList("leader-swatch");
-            swatch.style.backgroundColor = cat.Swatch;
-            var name = new Label(cat.DisplayName.ToString()) { pickingMode = PickingMode.Ignore };
-            name.AddToClassList("leader-name");
-            var balance = new Label(cat.Balance.ToString("N0")) { pickingMode = PickingMode.Ignore };
-            balance.AddToClassList("leader-balance");
-            row.Add(rankLabel);
-            row.Add(swatch);
-            row.Add(name);
-            row.Add(balance);
-            return row;
+            _leaderboardPanel.Update();
         }
 
         // ---------------------------------------------------------------- Pause

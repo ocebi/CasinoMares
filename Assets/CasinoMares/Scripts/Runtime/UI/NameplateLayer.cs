@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CasinoMares.Player;
+using CasinoMares.Social;
 using Fusion;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,7 +10,8 @@ namespace CasinoMares.UI
     /// <summary>
     /// Screen-space nameplates that track each remote cat's head and fade out with distance (GDD §8). A cat's name
     /// is a networked string whose <c>ToString</c> builds a new string, so each plate keeps the string it last made
-    /// and only makes another when the name changes.
+    /// and only makes another when the name changes. The session leader's plate (<see cref="SessionRanking.Leader"/>,
+    /// only while it's up) wears a crown.
     /// </summary>
     public class NameplateLayer : MonoBehaviour
     {
@@ -18,6 +20,8 @@ namespace CasinoMares.UI
             public Label Label;
             public NetworkString<_16> Name;
             public string Text;
+            public VisualElement Crown;
+            public bool Leader;
         }
 
         [SerializeField] UIDocument _document;
@@ -48,8 +52,12 @@ namespace CasinoMares.UI
                 {
                     var label = new Label { pickingMode = PickingMode.Ignore };
                     label.AddToClassList("nameplate");
+                    var crown = new VisualElement { pickingMode = PickingMode.Ignore };
+                    crown.AddToClassList("nameplate-crown");
+                    crown.AddToClassList("hidden");
+                    label.Add(crown);
                     _layer.Add(label);
-                    plate = new Plate { Label = label };
+                    plate = new Plate { Label = label, Crown = crown };
                     _plates.Add(cat, plate);
                 }
 
@@ -90,6 +98,14 @@ namespace CasinoMares.UI
             label.style.top = panelPosition.y;
             label.style.opacity = 1f - Mathf.InverseLerp(_fullOpacityDistance, _maxDistance, distance);
             label.style.borderBottomColor = cat.Swatch;
+
+            var leader = cat == SessionRanking.Leader;
+            if (leader != plate.Leader)
+            {
+                plate.Leader = leader;
+                label.EnableInClassList("nameplate--leader", leader);
+                plate.Crown.EnableInClassList("hidden", !leader);
+            }
 
             var name = cat.DisplayName;
             if (plate.Text == null || !plate.Name.Equals(name))
