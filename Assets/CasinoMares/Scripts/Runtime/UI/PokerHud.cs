@@ -39,6 +39,7 @@ namespace CasinoMares.UI
         Button _timerButton;
         Button _npcButton;
         Button _coachButton;
+        TableViewControl _views;
         PokerTutor _tutor;
 
         PokerTable _table;
@@ -91,6 +92,7 @@ namespace CasinoMares.UI
             ui.Q<Button>("pot-button").clicked += () => SetRaiseToPotFraction(1f);
             _allInButton.clicked += () => Act(PokerAction.AllIn);
             _rebuyButton.clicked += Rebuy;
+            _views = new TableViewControl(ui);
             ui.Q<Button>("settings-button").clicked += () => _settingsPanel.ToggleInClassList("hidden");
             ui.Q<Button>("rules-button").clicked += () => _tutor.Panel.ShowRules(!_tutor.Panel.RulesOpen);
             _coachButton.clicked += () => _tutor.Panel.Enabled = !_tutor.Panel.Enabled;
@@ -115,6 +117,7 @@ namespace CasinoMares.UI
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
+            _views.OnSeated(_table != null);
             _tutor.Panel.SetSeated(_table != null);
             if (_table != null && !_tutor.Panel.Enabled && PlayerPrefs.GetInt("Coach.Poker.Hinted", 0) == 0)
             {
@@ -126,6 +129,8 @@ namespace CasinoMares.UI
 
         void Update()
         {
+            if (_table != null)
+                _views.Update();
             if (_table == null || _table.Object == null || !_table.Object.IsValid)
                 return;
 

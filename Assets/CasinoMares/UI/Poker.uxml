@@ -37,6 +37,8 @@
             <ui:Button name="coach-button" class="bj-setting" />
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
+            <ui:Label name="view-caption" class="bj-view-caption" picking-mode="Ignore" />
+            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary" />
             <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary" />
             <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
             <ui:Button name="leave-button" text="Cash out (E)" class="bj-button bj-button--secondary" />

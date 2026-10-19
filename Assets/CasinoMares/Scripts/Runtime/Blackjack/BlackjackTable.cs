@@ -73,6 +73,7 @@ namespace CasinoMares.Blackjack
         [SerializeField] string _displayName = "Blackjack";
         [SerializeField] Transform[] _seatAnchors = Array.Empty<Transform>();
         [SerializeField] CinemachineCamera[] _seatCameras = Array.Empty<CinemachineCamera>();
+        [SerializeField] CinemachineCamera _overheadCamera;
 
         // ---------------------------------------------------------------- Networked state
 
@@ -164,6 +165,7 @@ namespace CasinoMares.Blackjack
         public byte DealerCardAt(int index) => DealerCards[index];
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
+        public CinemachineCamera GetOverheadCamera() => _overheadCamera;
 
         public HandValue EvaluateHand(int seat, int hand) => BlackjackRules.Evaluate(HandSpan(seat, hand));
 

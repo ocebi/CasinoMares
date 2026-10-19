@@ -47,6 +47,7 @@ namespace CasinoMares.Baccarat
         [SerializeField] string _displayName = "Baccarat";
         [SerializeField] Transform[] _seatAnchors = Array.Empty<Transform>();
         [SerializeField] CinemachineCamera[] _seatCameras = Array.Empty<CinemachineCamera>();
+        [SerializeField] CinemachineCamera _overheadCamera;
 
         [Networked] NetworkBool Initialized { get; set; }
         [Networked] public BaccaratPhase Phase { get; set; }
@@ -109,6 +110,7 @@ namespace CasinoMares.Baccarat
         public int BetAt(int seat, int spot) => Bets[seat * Spots + spot];
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
+        public CinemachineCamera GetOverheadCamera() => _overheadCamera;
         public int ShoeSeedValue => ShoeSeed;
 
         public int TotalBetAt(int seat)

@@ -21,6 +21,9 @@ namespace CasinoMares.Core
         Transform GetSeatAnchor(int seat);
         CinemachineCamera GetSeatCamera(int seat);
 
+        /// <summary>A fixed camera above the felt for the overhead table view (GDD §3.5); null where there is none.</summary>
+        CinemachineCamera GetOverheadCamera() => null;
+
         /// <summary>Ask the table's authority to free this seat for the local player.</summary>
         void RequestLeave(int seat);
 

@@ -81,6 +81,7 @@ namespace CasinoMares.Poker
         [SerializeField] string _displayName = "Poker";
         [SerializeField] Transform[] _seatAnchors = Array.Empty<Transform>();
         [SerializeField] CinemachineCamera[] _seatCameras = Array.Empty<CinemachineCamera>();
+        [SerializeField] CinemachineCamera _overheadCamera;
 
         // ---------------------------------------------------------------- Networked state
 
@@ -173,6 +174,7 @@ namespace CasinoMares.Poker
         public byte ShownCardAt(int seat, int index) => ShownCards[seat * 2 + index];
         public Transform GetSeatAnchor(int seat) => _seatAnchors[seat];
         public CinemachineCamera GetSeatCamera(int seat) => _seatCameras[seat];
+        public CinemachineCamera GetOverheadCamera() => _overheadCamera;
 
         public bool IsActiveTurn(int seat) => IsBettingPhase && ActiveSeat == seat;
         public bool IsBettingPhase => Phase is PokerPhase.PreFlop or PokerPhase.Flop or PokerPhase.Turn or PokerPhase.River;
