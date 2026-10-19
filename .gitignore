@@ -90,3 +90,8 @@ mono_crash.*.json
 # Photon App IDs (re-created empty by Fusion Hub; paste App ID locally)
 /[Aa]ssets/Photon/Fusion/Resources/PhotonAppSettings.asset
 /[Aa]ssets/Photon/Fusion/Resources/PhotonAppSettings.asset.meta
+
+# Addressables writes these on every player build (stripping list, per-target folder)
+/[Aa]ssets/AddressableAssetsData/link.xml
+/[Aa]ssets/AddressableAssetsData/link.xml.meta
+/[Aa]ssets/AddressableAssetsData/WebGL.meta
