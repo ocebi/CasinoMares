@@ -977,19 +977,27 @@ namespace CasinoMares.Editor
             return material;
         }
 
-        /// <summary>URP Lit set up as alpha-blended transparent (what the material inspector would do).</summary>
+        /// <summary>
+        /// URP Lit set up as alpha-blended transparent, exactly as URP's material validation
+        /// (<c>BaseShaderGUI.SetupMaterialBlendModeInternal</c>) sets it, so a web build doesn't rewrite it. Lit's
+        /// "Preserve Specular Lighting" (<c>_BlendModePreserveSpecular</c>) is on by default, which moves the alpha
+        /// multiply into the shader: <c>_SrcBlend</c> One plus <c>_ALPHAPREMULTIPLY_ON</c>, not SrcAlpha (SrcAlpha with
+        /// that keyword multiplies alpha in twice and the glass looks fainter in the editor than in the build).
+        /// </summary>
         static Material TransparentLit(string name, Color color, float smoothness)
         {
             var material = Lit(name, color, smoothness);
             material.SetFloat("_Surface", 1f);
             material.SetFloat("_Blend", 0f);
-            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_BlendModePreserveSpecular", 1f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.One);
             material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
             material.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
             material.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
             material.SetFloat("_ZWrite", 0f);
             material.SetOverrideTag("RenderType", "Transparent");
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
             material.renderQueue = (int)RenderQueue.Transparent;
             material.SetShaderPassEnabled("DepthOnly", false);
             EditorUtility.SetDirty(material);
@@ -1267,11 +1275,23 @@ namespace CasinoMares.Editor
         static Material Lit(string name, Color color, float smoothness, float metallic = 0f)
         {
             var material = MaterialAsset(name, "Universal Render Pipeline/Lit");
-            material.SetColor("_BaseColor", color);
+            SetBaseColor(material, color);
             material.SetFloat("_Smoothness", smoothness);
             material.SetFloat("_Metallic", metallic);
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        /// <summary>
+        /// Sets a Lit material's colour the way URP's material validation leaves it: the legacy <c>_Color</c> copied
+        /// from <c>_BaseColor</c> with the same get/set round trip. Otherwise the validation that runs on every web
+        /// build writes <c>_Color</c> and the .mat churns in git.
+        /// </summary>
+        static void SetBaseColor(Material material, Color color)
+        {
+            material.SetColor("_BaseColor", color);
+            if (material.HasProperty("_Color"))
+                material.SetColor("_Color", material.GetColor("_BaseColor"));
         }
 
         static Material Unlit(string name, Texture texture)

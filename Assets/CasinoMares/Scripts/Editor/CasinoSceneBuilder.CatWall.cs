@@ -26,7 +26,7 @@ namespace CasinoMares.Editor
         {
             var root = Child(hall, "CatWall", Vector3.zero);
             var pad = Textured("Sea_CatWallPad", (Texture2D)m.Felt.GetTexture("_BaseMap"), 0.05f, 0.5f);
-            pad.SetColor("_BaseColor", new Color(0.2f, 0.3f, 0.52f));
+            SetBaseColor(pad, new Color(0.2f, 0.3f, 0.52f));
             var sisal = Lit("Sea_Sisal", Color.white, 0.05f);
             sisal.SetTexture("_BaseMap", SisalTexture());
             var rope = Lit("Sea_Rope", new Color(0.74f, 0.63f, 0.46f), 0.05f);
