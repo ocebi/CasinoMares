@@ -227,6 +227,10 @@ The hall is 22 × 14 m (as built):
   round since sitting down. The owner networks them, and the master client, which simulates the
   patrons, reads them.
 - They're networked so everyone sees the same cats in the same places (§9.5).
+- Seats (stools, chairs, cushions) are holes in the NavMesh, so a patron leaving one starts its path
+  from the nearest NavMesh point. After 3 failed paths in a row, or after 5 s standing off the
+  NavMesh without moving, it hops down onto the nearest NavMesh point. The first failed path logs a
+  `[Patron]` warning.
 
 ---
 
@@ -315,6 +319,11 @@ Since cats have no hands, everything moves by **magic**:
 - NPC bankroll is effectively unlimited. They bet random amounts between min bet and 5× min bet and
   don't appear on the leaderboard.
 - NPCs react with the same happy/angry animations as players.
+- **Pawing a seated NPC** (any game table) makes it hiss like a pawed patron (§4.4), stand on the
+  seat, then hop down and run to the entrance at the patrons' flee trot. It leaves the seat the way
+  a player leaving mid-round does: poker folds its hand, a blackjack hand plays out on its own, and
+  bets placed during betting are withdrawn. That seat takes no new NPC for 60 s. A networked scare
+  count per seat tells every client to play the run; late joiners just see the empty seat.
 
 ### 5.7 Table settings
 Only **players seated at that table** can change its settings, using a small settings panel in the

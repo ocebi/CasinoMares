@@ -74,6 +74,10 @@ namespace CasinoMares.Baccarat
         [Networked, Capacity(SeatCount)] NetworkArray<PlayerRef> SeatPlayers => default;
         [Networked, Capacity(SeatCount)] NetworkArray<byte> SeatNpcFur => default;
         [Networked, Capacity(SeatCount)] NetworkArray<TickTimer> SeatArrivals => default;
+        /// <summary>Counts each time a player pawed the NPC in a seat away (SeatCats plays the hiss and the run).</summary>
+        [Networked, Capacity(SeatCount)] NetworkArray<byte> SeatScares => default;
+        /// <summary>Runs while a seat rests after a scare: no NPC sits down there.</summary>
+        [Networked, Capacity(SeatCount)] NetworkArray<TickTimer> SeatNpcRests => default;
         [Networked, Capacity(SeatCount)] NetworkArray<PlayerRef> SeatRoundOwners => default;
         [Networked, Capacity(SeatCount)] NetworkArray<NetworkBool> SeatDone => default;
         [Networked, Capacity(SeatCount * Spots)] NetworkArray<int> Bets => default;
@@ -100,6 +104,7 @@ namespace CasinoMares.Baccarat
         public PlayerRef PlayerAt(int seat) => SeatPlayers[seat];
         public PlayerRef RoundOwnerAt(int seat) => SeatRoundOwners[seat];
         public int NpcFurAt(int seat) => SeatNpcFur[seat];
+        public int NpcScaresAt(int seat) => SeatScares[seat];
 
         /// <summary>Seconds until the NPC in this seat, still walking in from the entrance, sits down (0 once seated).</summary>
         public float NpcArrivalAt(int seat) => SeatArrivals[seat].IsRunning && Runner != null ? Mathf.Max(0f, SeatArrivals[seat].RemainingTime(Runner) ?? 0f) : 0f;
@@ -291,6 +296,8 @@ namespace CasinoMares.Baccarat
         }
 
         public void RequestLeave(int seat) => RPC_LeaveSeat((byte)seat);
+
+        public void ScareNpc(int seat) => RPC_ScareNpc((byte)seat);
 
         public bool TryDescribePlayer(PlayerRef player, StringBuilder text)
         {
@@ -505,7 +512,7 @@ namespace CasinoMares.Baccarat
 
             Span<byte> occupants = stackalloc byte[SeatCount];
             for (var i = 0; i < SeatCount; i++)
-                occupants[i] = SeatOccupants[i];
+                occupants[i] = NpcSeating.PlanOccupant(SeatOccupants[i], SeatNpcRests[i], Runner);
             var crew = Crew;
             var change = NpcSeating.Plan(Runner, ref crew, NpcFill, occupants, out var seat, out var join, out var instant);
             Crew = crew;
@@ -577,6 +584,21 @@ namespace CasinoMares.Baccarat
         {
             if (seat < SeatCount && OccupantAt(seat) == BaccaratOccupant.Player && SeatPlayers[seat] == info.Source)
                 Vacate(seat);
+        }
+
+        /// <summary>
+        /// A player pawed the NPC in this seat: it leaves the way a player leaving mid-round does (its hand or bets
+        /// go on without it), and no NPC sits there again for a minute.
+        /// </summary>
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        void RPC_ScareNpc(byte seat, RpcInfo info = default)
+        {
+            if (seat >= SeatCount || !NpcPresent(seat) || !NpcSeating.InPawReach(info.Source, _seatAnchors[seat]))
+                return;
+            Vacate(seat);
+            SeatArrivals.Set(seat, TickTimer.None);
+            SeatScares.Set(seat, (byte)(SeatScares[seat] + 1));
+            SeatNpcRests.Set(seat, TickTimer.CreateFromSeconds(Runner, NpcSeating.ScareRestSeconds));
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]

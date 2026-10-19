@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CasinoMares.Player;
 using Fusion;
 using UnityEngine;
 using UnityEngine.AI;
@@ -38,8 +39,25 @@ namespace CasinoMares.Npc
         public const float HopSeconds = 0.45f;
 
         const float StandBack = 0.6f;
+        /// <summary>Seconds a seat stays empty of NPCs after its cat was pawed and ran off.</summary>
+        public const float ScareRestSeconds = 60f;
+        /// <summary>How close a pawing player must really be to the seat (the paw reaches about a metre; this allows for lag).</summary>
+        const float PawRange = 1.8f;
+        /// <summary>In <see cref="Plan"/>'s occupants: an empty seat resting after a scare, which no NPC takes.</summary>
+        const byte Resting = 3;
 
         static NavMeshPath _path;
+
+        /// <summary>What <see cref="Plan"/> sees in a seat: an empty one still resting after a scare isn't free.</summary>
+        public static byte PlanOccupant(byte occupant, TickTimer rest, NetworkRunner runner) =>
+            occupant == 0 && !rest.ExpiredOrNotRunning(runner) ? Resting : occupant;
+
+        /// <summary>Whether <paramref name="player"/>'s cat is close enough to have pawed the cat on this seat.</summary>
+        public static bool InPawReach(PlayerRef player, Transform seatAnchor)
+        {
+            var cat = PlayerCat.Find(player);
+            return cat != null && (cat.transform.position - seatAnchor.position).sqrMagnitude <= PawRange * PawRange;
+        }
 
         public static string Describe(byte fill) => fill == Auto ? "random" : fill.ToString();
 

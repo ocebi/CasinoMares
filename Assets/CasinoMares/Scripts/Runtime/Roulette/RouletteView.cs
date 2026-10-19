@@ -48,7 +48,7 @@ namespace CasinoMares.Roulette
             materials[0] = new Material(materials[0]) { name = "RouletteWheel (runtime)" };
             materials[0].SetTexture("_BaseMap", RouletteWheelTexture.Texture);
             _wheelFace.sharedMaterials = materials;
-            _seatCats = new SeatCats(_npcCatPrefab, transform, RouletteTable.SeatCount, _table.GetSeatAnchor);
+            _seatCats = new SeatCats(_npcCatPrefab, transform, RouletteTable.SeatCount, _table.GetSeatAnchor, _table);
         }
 
         void LateUpdate()
@@ -207,7 +207,7 @@ namespace CasinoMares.Roulette
         void UpdateCats()
         {
             for (var seat = 0; seat < RouletteTable.SeatCount; seat++)
-                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == RouletteOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat));
+                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == RouletteOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat), _table.NpcScaresAt(seat));
             _seatCats.Tick();
 
             if (_croupier != null)

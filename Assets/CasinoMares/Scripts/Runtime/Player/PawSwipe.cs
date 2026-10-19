@@ -9,7 +9,8 @@ namespace CasinoMares.Player
 {
     /// <summary>
     /// Left click swats with a front paw (everyone sees the swipe). If a <see cref="Knockable"/> is in reach in
-    /// front of the cat, it gets knocked away just as the paw lands; a patron cat in reach hisses and walks off.
+    /// front of the cat, it gets knocked away just as the paw lands; a patron cat in reach hisses and walks off, and
+    /// so does an NPC player sitting at a game table (<see cref="SeatCats"/>), which gives up its seat.
     /// With a mouse cursor on screen (a desktop browser), the cat first turns to face the clicked spot and swats
     /// there, preferring the prop or cat that was clicked. A paw that lands earns a few chips, at most once per
     /// object every few minutes (GDD §7.2).
@@ -36,6 +37,8 @@ namespace CasinoMares.Player
         float _nextSwipe;
         Knockable _target;
         PatronBrain _patron;
+        SeatCats _seatCats;
+        int _seatNpc;
         float _hitAt;
         bool _aiming;
         Vector3 _aimDirection;
@@ -94,6 +97,19 @@ namespace CasinoMares.Player
                 _patron = null;
             }
 
+            if (_seatCats != null && Time.time >= _hitAt)
+            {
+                // Still in its seat (one that already left has no cat there to pay for).
+                var npc = _seatCats.CatAt(_seatNpc);
+                if (npc != null)
+                {
+                    EarnPawReward(npc);
+                    _seatCats.Scare(_seatNpc);
+                }
+
+                _seatCats = null;
+            }
+
             if (_aiming)
             {
                 if (_cat == null || _cat.IsSeated || _cat.Swimming)
@@ -132,6 +148,10 @@ namespace CasinoMares.Player
                       InReach(transform, _clickedPatron.transform.position + Vector3.up * 0.2f, _reach + PatronBodyRadius, _maxAngle, out _)
                 ? _clickedPatron
                 : PatronBrain.FindInReach(transform, _reach + PatronBodyRadius, _maxAngle);
+            if (_patron == null)
+                SeatCats.FindInReach(transform, _reach + PatronBodyRadius, _maxAngle, out _seatCats, out _seatNpc);
+            else
+                _seatCats = null;
             _hitAt = Time.time + _hitDelay;
         }
 

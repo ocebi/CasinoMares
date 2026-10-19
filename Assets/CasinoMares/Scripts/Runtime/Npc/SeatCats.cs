@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CasinoMares.Core;
 using CasinoMares.Player;
 using UnityEngine;
 using UnityEngine.AI;
@@ -10,7 +11,9 @@ namespace CasinoMares.Npc
     /// Local bodies for the NPC players at one table (the table views own one each). An arriving cat walks in from
     /// the entrance, hops onto its stool and sits; its place on the path comes from the table's networked arrival
     /// timer, so every client shows it in the same spot. A cat whose seat empties stands up, hops down and walks
-    /// out. Without an entrance in the scene, cats simply appear and vanish in their seats.
+    /// out. Without an entrance in the scene, cats simply appear and vanish in their seats. A cat a player pawed
+    /// (<see cref="IGameTable.ScareNpc"/>, counted per seat by the table) hisses like a pawed patron first and runs
+    /// to the entrance at the patrons' flee trot instead.
     /// </summary>
     public class SeatCats
     {
@@ -19,6 +22,11 @@ namespace CasinoMares.Npc
         const float TurnSpeed = 420f;
         /// <summary>Metres per second a walking cat moves up or down, e.g. hopping onto a table on its way.</summary>
         const float ClimbSpeed = 2.5f;
+        /// <summary>A scared cat's run to the entrance: the patrons' flee trot (PatronBrain's flee speed).</summary>
+        const float FleeSpeed = 2.2f;
+
+        /// <summary>Every table's seat cats, for the paw to find a seated NPC in reach.</summary>
+        static readonly List<SeatCats> All = new();
 
         class Walker
         {
@@ -29,6 +37,8 @@ namespace CasinoMares.Npc
             public float PathLength;
             public bool LeavingFromSeat;
             public float LeavingTime;
+            public bool Scared;
+            public bool Hissed;
         }
 
         readonly NpcCatVisual _prefab;
@@ -37,14 +47,59 @@ namespace CasinoMares.Npc
         readonly Walker[] _seats;
         readonly List<Walker> _leaving = new();
         readonly Stack<NpcCatVisual> _pool = new();
+        readonly IGameTable _table;
+        /// <summary>The table's scare count per seat as last seen (-1: not yet), so a late joiner doesn't replay one.</summary>
+        readonly int[] _seenScares;
 
-        public SeatCats(NpcCatVisual prefab, Transform parent, int seatCount, Func<int, Transform> anchorOf)
+        public SeatCats(NpcCatVisual prefab, Transform parent, int seatCount, Func<int, Transform> anchorOf, IGameTable table)
         {
             _prefab = prefab;
             _parent = parent;
             _anchorOf = anchorOf;
+            _table = table;
             _seats = new Walker[seatCount];
+            _seenScares = new int[seatCount];
+            Array.Fill(_seenScares, -1);
+            All.RemoveAll(cats => cats._parent == null);
+            All.Add(this);
         }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => All.Clear();
+
+        /// <summary>
+        /// The seated NPC within paw reach in front of a cat, nearest first, as its seat cats and seat; false if none.
+        /// </summary>
+        public static bool FindInReach(Transform cat, float reach, float maxAngle, out SeatCats owner, out int seat)
+        {
+            owner = null;
+            seat = -1;
+            var bestDistance = float.MaxValue;
+            foreach (var cats in All)
+            {
+                if (cats._parent == null)
+                    continue;
+                for (var i = 0; i < cats._seats.Length; i++)
+                {
+                    var walker = cats._seats[i];
+                    if (walker == null || !walker.Cat.Sitting ||
+                        !PawSwipe.InReach(cat, walker.Cat.transform.position + Vector3.up * 0.2f, reach, maxAngle, out var distance) ||
+                        distance >= bestDistance)
+                        continue;
+                    owner = cats;
+                    seat = i;
+                    bestDistance = distance;
+                }
+            }
+
+            return owner != null;
+        }
+
+        /// <summary>The local player pawed the cat in this seat: ask the table to send it off.</summary>
+        public void Scare(int seat) => _table?.ScareNpc(seat);
+
+        /// <summary>Where the cat in this seat is, for the paw's reward key.</summary>
+        public Transform CatAt(int seat) => _seats[seat]?.Cat.transform;
 
         /// <summary>The seated NPC's reactions, or null (empty seat, or the cat is still on its way).</summary>
         public CatReactions ReactionsAt(int seat)
@@ -55,14 +110,17 @@ namespace CasinoMares.Npc
 
         /// <summary>
         /// Call every frame for every seat. <paramref name="arrival"/> is the seconds until the NPC sits down
-        /// (0 once it's seated, or when it was already there).
+        /// (0 once it's seated, or when it was already there). <paramref name="scares"/> is the table's scare count
+        /// for the seat: a change as the cat leaves means a player pawed it.
         /// </summary>
-        public void UpdateSeat(int seat, bool npc, int fur, float arrival)
+        public void UpdateSeat(int seat, bool npc, int fur, float arrival, int scares)
         {
+            var scared = _seenScares[seat] >= 0 && scares != _seenScares[seat];
+            _seenScares[seat] = scares;
             var walker = _seats[seat];
             if (walker != null && (!npc || walker.Fur != fur))
             {
-                StartLeaving(walker);
+                StartLeaving(walker, scared);
                 _seats[seat] = walker = null;
             }
 
@@ -122,16 +180,20 @@ namespace CasinoMares.Npc
             Hop(cat, walker.Path[^1], anchor, 1f - remaining / NpcSeating.HopSeconds, anchor.rotation);
         }
 
-        void StartLeaving(Walker walker)
+        void StartLeaving(Walker walker, bool scared)
         {
             if (!CasinoDoor.Exists)
             {
+                if (scared && walker.Cat.Sitting)
+                    PatronBrain.Hiss(walker.Cat.Reactions, walker.Cat.transform.position);
                 Release(walker.Cat);
                 return;
             }
 
             walker.LeavingFromSeat = walker.Cat.Sitting;
             walker.LeavingTime = 0f;
+            walker.Scared = scared && walker.LeavingFromSeat;
+            walker.Hissed = false;
             walker.Cat.Sitting = false;
             var from = walker.LeavingFromSeat ? NpcSeating.StandPoint(walker.Anchor) : walker.Cat.transform.position;
             NpcSeating.TryPath(from, CasinoDoor.Inside, walker.Path);
@@ -139,7 +201,10 @@ namespace CasinoMares.Npc
             _leaving.Add(walker);
         }
 
-        /// <summary>Stand up, hop down, walk to the entrance. True once the cat is out of the door.</summary>
+        /// <summary>
+        /// Stand up, hop down, walk to the entrance. True once the cat is out of the door. A scared cat stands on the
+        /// seat to hiss first, as long as a pawed patron does, then runs.
+        /// </summary>
         bool UpdateLeaving(Walker walker, float deltaTime)
         {
             walker.LeavingTime += deltaTime;
@@ -147,9 +212,16 @@ namespace CasinoMares.Npc
             var cat = walker.Cat;
             if (walker.LeavingFromSeat)
             {
-                if (time < StandUpSeconds)
+                if (walker.Scared && !walker.Hissed && time >= PatronBrain.HissDelaySitting)
+                {
+                    walker.Hissed = true;
+                    PatronBrain.Hiss(cat.Reactions, cat.transform.position);
+                }
+
+                var standing = walker.Scared ? PatronBrain.HissDelaySitting + PatronBrain.HissDuration : StandUpSeconds;
+                if (time < standing)
                     return false;
-                time -= StandUpSeconds;
+                time -= standing;
                 if (time < NpcSeating.HopSeconds)
                 {
                     var away = Flat(walker.Path.Count > 1 ? walker.Path[1] - walker.Path[0] : -walker.Anchor.forward, -walker.Anchor.forward);
@@ -160,7 +232,7 @@ namespace CasinoMares.Npc
                 time -= NpcSeating.HopSeconds;
             }
 
-            var distance = time * NpcSeating.WalkSpeed;
+            var distance = time * (walker.Scared ? FleeSpeed : NpcSeating.WalkSpeed);
             Walk(cat, walker.Path, distance);
             return distance >= walker.PathLength;
         }

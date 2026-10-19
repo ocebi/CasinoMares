@@ -44,7 +44,7 @@ namespace CasinoMares.Blackjack
             // dirty the asset with a texture that doesn't exist on disk.
             _cardMaterial = new Material(_cardMaterial) { name = "Card (runtime)" };
             _cardMaterial.SetTexture("_BaseMap", CardFaces.Atlas);
-            _seatCats = new SeatCats(_npcCatPrefab, transform, BlackjackTable.SeatCount, _table.GetSeatAnchor);
+            _seatCats = new SeatCats(_npcCatPrefab, transform, BlackjackTable.SeatCount, _table.GetSeatAnchor, _table);
         }
 
         void OnEnable()
@@ -242,7 +242,7 @@ namespace CasinoMares.Blackjack
         void UpdateSeatNpcs()
         {
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
-                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == SeatOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat));
+                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == SeatOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat), _table.NpcScaresAt(seat));
             _seatCats.Tick();
         }
 

@@ -51,7 +51,7 @@ namespace CasinoMares.Poker
         {
             _cardMaterial = new Material(_cardMaterial) { name = "Card (runtime)" };
             _cardMaterial.SetTexture("_BaseMap", CardFaces.Atlas);
-            _seatCats = new SeatCats(_npcCatPrefab, transform, PokerTable.SeatCount, _table.GetSeatAnchor);
+            _seatCats = new SeatCats(_npcCatPrefab, transform, PokerTable.SeatCount, _table.GetSeatAnchor, _table);
         }
 
         void LateUpdate()
@@ -212,7 +212,7 @@ namespace CasinoMares.Poker
         void UpdateCats()
         {
             for (var seat = 0; seat < PokerTable.SeatCount; seat++)
-                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == PokerOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat));
+                _seatCats.UpdateSeat(seat, _table.OccupantAt(seat) == PokerOccupant.Npc, _table.NpcFurAt(seat), _table.NpcArrivalAt(seat), _table.NpcScaresAt(seat));
             _seatCats.Tick();
 
             if (_dealer != null)

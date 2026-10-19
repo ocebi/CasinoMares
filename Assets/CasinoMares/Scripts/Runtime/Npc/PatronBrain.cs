@@ -24,9 +24,9 @@ namespace CasinoMares.Npc
         const float PawRange = 1.8f;
         /// <summary>Seconds before the hiss: the walk has to settle into a stand, and a sitting cat has to get up.</summary>
         const float HissDelayStanding = 0.35f;
-        const float HissDelaySitting = 0.8f;
+        internal const float HissDelaySitting = 0.8f;
         /// <summary>Seconds from the hiss to trotting off, about the length of the hiss animation.</summary>
-        const float HissDuration = 1.2f;
+        internal const float HissDuration = 1.2f;
         /// <summary>Seconds a pawed cat ignores more paws and winning streaks.</summary>
         const float SpookedSeconds = 20f;
         const float FleeMinDistance = 4f;
@@ -34,6 +34,24 @@ namespace CasinoMares.Npc
         const float StepSpeed = 2f;
         /// <summary>Another cat this close to a spot (across the floor) is on it.</summary>
         const float SpotTakenDistance = 0.45f;
+        /// <summary>
+        /// How far from the NavMesh a cat may start a path: a chair or stool is a hole in it (its collider plus the agent
+        /// radius), so a sitting cat is up to about 0.7 m off it.
+        /// </summary>
+        const float OffMeshReach = 1.2f;
+        /// <summary>Paths in a row that may fail before the cat hops down onto the nearest NavMesh point.</summary>
+        const int PathFailuresBeforeHop = 3;
+        /// <summary>
+        /// A cat off the NavMesh and not sitting (stood up from a seat, say) that hasn't moved for this long is stuck:
+        /// it's put down on the nearest NavMesh point. Checked every <see cref="WatchdogInterval"/> seconds.
+        /// </summary>
+        const float StuckSeconds = 5f;
+        const float WatchdogInterval = 0.5f;
+        /// <summary>Further than this from the NavMesh, across or up, counts as off it.</summary>
+        const float OffMeshDistance = 0.2f;
+        const float OffMeshHeight = 0.35f;
+        /// <summary>Moving less than this between checks counts as not moving.</summary>
+        const float StuckMoveDistance = 0.05f;
 
         public static readonly List<PatronBrain> All = new();
 
@@ -71,6 +89,11 @@ namespace CasinoMares.Npc
         bool _simulating;
         Vector3 _watchSpot;
         Vector3 _watchFocus;
+        int _pathFailures;
+        bool _loggedPathFailure;
+        float _watchdogTime;
+        float _stuckFor;
+        Vector3 _watchdogPosition;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => All.Clear();
@@ -232,6 +255,7 @@ namespace CasinoMares.Npc
                 TakeOver();
 
             WinnerCrowd.Tick(Runner);
+            Watchdog(Runner.DeltaTime);
             if (FleeTimer.IsRunning)
             {
                 FaceTowards(SpookedBy, Runner.DeltaTime);
@@ -310,14 +334,20 @@ namespace CasinoMares.Npc
             if (HissCount != _seenHissCount)
             {
                 _seenHissCount = HissCount;
-                // The hiss emote needs a cat standing still; one that's still turning swats back instead.
-                var reactions = _visual.Reactions;
-                if (reactions == null || !reactions.PlayEmote(CatEmote.Hiss))
-                {
-                    reactions?.PlayAngry();
-                    Sfx.PlayAt(SoundId.Hiss, transform.position + Vector3.up * 0.3f);
-                }
+                Hiss(_visual.Reactions, transform.position);
             }
+        }
+
+        /// <summary>
+        /// A pawed cat's hiss (the seat cats at the tables use it too). The hiss emote needs a cat standing still; one
+        /// that's still turning (or getting up) swats back instead.
+        /// </summary>
+        public static void Hiss(CatReactions reactions, Vector3 position)
+        {
+            if (reactions != null && reactions.PlayEmote(CatEmote.Hiss))
+                return;
+            reactions?.PlayAngry();
+            Sfx.PlayAt(SoundId.Hiss, position + Vector3.up * 0.3f);
         }
 
         // ---------------------------------------------------------------- Watching a winner (master client)
@@ -424,6 +454,7 @@ namespace CasinoMares.Npc
             else if (!NavMesh.SamplePosition(transform.position + away * FleeMinDistance, out var hit, 2f, NavMesh.AllAreas) ||
                      !TryPathTo(hit.position))
             {
+                PathFailed();
                 WaitTimer = TickTimer.CreateFromSeconds(Runner, 1f);
                 return;
             }
@@ -437,17 +468,79 @@ namespace CasinoMares.Npc
         /// </summary>
         bool TryPathTo(Vector3 destination)
         {
-            if (!PathTo(destination) &&
-                (!NavMesh.SamplePosition(destination, out var near, 1.2f, NavMesh.AllAreas) || !PathTo(near.position)))
+            // Start from the NavMesh under (or beside) the cat: from a seat the path's first corner is the floor
+            // next to it, so the cat steps down there first instead of cutting across the table.
+            var start = NavMesh.SamplePosition(_simPosition, out var from, OffMeshReach, NavMesh.AllAreas) ? from.position : _simPosition;
+            if (!PathTo(start, destination) &&
+                (!NavMesh.SamplePosition(destination, out var near, 1.2f, NavMesh.AllAreas) || !PathTo(start, near.position)))
                 return false;
             _path.Clear();
             _path.AddRange(_navPath.corners);
-            _pathIndex = 1;
+            _pathIndex = OffMesh(_simPosition, start) ? 0 : 1;
+            _pathFailures = 0;
             return true;
         }
 
-        bool PathTo(Vector3 destination) =>
-            NavMesh.CalculatePath(_simPosition, destination, NavMesh.AllAreas, _navPath) && _navPath.status == NavMeshPathStatus.PathComplete;
+        bool PathTo(Vector3 start, Vector3 destination) =>
+            NavMesh.CalculatePath(start, destination, NavMesh.AllAreas, _navPath) && _navPath.status == NavMeshPathStatus.PathComplete;
+
+        static bool OffMesh(Vector3 position, Vector3 onMesh)
+        {
+            var offset = onMesh - position;
+            return Mathf.Abs(offset.y) > OffMeshHeight || new Vector2(offset.x, offset.z).sqrMagnitude > OffMeshDistance * OffMeshDistance;
+        }
+
+        /// <summary>No path from here to anywhere: say so once, and after a few tries hop down onto the NavMesh.</summary>
+        void PathFailed()
+        {
+            if (!_loggedPathFailure)
+            {
+                _loggedPathFailure = true;
+                Debug.LogWarning($"[Patron] {name} found no path from {_simPosition} (sitting {(bool)Sitting})");
+            }
+
+            if (++_pathFailures >= PathFailuresBeforeHop)
+                PutOnMesh("no path");
+        }
+
+        /// <summary>
+        /// Catches a cat that has stood up off the NavMesh (from a seat) and isn't going anywhere, whatever the
+        /// reason, and puts it on the nearest NavMesh point so it can walk off.
+        /// </summary>
+        void Watchdog(float deltaTime)
+        {
+            _watchdogTime += deltaTime;
+            if (_watchdogTime < WatchdogInterval)
+                return;
+            var elapsed = _watchdogTime;
+            _watchdogTime = 0f;
+
+            var moved = (_simPosition - _watchdogPosition).sqrMagnitude > StuckMoveDistance * StuckMoveDistance;
+            _watchdogPosition = _simPosition;
+            if (Sitting || moved || _watching || FleeTimer.IsRunning ||
+                !NavMesh.SamplePosition(_simPosition, out var hit, OffMeshReach, NavMesh.AllAreas) || !OffMesh(_simPosition, hit.position))
+            {
+                _stuckFor = 0f;
+                return;
+            }
+
+            _stuckFor += elapsed;
+            if (_stuckFor >= StuckSeconds)
+                PutOnMesh("stuck");
+        }
+
+        void PutOnMesh(string reason)
+        {
+            _pathFailures = 0;
+            _stuckFor = 0f;
+            if (!NavMesh.SamplePosition(_simPosition, out var hit, 2f, NavMesh.AllAreas))
+                return;
+            Debug.LogWarning($"[Patron] {name} put down on the NavMesh ({reason})");
+            Sitting = false;
+            _path.Clear();
+            transform.position = _simPosition = _watchdogPosition = hit.position;
+            WaitTimer = TickTimer.CreateFromSeconds(Runner, 0.5f);
+        }
 
         void PickNextSpot()
         {
@@ -471,6 +564,7 @@ namespace CasinoMares.Npc
                 return;
             }
 
+            PathFailed();
             WaitTimer = TickTimer.CreateFromSeconds(Runner, 2f);
         }
 

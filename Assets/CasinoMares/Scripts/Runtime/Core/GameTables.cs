@@ -27,6 +27,9 @@ namespace CasinoMares.Core
         /// <summary>Ask the table's authority to free this seat for the local player.</summary>
         void RequestLeave(int seat);
 
+        /// <summary>The local player pawed the NPC in this seat: it hisses and runs off (tables without NPCs ignore it).</summary>
+        void ScareNpc(int seat) { }
+
         /// <summary>Spectator panel text for a seated player (GDD §6). Hidden info must not be included.</summary>
         bool TryDescribePlayer(PlayerRef player, StringBuilder text);
     }
