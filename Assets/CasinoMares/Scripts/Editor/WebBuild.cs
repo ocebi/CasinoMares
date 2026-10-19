@@ -131,7 +131,8 @@ namespace CasinoMares.Editor
             PlayerSettings.WebGL.threadsSupport = false;
             PlayerSettings.WebGL.showDiagnostics = false;
             PlayerSettings.SetGraphicsAPIs(BuildTarget.WebGL, new[] { UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3 });
-            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Minimal);
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.High);
+            PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.WebGL, Il2CppCodeGeneration.OptimizeSize);
             // Tables keep running for the others while this tab is in the background (browsers slow it to ~1 fps).
             PlayerSettings.runInBackground = true;
         }
