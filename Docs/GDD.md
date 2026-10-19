@@ -232,6 +232,28 @@ The hall is 22 × 14 m (as built):
   NavMesh without moving, it hops down onto the nearest NavMesh point. The first failed path logs a
   `[Patron]` warning.
 
+### 4.5 NPC budget (`NpcBudget`)
+- The hall should feel about as busy at any player count, so the fewer players, the more NPCs. A
+  master-client object sets the budget: NPCs = clamp(20 − players, 5, 19). That is today's full set
+  (10 patrons plus about 9 seat cats, five tables at an average of 1.72) plus one, less the players,
+  and never fewer than 5.
+- The budget is split between patrons and seat cats in the full set's 10 : 9 proportion:
+
+  | Players | NPCs | Patrons | Seat cats (average) |
+  |---|---|---|---|
+  | 1 | 19 | 10 | 9 (scale 100%) |
+  | 5 | 15 | 8 | 7 (78%) |
+  | 10 | 10 | 5 | 5 (56%) |
+
+- The budget changes 10 s after the last join or leave, so a quick rejoin doesn't make cats come and go.
+- **Patrons** beyond the budget (by their order under `Patrons`) walk out of the entrance (`CasinoDoor`)
+  and wait there out of sight (`Away`, networked, so late joiners agree). When the budget grows they
+  step back in through the entrance. A leaving cat can't be pawed or sent to watch a winner.
+- **Seat cats:** a table on "random" multiplies its rolled target by the seat scale (rounded up or down
+  at random, so tables average the scaled count) when it next rolls (every 30–80 s). Seated cats are
+  never pulled out mid-round; a table that wants fewer simply lets cats leave between rounds and doesn't
+  refill. A table set to an exact number of NPCs keeps it.
+
 ---
 
 ## 5. Blackjack (primary game)

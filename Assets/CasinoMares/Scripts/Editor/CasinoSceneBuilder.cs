@@ -111,6 +111,8 @@ namespace CasinoMares.Editor
             AssetDatabase.SaveAssets();
 
             BuildScene();
+            // The rebuilt island meshes dropped out of their Addressables group; put them back.
+            LazyContentSetup.SetUp();
             AssetDatabase.SaveAssets();
             Debug.Log("[CasinoSceneBuilder] Rebuilt casino assets and scene.");
         }
@@ -841,6 +843,7 @@ namespace CasinoMares.Editor
             BuildLeaderboardBoard(materials);
             BuildPatronSpots(tables);
             BuildPatrons(npcPrefab);
+            BuildNpcBudget();
             BuildLamps(materials);
             BuildProps(materials);
 
@@ -1926,6 +1929,7 @@ namespace CasinoMares.Editor
             Box("Base", t, new Vector3(0f, 0.25f, 0f), new Vector3(2.3f, 0.5f, 0.8f), m.DarkWood);
             Box("Rim", t, new Vector3(0f, 0.53f, 0f), new Vector3(2.9f, 0.04f, 1.4f), m.Wood, collider: false);
             Box("Felt", t, new Vector3(0f, 0.55f, 0f), new Vector3(2.8f, 0.04f, 1.3f), m.Felt);
+            BuildRouletteCatHead(t, m);
 
             // The wheel sits in a wooden bowl at the east end; the rotor spins, the ball is placed by the view. Bowl
             // and rotor meshes are lathed at runtime (RouletteWheelGeometry), with frets, diamonds and turret in brass.

@@ -93,7 +93,7 @@ namespace CasinoMares.Npc
             {
                 if (crew.Churn.ExpiredOrNotRunning(runner))
                 {
-                    crew.Target = RollTarget();
+                    crew.Target = Scale(RollTarget(), NpcBudget.SeatScale);
                     crew.Churn = TickTimer.CreateFromSeconds(runner, Random.Range(30f, 80f));
                 }
 
@@ -140,6 +140,13 @@ namespace CasinoMares.Npc
                 _ => 4,
             };
         }
+
+        /// <summary>
+        /// The rolled target times the player-count scale (<see cref="NpcBudget"/>), rounded up or down at random so the
+        /// tables average the scaled count. Cats already seated only leave when the table next rolls lower.
+        /// </summary>
+        static byte Scale(byte target, float scale) =>
+            scale >= 1f ? target : (byte)Mathf.Min(MaxFill, Mathf.FloorToInt(target * scale + Random.value));
 
         static int PickSeat(ReadOnlySpan<byte> occupants, byte kind)
         {

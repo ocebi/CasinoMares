@@ -142,7 +142,7 @@ namespace CasinoMares.Npc
             var bestDistance = float.MaxValue;
             foreach (var patron in PatronBrain.All)
             {
-                if (patron == null || !patron.HasStateAuthority || Assignments.ContainsKey(patron) || patron.IsSpooked)
+                if (patron == null || !patron.HasStateAuthority || Assignments.ContainsKey(patron) || patron.IsSpooked || patron.IsLeaving)
                     continue;
                 var distance = (patron.transform.position - spot).sqrMagnitude;
                 if (distance < bestDistance)

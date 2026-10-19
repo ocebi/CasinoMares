@@ -14,7 +14,8 @@ namespace CasinoMares.Npc
     /// paths between <see cref="PatronSpot"/>s inside FixedUpdateNetwork, idles or sits there, and every client
     /// shows the same cat in the same place. Nearby big wins make it hop, and <see cref="WinnerCrowd"/> can send it
     /// over to watch a player on a winning streak. A player who paws it gets hissed at, and the cat trots off to
-    /// somewhere on the far side of them.
+    /// somewhere on the far side of them. When the hall has more players, some patrons walk out of the entrance and wait
+    /// there out of sight until <see cref="NpcBudget"/> wants them back (GDD §4.5).
     /// </summary>
     public class PatronBrain : NetworkBehaviour, IStateAuthorityChanged
     {
@@ -73,6 +74,8 @@ namespace CasinoMares.Npc
         [Networked] TickTimer FleeTimer { get; set; }
         [Networked] Vector3 SpookedBy { get; set; }
         [Networked] byte HissCount { get; set; }
+        /// <summary>Out of the hall: walked out of the entrance because the budget has no room for this cat.</summary>
+        [Networked] NetworkBool Away { get; set; }
 
         static readonly CatEmote[] IdleEmotes = { CatEmote.Meow, CatEmote.Groom, CatEmote.Wiggle, CatEmote.Purr, CatEmote.Pounce };
 
@@ -94,6 +97,10 @@ namespace CasinoMares.Npc
         float _watchdogTime;
         float _stuckFor;
         Vector3 _watchdogPosition;
+        /// <summary>This cat's place under Patrons, which <see cref="NpcBudget.PatronWanted"/> counts against.</summary>
+        int _index;
+        /// <summary>Walking out to the entrance (master client).</summary>
+        bool _exiting;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => All.Clear();
@@ -102,6 +109,7 @@ namespace CasinoMares.Npc
         {
             All.Add(this);
             _navPath = new NavMeshPath();
+            _index = transform.GetSiblingIndex();
             _simPosition = transform.position;
             if (HasStateAuthority && !Initialized)
             {
@@ -133,8 +141,12 @@ namespace CasinoMares.Npc
             _path.Clear();
             _watching = false;
             _fleeing = false;
+            _exiting = false;
             ReleaseTarget();
         }
+
+        /// <summary>Out of the hall, or on its way out: not to be pawed or sent to watch a winner.</summary>
+        public bool IsLeaving => Object != null && Object.IsValid && (Away || _exiting);
 
         /// <summary>
         /// This client just became the master (the last one left, or handed over from a background tab) and carries
@@ -149,7 +161,10 @@ namespace CasinoMares.Npc
             _path.Clear();
             _watching = false;
             _fleeing = false;
+            _exiting = false;
             ReleaseTarget();
+            if (Away)
+                return;
 
             var spot = SpotAt(transform.position);
             if (spot != null && spot.ClaimedBy == null && !spot.TakenByPlayer)
@@ -210,7 +225,7 @@ namespace CasinoMares.Npc
             var bestDistance = float.MaxValue;
             foreach (var patron in All)
             {
-                if (patron == null || !PawSwipe.InReach(cat, patron.transform.position + Vector3.up * 0.2f, reach, maxAngle, out var distance))
+                if (patron == null || patron.IsLeaving || !PawSwipe.InReach(cat, patron.transform.position + Vector3.up * 0.2f, reach, maxAngle, out var distance))
                     continue;
                 if (distance < bestDistance)
                 {
@@ -227,7 +242,7 @@ namespace CasinoMares.Npc
         public void RPC_Pawed(RpcInfo info = default)
         {
             var cat = PlayerCat.Find(info.Source);
-            if (cat == null || IsSpooked || (cat.transform.position - transform.position).sqrMagnitude > PawRange * PawRange)
+            if (cat == null || IsSpooked || IsLeaving || (cat.transform.position - transform.position).sqrMagnitude > PawRange * PawRange)
                 return;
 
             WinnerCrowd.Release(this);
@@ -255,6 +270,27 @@ namespace CasinoMares.Npc
                 TakeOver();
 
             WinnerCrowd.Tick(Runner);
+            if (Away)
+            {
+                if (NpcBudget.PatronWanted(_index))
+                    ComeBackIn();
+                return;
+            }
+
+            if (!NpcBudget.PatronWanted(_index) && !FleeTimer.IsRunning)
+            {
+                Leave(Runner.DeltaTime);
+                return;
+            }
+
+            if (_exiting)
+            {
+                // Wanted again on the way out: carry on from here.
+                _exiting = false;
+                _path.Clear();
+                WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(0.5f, 2f));
+            }
+
             Watchdog(Runner.DeltaTime);
             if (FleeTimer.IsRunning)
             {
@@ -316,6 +352,9 @@ namespace CasinoMares.Npc
         public override void Render()
         {
             if (_visual == null)
+                return;
+            _visual.gameObject.SetActive(!Away);
+            if (Away)
                 return;
             _visual.SetFur(Fur);
             _visual.Sitting = Sitting;
@@ -632,6 +671,45 @@ namespace CasinoMares.Npc
             {
                 WaitTimer = TickTimer.CreateFromSeconds(Runner, 3f);
             }
+        }
+
+        /// <summary>Walk out of the entrance (no budget for this cat), then wait out of sight.</summary>
+        void Leave(float deltaTime)
+        {
+            if (!_exiting)
+            {
+                _exiting = true;
+                WinnerCrowd.Release(this);
+                _watching = false;
+                _fleeing = false;
+                ReleaseTarget();
+                Sitting = false;
+                WaitTimer = TickTimer.None;
+                EmoteTimer = TickTimer.None;
+                CheerTimer = TickTimer.None;
+                if (!CasinoDoor.Exists || !TryPathTo(CasinoDoor.Inside))
+                    _path.Clear();
+            }
+
+            if (_pathIndex < _path.Count)
+            {
+                Walk(deltaTime);
+                return;
+            }
+
+            _path.Clear();
+            _exiting = false;
+            Away = true;
+        }
+
+        /// <summary>Wanted again: step back in through the entrance (or where it vanished, without one) and wander off.</summary>
+        void ComeBackIn()
+        {
+            Away = false;
+            Sitting = false;
+            if (CasinoDoor.Exists && NavMesh.SamplePosition(CasinoDoor.Inside, out var hit, 2f, NavMesh.AllAreas))
+                transform.position = _simPosition = hit.position;
+            WaitTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(0.3f, 2f));
         }
 
         void ReleaseTarget()
