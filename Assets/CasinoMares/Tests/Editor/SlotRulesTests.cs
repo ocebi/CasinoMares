@@ -41,7 +41,7 @@ namespace CasinoMares.Rules.Tests
                 expected += p * SlotRules.Multiplier(a, b, c);
             }
 
-            Assert.That(expected, Is.InRange(0.92, 0.96), $"RTP was {expected:P1}");
+            Assert.That(expected, Is.InRange(0.955, 0.97), $"RTP was {expected:P1}");
         }
 
         [Test]

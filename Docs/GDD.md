@@ -114,7 +114,7 @@ Seated shortcuts (every action also has a clickable button; the cursor is free w
 
 | Game | Keys |
 |---|---|
-| Blackjack | **1-5** add chips, **Backspace** clear, **Space** deal, **H** hit, **Space** stand, **X** double, **P** split, **V** cycle the table view (Seat → Wide → Overhead) |
+| Blackjack | **1-5** add chips, **Backspace** clear, **Space** deal, **H** hit, **Space** stand, **X** double, **P** split, **V** switch the table view (Seat ↔ Overhead) |
 | Roulette | **Space** ready (bets are placed by clicking the layout) |
 | Baccarat | **Space** ready (click Player / Banker / Tie), **V** table view |
 | Poker | **F** fold, **C** check/call, **R** raise, **V** table view |
@@ -141,9 +141,8 @@ Seated shortcuts (every action also has a clickable button; the cursor is free w
     W/S tilt it 12°. The table stays in view while the other players' hands come into sight. The view
     stays where it's left and resets the next time you sit down.
   - **Table views** (blackjack, baccarat and poker; `TableViewControl` is the shared button/caption/key):
-    the View button (**V**) cycles **Seat → Wide → Overhead**. Wide is the seat camera moved 1.1 m straight back
-    and 0.55 m up, pitched to keep the felt's middle framed, still with the A/D look (it glides there in
-    0.8 s; pulled in if a wall is in the way). Overhead is a fixed camera the scene builder solves per
+    the View button (**V**) switches between **Seat** and **Overhead** (a Wide view, the seat camera moved
+    back and up, was dropped after the 2026-10-19 playtest). Overhead is a fixed camera the scene builder solves per
     table (`CasinoSceneBuilder.TableViews`): on the players' side above the felt, pitched 70°, backed
     away until every seat, the dealer's cards and the chip circles fit a 16:9 phone held sideways, kept
     under the ceiling beams (≤ 3.1 m) by widening the lens (50° up to 70°) instead; no look input. The
@@ -800,8 +799,8 @@ and the floating cards.
   and glowing, before it stops.
   - Paytable: three of a kind pays more the rarer the symbol (fish 6×, milk 10×, yarn 12×, paw 24×,
     mouse 50×, 7 120×), two paws pay 4×, one paw hands the bet back (1×, "Bet back" on the HUD).
-    About 10% of spins win and 25% return the bet, at about 94.2% RTP; tests check 92–96% and that
-    rarer symbols pay more.
+    Reel weights fish 30, milk 20, yarn 15, paw 11, mouse 8, 7 4. About 10% of spins win and 29% return
+    the bet, at 96.1% RTP; tests check 95.5–97% and that rarer symbols pay more.
 - **Yarn Tumble**: a 5×5 grid of yarn balls (blue, green, pink), fish, mice and golden paws. A group
   of 5 or more touching side by side pays (1× to 2× for five, a quarter more for each one more, up
   to 10). The cat bats the winners away, the rest fall, and new symbols drop in, a quarter of them
