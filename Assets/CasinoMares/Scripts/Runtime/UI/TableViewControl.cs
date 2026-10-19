@@ -65,20 +65,14 @@ namespace CasinoMares.UI
             ShowNextIcon(view);
         }
 
-        /// <summary>The icon for the view after <paramref name="current"/>: Seat, Wide, Overhead, then Seat again.</summary>
+        /// <summary>The icon for the view after <paramref name="current"/>: Seat and Overhead take turns.</summary>
         void ShowNextIcon(TableView current)
         {
             if (_icon == null)
                 return;
-            var next = current switch
-            {
-                TableView.Seat => "icon--view-wide",
-                TableView.Wide => "icon--view-overhead",
-                _ => "icon--view-seat",
-            };
+            var next = current == TableView.Seat ? "icon--view-overhead" : "icon--view-seat";
             if (next == _iconClass)
                 return;
-            _icon.RemoveFromClassList("icon--view-wide");
             _icon.RemoveFromClassList("icon--view-overhead");
             _icon.RemoveFromClassList("icon--view-seat");
             _icon.AddToClassList(next);
@@ -89,7 +83,6 @@ namespace CasinoMares.UI
         {
             _caption.text = view switch
             {
-                TableView.Wide => "Wide view",
                 TableView.Overhead => "Overhead view",
                 _ => "Seat view",
             };

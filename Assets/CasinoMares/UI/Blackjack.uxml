@@ -46,7 +46,7 @@
         <ui:VisualElement class="bj-corner">
             <ui:Label name="view-caption" class="bj-view-caption" picking-mode="Ignore" />
             <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary icon-only">
-                <ui:VisualElement class="btn-icon icon--view-wide" picking-mode="Ignore" />
+                <ui:VisualElement class="btn-icon icon--view-overhead" picking-mode="Ignore" />
             </ui:Button>
             <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary icon-only">
                 <ui:VisualElement class="btn-icon icon--settings" picking-mode="Ignore" />

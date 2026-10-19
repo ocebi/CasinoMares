@@ -9,11 +9,9 @@ namespace CasinoMares.CameraRig
     public enum TableView
     {
         /// <summary>The seat camera over the cat's shoulder, with the A/D look.</summary>
-        Seat,
-        /// <summary>The seat camera's pose moved back and up, so the whole felt is in view; still with the look.</summary>
-        Wide,
-        /// <summary>The table's fixed camera above the felt; no look input.</summary>
-        Overhead,
+        Seat = 0,
+        /// <summary>The table's fixed camera above the felt; no look input. (2: what players' saved choices store.)</summary>
+        Overhead = 2,
     }
 
     /// <summary>
@@ -25,7 +23,7 @@ namespace CasinoMares.CameraRig
     /// (the cat wall) the orbit tips down to stay under it, rather than being pulled in to the cat by the ceiling's
     /// camera blocker. At a table, A/D (or a right-drag) swing the seat camera a little way around the table (to see
     /// the other players' cards) and W/S tilt it; the view stays where it's left until the next time you sit down.
-    /// A card table also offers a wide and an overhead view (<see cref="TableView"/>), remembered per game. A seat
+    /// A card table also offers an overhead view (<see cref="TableView"/>), remembered per game. A seat
     /// camera with its own orbit (the terrace café tables) goes all the way round the table instead, starting behind
     /// your seat. A table can briefly hand the view to a focus camera (the roulette wheel during a spin) and take it
     /// back without losing that seated look.
@@ -51,8 +49,6 @@ namespace CasinoMares.CameraRig
         const float FollowSettleAngle = 1f;
         /// <summary>Anchor speed (m/s) below which the cat isn't really walking and the orbit stays put.</summary>
         const float FollowMinSpeed = 0.2f;
-        /// <summary>Radius of the sphere cast that keeps the wide view's pose out of walls (seat cameras have no deoccluder).</summary>
-        const float WideProbeRadius = 0.12f;
 
         [SerializeField] CinemachineCamera _menuCamera;
         [SerializeField] CinemachineCamera _followCamera;
@@ -99,14 +95,6 @@ namespace CasinoMares.CameraRig
         [Tooltip("Degrees per second A/D turn an orbiting seat camera round its table.")]
         [SerializeField] float _seatOrbitSpeed = 90f;
 
-        [Header("Table views")]
-        [Tooltip("Metres the wide view moves the seat camera straight back (level), pitched down to keep the felt framed.")]
-        [SerializeField] float _wideBack = 1.1f;
-        [Tooltip("Metres the wide view raises the seat camera.")]
-        [SerializeField] float _wideUp = 0.55f;
-        [Tooltip("Seconds the seat camera glides between its seat and wide poses (matches the brain's blend).")]
-        [SerializeField] float _wideBlendTime = 0.8f;
-
         public static PlayerCameraRig Instance { get; private set; }
 
         CinemachineOrbitalFollow _orbital;
@@ -119,13 +107,8 @@ namespace CasinoMares.CameraRig
         CinemachineCamera _overhead;
         Vector3 _overrideBasePosition;
         Quaternion _overrideBaseRotation;
-        Vector3 _wideBasePosition;
-        Quaternion _wideBaseRotation;
         string _tableViewKey;
         TableView _tableView;
-        /// <summary>0 = the seat pose, 1 = the wide pose; glides toward <see cref="_wideGoal"/>.</summary>
-        float _wideBlend;
-        float _wideGoal;
 
         float _groundHeight;
         float _anchorHeight;
@@ -136,7 +119,6 @@ namespace CasinoMares.CameraRig
         float _pitch;
         float _ceilingPitch = 90f;
         int _ceilingMask;
-        int _wideMask;
         Vector2 _seatLook;
         Vector2 _seatLookGoal;
         Vector2 _seatLookVelocity;
@@ -151,7 +133,7 @@ namespace CasinoMares.CameraRig
         public TableView CurrentTableView => _tableView;
 
         /// <summary>Whether <see cref="CycleTableView"/> does anything here: a fixed seat camera at a card table.</summary>
-        public bool HasTableViews => _override != null && _overrideOrbit == null && _tableViewKey != null;
+        public bool HasTableViews => _override != null && _overrideOrbit == null && _tableViewKey != null && _overhead != null;
 
         /// <summary>The third-person orbit camera, and the seat (or other fixed) camera while one has taken over.</summary>
         public CinemachineCamera FollowCamera => _followCamera;
@@ -198,7 +180,6 @@ namespace CasinoMares.CameraRig
             _anchor = new GameObject("CameraAnchor").transform;
             _anchor.SetParent(transform, false);
             _ceilingMask = LayerMask.GetMask("CameraBlocker");
-            _wideMask = 1 | _ceilingMask;
         }
 
         void OnDestroy()
@@ -251,7 +232,6 @@ namespace CasinoMares.CameraRig
             // Table views only make sense for a fixed seat camera; an orbiting one places itself.
             _overhead = _overrideOrbit == null ? overhead : null;
             _tableViewKey = _overrideOrbit == null ? viewKey : null;
-            ComputeWidePose();
             var remembered = _tableViewKey != null ? (TableView)PlayerPrefs.GetInt(TableViewKeyPrefix + _tableViewKey, (int)TableView.Seat) : TableView.Seat;
             ApplyTableView(remembered, instant: true);
             if (_overrideOrbit == null)
@@ -277,7 +257,6 @@ namespace CasinoMares.CameraRig
             _overhead = null;
             _tableViewKey = null;
             _tableView = TableView.Seat;
-            _wideBlend = _wideGoal = 0f;
         }
 
         /// <summary>Show this camera for a moment (seated only); the seat view comes back as it was on <see cref="ClearFocus"/>.</summary>
@@ -310,20 +289,13 @@ namespace CasinoMares.CameraRig
         // ---------------------------------------------------------------- Table views
 
         /// <summary>
-        /// Seat → Wide → Overhead → Seat (Overhead is skipped at a table without one). Remembered for this game.
-        /// Returns the view now in use; unchanged where there are no table views.
+        /// Seat ↔ Overhead. Remembered for this game. Returns the view now in use; unchanged where there are no table views.
         /// </summary>
         public TableView CycleTableView()
         {
             if (!HasTableViews)
                 return _tableView;
-            var next = _tableView switch
-            {
-                TableView.Seat => TableView.Wide,
-                TableView.Wide => _overhead != null ? TableView.Overhead : TableView.Seat,
-                _ => TableView.Seat,
-            };
-            SetTableView(next);
+            SetTableView(_tableView == TableView.Seat ? TableView.Overhead : TableView.Seat);
             return _tableView;
         }
 
@@ -338,36 +310,12 @@ namespace CasinoMares.CameraRig
 
         void ApplyTableView(TableView view, bool instant)
         {
-            if (view == TableView.Overhead && _overhead == null)
-                view = TableView.Wide;
-            var wasOverhead = _tableView == TableView.Overhead;
+            // Anything else (no overhead camera here, or the old wide view a player may still have saved) is the seat.
+            if (view != TableView.Overhead || _overhead == null)
+                view = TableView.Seat;
             _tableView = view;
             if (_overhead != null)
                 _overhead.Priority = view == TableView.Overhead ? OverheadPriority : InactivePriority;
-
-            // The seat camera glides between its two poses; coming back from the overhead camera it starts at the
-            // right pose at once (it carries no weight at the start of the brain's blend, so the snap is unseen).
-            _wideGoal = view == TableView.Wide ? 1f : view == TableView.Seat ? 0f : _wideGoal;
-            if (instant || wasOverhead)
-                _wideBlend = _wideGoal;
-        }
-
-        /// <summary>
-        /// The wide view's base pose: the seat camera's, moved straight back and up and pitched to keep the felt's
-        /// middle (the look pivot) framed. Pulled in where a wall or the ceiling is in the way.
-        /// </summary>
-        void ComputeWidePose()
-        {
-            var flatForward = Vector3.ProjectOnPlane(_overrideBaseRotation * Vector3.forward, Vector3.up).normalized;
-            var offset = -flatForward * _wideBack + Vector3.up * _wideUp;
-            var length = offset.magnitude;
-            var direction = offset / Mathf.Max(length, 0.0001f);
-            if (Physics.SphereCast(_overrideBasePosition, WideProbeRadius, direction, out var hit, length, _wideMask, QueryTriggerInteraction.Ignore))
-                length = Mathf.Max(0f, hit.distance - WideProbeRadius);
-
-            _wideBasePosition = _overrideBasePosition + direction * length;
-            var pivot = _overrideBasePosition + _overrideBaseRotation * Vector3.forward * _seatPivotDistance;
-            _wideBaseRotation = Quaternion.LookRotation(pivot - _wideBasePosition, Vector3.up);
         }
 
         // ---------------------------------------------------------------- Per frame
@@ -434,7 +382,7 @@ namespace CasinoMares.CameraRig
 
         /// <summary>
         /// WASD (or the arrows), or a drag with touch controls, turns the seat camera within limits; it stays where
-        /// it's left. The overhead view takes no look input. Also glides the camera between its seat and wide poses.
+        /// it's left. The overhead view takes no look input.
         /// </summary>
         void UpdateSeatLook()
         {
@@ -448,23 +396,19 @@ namespace CasinoMares.CameraRig
             }
 
             _seatLook = Vector2.SmoothDamp(_seatLook, _seatLookGoal, ref _seatLookVelocity, _seatLookSmoothTime);
-            _wideBlend = Mathf.MoveTowards(_wideBlend, _wideGoal, Time.deltaTime / Mathf.Max(_wideBlendTime, 0.01f));
             ApplySeatPose();
         }
 
         /// <summary>
-        /// Places the seat camera: its base pose (eased between the seat and wide poses) swung around a point on the
+        /// Places the seat camera: its base pose swung around a point on the
         /// table rather than turned in place, so the table stays in view and the other hands are seen from their side.
         /// </summary>
         void ApplySeatPose()
         {
-            var blend = Mathf.SmoothStep(0f, 1f, _wideBlend);
-            var basePosition = Vector3.Lerp(_overrideBasePosition, _wideBasePosition, blend);
-            var baseRotation = Quaternion.Slerp(_overrideBaseRotation, _wideBaseRotation, blend);
             var pivot = _overrideBasePosition + _overrideBaseRotation * Vector3.forward * _seatPivotDistance;
             var orbit = Quaternion.AngleAxis(_seatLook.x, Vector3.up);
-            var position = pivot + orbit * (basePosition - pivot);
-            var rotation = orbit * baseRotation * Quaternion.Euler(_seatLook.y, 0f, 0f);
+            var position = pivot + orbit * (_overrideBasePosition - pivot);
+            var rotation = orbit * _overrideBaseRotation * Quaternion.Euler(_seatLook.y, 0f, 0f);
             _override.transform.SetPositionAndRotation(position, rotation);
         }
 

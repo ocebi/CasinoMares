@@ -26,7 +26,7 @@ fur color and chip balance are saved on your own machine.
 | Key | Action |
 |---|---|
 | WASD / Shift / Space | Move / run / jump (the camera swings behind the cat as it turns) |
-| V (seated at blackjack, baccarat or poker) | Cycle the table view: Seat → Wide → Overhead |
+| V (seated at blackjack, baccarat or poker) | Switch the table view: Seat ↔ Overhead |
 | Mouse | Orbit camera |
 | Left click | Paw swipe (knock glasses, mugs and yarn off tables) |
 | Q (hold) | Emote wheel: point with the mouse, release to play |

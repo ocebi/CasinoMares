@@ -1911,5 +1911,4 @@
 .icon--stand { background-image: url("Icons/stand.png"); }
 .icon--view-overhead { background-image: url("Icons/view-overhead.png"); }
 .icon--view-seat { background-image: url("Icons/view-seat.png"); }
-.icon--view-wide { background-image: url("Icons/view-wide.png"); }
 .icon--wine { background-image: url("Icons/wine.png"); }
