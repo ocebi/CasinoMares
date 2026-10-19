@@ -19,20 +19,24 @@ namespace CasinoMares.Player
         /// <summary>A round's or spin's gross payout (stake included) that earns a cigar, in every game.</summary>
         public const int HugeWinPayout = 500;
 
-        // Dimensions in world units (the prefab's cat is about 0.58 m tall).
-        const float CigarLength = 0.06f;
-        const float CigarRadius = 0.004f;
-        const float BandWidth = 0.008f;
+        // Dimensions in world units (the prefab's cat is about 0.58 m tall). Oversized on purpose (a real one would be a
+        // dot at the mouth from the follow camera): long enough that the tip clears the snout.
+        const float CigarLength = 0.12f;
+        const float CigarRadius = 0.0064f;
+        const float BandWidth = 0.013f;
         /// <summary>A little wider than the cigar so the glow reads from the default camera distance.</summary>
-        const float EmberRadius = 0.0055f;
+        const float EmberRadius = 0.0088f;
         /// <summary>A soft additive dot behind the ember: what makes it read on a phone, where the sphere is a pixel.</summary>
-        const float EmberGlowSize = 0.045f;
-        /// <summary>How far the cigar points down from the muzzle line, and outward from the cat's centre line.</summary>
-        const float TiltDownDegrees = 15f;
-        const float SplayDegrees = 10f;
+        const float EmberGlowSize = 0.072f;
+        /// <summary>
+        /// How far the cigar points down from the muzzle line, and outward from the cat's centre line: mostly forward,
+        /// a little to the side, so it sticks out past the snout instead of lying along the cheek.
+        /// </summary>
+        const float TiltDownDegrees = 8f;
+        const float SplayDegrees = 20f;
         /// <summary>Where the mouth corner is from the snout tip when the rig has no lip bone to read it from.</summary>
         const float MouthBack = 0.01f;
-        const float MouthSide = 0.012f;
+        const float MouthSide = 0.015f;
         const float MouthDown = 0.012f;
 
         // Breathing cycle (4 s): inhale (ember brightens), hold, exhale (smoke), rest.
@@ -43,18 +47,19 @@ namespace CasinoMares.Player
         /// <summary>The ember's glow at the top of an inhale, over its resting glow.</summary>
         const float InhaleGlow = 3f;
 
-        // Smoke: a puff at the start of each exhale, then a trickle until it ends.
-        const int MaxSmoke = 24;
+        // Smoke: a puff at the start of each exhale, then a trickle until it ends. Big, dense and tall enough to read from
+        // 3-4 m; the mobile caps stay where they were.
+        const int MaxSmoke = 36;
         const int MaxSmokeMobile = 12;
-        const int PuffMin = 6;
-        const int PuffMax = 10;
+        const int PuffMin = 9;
+        const int PuffMax = 13;
         const int PuffMobile = 4;
-        const float TrickleRate = 5f;
+        const float TrickleRate = 7f;
         const float TrickleRateMobile = 3f;
-        const float SmokeLife = 2.5f;
-        const float SmokeRise = 0.15f;
-        const float SmokeStartSize = 0.02f;
-        const float SmokeEndSize = 0.12f;
+        const float SmokeLife = 3f;
+        const float SmokeRise = 0.24f;
+        const float SmokeStartSize = 0.03f;
+        const float SmokeEndSize = 0.2f;
 
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         static readonly int ColorId = Shader.PropertyToID("_Color");
@@ -62,7 +67,7 @@ namespace CasinoMares.Player
         static readonly Color EmberEmission = new Color(1f, 0.32f, 0.06f) * 2f;
         static readonly Color EmberGlowColor = new Color(1f, 0.4f, 0.1f) * 0.6f;
         /// <summary>Grey through the dust material's warm additive tint (the shader multiplies the vertex colour in).</summary>
-        static readonly Color SmokeColor = new Color(0.55f, 0.55f, 0.6f, 0.6f);
+        static readonly Color SmokeColor = new Color(0.6f, 0.6f, 0.65f, 0.75f);
 
         enum Phase { Inhale, Hold, Exhale, Rest }
 
