@@ -401,8 +401,7 @@
 }
 
 /* Top cats (UX §1.10): chips earned this session, a podium for the top three, then rows; the local cat's row is
-   highlighted and pinned at the bottom when it's outside the list. The leader-* rules below are the old rows; they can
-   go once HudController and LeaderboardBoard build lb-row. */
+   highlighted and pinned at the bottom when it's outside the list. */
 .leaderboard {
     position: absolute;
     top: 90px;
@@ -659,36 +658,6 @@
 
 .touch .lb-row {
     height: 30px;
-}
-
-.leader-row {
-    flex-direction: row;
-    align-items: center;
-    padding: 4px 0;
-}
-
-.leader-rank {
-    width: 28px;
-    color: var(--cm-text-dim);
-    font-size: 15px;
-}
-
-.leader-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 7px;
-    margin-right: 8px;
-}
-
-.leader-name {
-    flex-grow: 1;
-    font-size: 16px;
-}
-
-.leader-balance {
-    font-size: 16px;
-    color: var(--cm-gold);
-    -unity-font-style: bold;
 }
 
 /* Chat */
@@ -1035,27 +1004,6 @@
     color: var(--cm-gold);
     -unity-text-align: middle-center;
     margin-bottom: 14px;
-}
-
-.board .leader-row {
-    padding: 6px 0;
-}
-
-.board .leader-rank {
-    width: 60px;
-    font-size: 30px;
-}
-
-.board .leader-swatch {
-    width: 26px;
-    height: 26px;
-    border-radius: 13px;
-    margin-right: 16px;
-}
-
-.board .leader-name,
-.board .leader-balance {
-    font-size: 32px;
 }
 
 .board .lb-row {
