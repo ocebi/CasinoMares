@@ -13,8 +13,12 @@
             <ui:VisualElement class="bj-panel">
                 <ui:VisualElement name="chip-row" style="flex-direction: row;" />
                 <ui:Label name="total-label" class="bj-bet" text="0" />
-                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary" />
-                <ui:Button name="done-button" text="Ready (Space)" class="bj-button" />
+                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary icon-only">
+                    <ui:VisualElement class="btn-icon icon--clear" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="done-button" text="Ready (Space)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--check" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="settings-panel" class="panel bj-settings hidden">
@@ -25,10 +29,18 @@
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Label name="view-caption" class="bj-view-caption" picking-mode="Ignore" />
-            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary" />
-            <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary" />
-            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
-            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--view-wide" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--rules" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--settings" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--leave" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

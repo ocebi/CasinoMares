@@ -11,15 +11,29 @@
             <ui:VisualElement name="bet-panel" class="bj-panel">
                 <ui:VisualElement name="chip-row" style="flex-direction: row;" />
                 <ui:Label name="bet-label" class="bj-bet" text="0" />
-                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary" />
-                <ui:Button name="sitout-button" text="Sit out" class="bj-button bj-button--secondary" />
-                <ui:Button name="deal-button" text="Deal (Space)" class="bj-button" />
+                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary icon-only">
+                    <ui:VisualElement class="btn-icon icon--clear" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="sitout-button" text="Sit out" class="bj-button bj-button--secondary icon-only">
+                    <ui:VisualElement class="btn-icon icon--sitout" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="deal-button" text="Deal (Space)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--deal" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement name="action-panel" class="bj-panel hidden">
-                <ui:Button name="hit-button" text="Hit (H)" class="bj-button" />
-                <ui:Button name="stand-button" text="Stand (Space)" class="bj-button" />
-                <ui:Button name="double-button" text="Double (X)" class="bj-button" />
-                <ui:Button name="split-button" text="Split (P)" class="bj-button" />
+                <ui:Button name="hit-button" text="Hit (H)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--hit" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="stand-button" text="Stand (Space)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--stand" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="double-button" text="Double (X)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--double" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="split-button" text="Split (P)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--split" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
             <ui:Label name="status-label" class="bj-phase hidden" picking-mode="Ignore" />
         </ui:VisualElement>
@@ -31,9 +45,15 @@
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Label name="view-caption" class="bj-view-caption" picking-mode="Ignore" />
-            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary" />
-            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
-            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--view-wide" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--settings" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--leave" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

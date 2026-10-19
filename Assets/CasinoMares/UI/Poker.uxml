@@ -14,8 +14,12 @@
         <ui:VisualElement class="bj-bottom" picking-mode="Ignore">
             <ui:Label name="info-label" class="pk-info" picking-mode="Ignore" />
             <ui:VisualElement name="action-panel" class="bj-panel hidden">
-                <ui:Button name="fold-button" text="Fold (F)" class="bj-button bj-button--secondary" />
-                <ui:Button name="call-button" text="Check (C)" class="bj-button" />
+                <ui:Button name="fold-button" text="Fold (F)" class="bj-button bj-button--secondary icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--fold" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="call-button" text="Check (C)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--check" picking-mode="Ignore" />
+                </ui:Button>
                 <ui:VisualElement class="pk-raise">
                     <ui:Button name="minus-button" text="-" class="bj-button bj-button--secondary pk-small" />
                     <ui:Label name="raise-label" class="bj-bet" />
@@ -24,10 +28,16 @@
                 <ui:Button name="min-button" text="Min" class="bj-button bj-button--secondary pk-small" />
                 <ui:Button name="half-pot-button" text="1/2 pot" class="bj-button bj-button--secondary pk-small" />
                 <ui:Button name="pot-button" text="Pot" class="bj-button bj-button--secondary pk-small" />
-                <ui:Button name="raise-button" text="Raise (R)" class="bj-button" />
-                <ui:Button name="allin-button" text="All in" class="bj-button pk-allin" />
+                <ui:Button name="raise-button" text="Raise (R)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--raise" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="allin-button" text="All in" class="bj-button pk-allin icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--allin" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
-            <ui:Button name="rebuy-button" text="Rebuy 500" class="bj-button hidden" />
+            <ui:Button name="rebuy-button" text="Rebuy 500" class="bj-button hidden icon-labelled">
+                <ui:VisualElement class="btn-icon icon--rebuy" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
         <ui:VisualElement name="settings-panel" class="panel bj-settings hidden">
             <ui:Label text="Table settings" class="bj-settings-title" />
@@ -38,10 +48,18 @@
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Label name="view-caption" class="bj-view-caption" picking-mode="Ignore" />
-            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary" />
-            <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary" />
-            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
-            <ui:Button name="leave-button" text="Cash out (E)" class="bj-button bj-button--secondary" />
+            <ui:Button name="view-button" text="View (V)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--view-wide" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="rules-button" text="Rules" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--rules" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--settings" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="leave-button" text="Cash out (E)" class="bj-button bj-button--secondary icon-labelled">
+                <ui:VisualElement class="btn-icon icon--leave" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

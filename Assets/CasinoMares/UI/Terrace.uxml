@@ -5,11 +5,15 @@
         <ui:VisualElement name="bar-bottom" class="bj-bottom hidden" picking-mode="Ignore">
             <ui:VisualElement name="bar-panel" class="bj-panel">
                 <ui:Label name="bar-count" text="No glasses yet" class="bar-count" picking-mode="Ignore" />
-                <ui:Button name="order-button" text="Order wine · 20 (Space)" class="bj-button" />
+                <ui:Button name="order-button" text="Order wine · 20 (Space)" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--wine" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
-            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--leave" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -13,8 +13,12 @@
             <ui:VisualElement class="bj-panel rl-controls">
                 <ui:VisualElement name="chip-row" style="flex-direction: row;" />
                 <ui:Label name="total-label" class="bj-bet" text="0" />
-                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary" />
-                <ui:Button name="done-button" text="Ready" class="bj-button" />
+                <ui:Button name="clear-button" text="Clear" class="bj-button bj-button--secondary icon-only">
+                    <ui:VisualElement class="btn-icon icon--clear" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:Button name="done-button" text="Ready" class="bj-button icon-labelled">
+                    <ui:VisualElement class="btn-icon icon--check" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="my-bets" class="panel rl-my-bets hidden" picking-mode="Ignore">
@@ -29,8 +33,12 @@
             <ui:Button name="wheel-closeup-button" class="bj-setting" />
         </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
-            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary" />
-            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
+            <ui:Button name="settings-button" text="Settings" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--settings" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary icon-only">
+                <ui:VisualElement class="btn-icon icon--leave" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

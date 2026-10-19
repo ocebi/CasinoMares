@@ -1,0 +1,9 @@
+Button icons for touch controls (UX §1.9), 64 px white PNGs, tinted in Common.uss.
+
+Most are from Kenney (www.kenney.nl), license CC0 1.0 Universal (public domain):
+  Game Icons        https://kenney.nl/assets/game-icons        (PNG/White/2x, scaled to 64 px)
+    jump menu leaders settings rules leave clear sitout check fold view-wide view-overhead send
+  Board Game Icons  https://kenney.nl/assets/board-game-icons  (PNG/Default 64px)
+    view-seat hit stand split double raise allin call deal spin rebuy
+
+Drawn for Casino Mares in the same flat style (no third-party source): paw emote chat wine

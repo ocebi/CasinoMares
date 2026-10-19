@@ -11,7 +11,8 @@ namespace CasinoMares.UI
     /// <see cref="PlayerCameraRig.CycleTableView"/> and names the view beside the button for a moment. The HUD's
     /// document holds a <c>view-button</c> and a <c>view-caption</c> in its corner row; the HUD calls
     /// <see cref="OnSeated"/> from its seat-change handler and <see cref="Update"/> each frame. Every card table's HUD
-    /// has one, so only the one whose table the player sits at answers the key or the button.
+    /// has one, so only the one whose table the player sits at answers the key or the button. On touch the button is an
+    /// icon showing the view a tap switches to (UX §1.9).
     /// </summary>
     public sealed class TableViewControl
     {
@@ -20,13 +21,17 @@ namespace CasinoMares.UI
         const string CaptionShowClass = "bj-view-caption--show";
 
         readonly Label _caption;
+        readonly VisualElement _icon;
+        string _iconClass;
         float _captionUntil;
         bool _seated;
 
         public TableViewControl(VisualElement ui)
         {
             _caption = ui.Q<Label>("view-caption");
-            ui.Q<Button>("view-button").clicked += Cycle;
+            var button = ui.Q<Button>("view-button");
+            _icon = button.Q(className: "btn-icon");
+            button.clicked += Cycle;
         }
 
         /// <summary>Sitting down restores the last view for this game; say which, unless it's the plain seat view.</summary>
@@ -38,6 +43,7 @@ namespace CasinoMares.UI
                 ShowCaption(rig.CurrentTableView);
             else
                 HideCaption();
+            ShowNextIcon(rig != null ? rig.CurrentTableView : TableView.Seat);
         }
 
         /// <summary>Reads the V key (any phase, not while a text field has the keyboard) and fades the caption out.</summary>
@@ -54,7 +60,29 @@ namespace CasinoMares.UI
             var rig = PlayerCameraRig.Instance;
             if (!_seated || rig == null || !rig.HasTableViews)
                 return;
-            ShowCaption(rig.CycleTableView());
+            var view = rig.CycleTableView();
+            ShowCaption(view);
+            ShowNextIcon(view);
+        }
+
+        /// <summary>The icon for the view after <paramref name="current"/>: Seat, Wide, Overhead, then Seat again.</summary>
+        void ShowNextIcon(TableView current)
+        {
+            if (_icon == null)
+                return;
+            var next = current switch
+            {
+                TableView.Seat => "icon--view-wide",
+                TableView.Wide => "icon--view-overhead",
+                _ => "icon--view-seat",
+            };
+            if (next == _iconClass)
+                return;
+            _icon.RemoveFromClassList("icon--view-wide");
+            _icon.RemoveFromClassList("icon--view-overhead");
+            _icon.RemoveFromClassList("icon--view-seat");
+            _icon.AddToClassList(next);
+            _iconClass = next;
         }
 
         void ShowCaption(TableView view)

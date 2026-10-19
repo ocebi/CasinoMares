@@ -5,7 +5,9 @@
             <ui:ScrollView name="chat-log" class="chat-log" picking-mode="Ignore" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
             <ui:VisualElement name="chat-input-row" class="chat-input-row hidden">
                 <ui:TextField name="chat-input" class="chat-input" max-length="140" />
-                <ui:Button name="chat-send" text="Send" class="chat-send hidden" />
+                <ui:Button name="chat-send" text="Send" class="chat-send hidden icon-only">
+                    <ui:VisualElement class="btn-icon icon--send" picking-mode="Ignore" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

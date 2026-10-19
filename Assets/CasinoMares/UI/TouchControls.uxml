@@ -8,19 +8,25 @@
         </ui:VisualElement>
         <ui:VisualElement name="walk-buttons" class="screen" picking-mode="Ignore">
             <ui:VisualElement name="jump-button" class="touch-button touch-button--jump">
-                <ui:Label text="Jump" class="touch-button-label" picking-mode="Ignore" />
+                <ui:VisualElement class="touch-button-icon icon--jump" picking-mode="Ignore" />
             </ui:VisualElement>
             <ui:VisualElement name="paw-button" class="touch-button touch-button--paw">
-                <ui:Label text="Paw" class="touch-button-label" picking-mode="Ignore" />
+                <ui:VisualElement class="touch-button-icon icon--paw" picking-mode="Ignore" />
             </ui:VisualElement>
             <ui:VisualElement name="emote-button" class="touch-button touch-button--emote">
-                <ui:Label text="Emote" class="touch-button-label" picking-mode="Ignore" />
+                <ui:VisualElement class="touch-button-icon icon--emote" picking-mode="Ignore" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="touch-pills" picking-mode="Ignore">
-            <ui:Button name="menu-button" text="Menu" class="touch-pill" />
-            <ui:Button name="chat-button" text="Chat" class="touch-pill" />
-            <ui:Button name="leaders-button" text="Top cats" class="touch-pill" />
+            <ui:Button name="menu-button" text="Menu" class="touch-pill icon-only">
+                <ui:VisualElement class="btn-icon icon--menu" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="chat-button" text="Chat" class="touch-pill icon-only">
+                <ui:VisualElement class="btn-icon icon--chat" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="leaders-button" text="Top cats" class="touch-pill icon-only">
+                <ui:VisualElement class="btn-icon icon--leaders" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

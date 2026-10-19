@@ -1356,11 +1356,16 @@
     bottom: 186px;
 }
 
-.touch-button-label {
-    font-size: 19px;
-    -unity-font-style: bold;
-    color: var(--cm-text);
-    padding: 0;
+.touch-button-icon {
+    width: 44px;
+    height: 44px;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--cm-text);
+}
+
+.touch-button--jump .touch-button-icon {
+    width: 56px;
+    height: 56px;
 }
 
 .touch-pills, .hud-pills {
@@ -1503,3 +1508,87 @@
 .touch .rl-my-bets-total {
     font-size: 13px;
 }
+
+/* Touch icons (UX §1.9). On touch a button shows its glyph from Icons/ (white, tinted here to the button's text
+   colour); desktop keeps the words and key hints. "icon-only" buttons hide their text; "icon-labelled" ones (money
+   and in-hand decisions, where a wrong tap costs chips) keep a short label under the glyph. */
+.btn-icon {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 26px;
+    height: 26px;
+    margin-left: -13px;
+    margin-top: -13px;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: rgb(40, 24, 12);
+}
+
+.touch .btn-icon {
+    display: flex;
+}
+
+.bj-button--secondary > .btn-icon,
+.bj-button--wait > .btn-icon,
+.touch-pill > .btn-icon {
+    -unity-background-image-tint-color: var(--cm-text);
+}
+
+.pk-allin > .btn-icon {
+    -unity-background-image-tint-color: rgb(255, 245, 235);
+}
+
+.touch-pill--active > .btn-icon {
+    -unity-background-image-tint-color: rgb(40, 24, 12);
+}
+
+.touch .icon-only {
+    width: 52px;
+    min-width: 52px;
+    padding: 0;
+    overflow: hidden;
+    color: rgba(0, 0, 0, 0);
+}
+
+.touch .icon-labelled {
+    height: 60px;
+    min-width: 64px;
+    padding: 0 8px 5px 8px;
+    font-size: 13px;
+    -unity-text-align: lower-center;
+}
+
+.touch .icon-labelled > .btn-icon {
+    top: 7px;
+    margin-top: 0;
+}
+
+.icon--allin { background-image: url("Icons/allin.png"); }
+.icon--call { background-image: url("Icons/call.png"); }
+.icon--chat { background-image: url("Icons/chat.png"); }
+.icon--check { background-image: url("Icons/check.png"); }
+.icon--clear { background-image: url("Icons/clear.png"); }
+.icon--deal { background-image: url("Icons/deal.png"); }
+.icon--double { background-image: url("Icons/double.png"); }
+.icon--emote { background-image: url("Icons/emote.png"); }
+.icon--fold { background-image: url("Icons/fold.png"); }
+.icon--hit { background-image: url("Icons/hit.png"); }
+.icon--jump { background-image: url("Icons/jump.png"); }
+.icon--leaders { background-image: url("Icons/leaders.png"); }
+.icon--leave { background-image: url("Icons/leave.png"); }
+.icon--menu { background-image: url("Icons/menu.png"); }
+.icon--paw { background-image: url("Icons/paw.png"); }
+.icon--raise { background-image: url("Icons/raise.png"); }
+.icon--rebuy { background-image: url("Icons/rebuy.png"); }
+.icon--rules { background-image: url("Icons/rules.png"); }
+.icon--send { background-image: url("Icons/send.png"); }
+.icon--settings { background-image: url("Icons/settings.png"); }
+.icon--sitout { background-image: url("Icons/sitout.png"); }
+.icon--spin { background-image: url("Icons/spin.png"); }
+.icon--split { background-image: url("Icons/split.png"); }
+.icon--stand { background-image: url("Icons/stand.png"); }
+.icon--view-overhead { background-image: url("Icons/view-overhead.png"); }
+.icon--view-seat { background-image: url("Icons/view-seat.png"); }
+.icon--view-wide { background-image: url("Icons/view-wide.png"); }
+.icon--wine { background-image: url("Icons/wine.png"); }
