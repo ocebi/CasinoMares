@@ -3,6 +3,7 @@
     <!-- The root is the look/move surface: it only gets touches that nothing above it wants. -->
     <ui:VisualElement name="touch-root" class="screen hidden">
         <ui:VisualElement name="stick" class="touch-stick" picking-mode="Ignore">
+            <ui:VisualElement name="stick-ring" class="touch-stick-ring" picking-mode="Ignore" />
             <ui:VisualElement name="stick-knob" class="touch-stick-knob" picking-mode="Ignore" />
         </ui:VisualElement>
         <ui:VisualElement name="walk-buttons" class="screen" picking-mode="Ignore">

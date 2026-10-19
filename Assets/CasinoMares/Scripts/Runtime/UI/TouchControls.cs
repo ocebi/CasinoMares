@@ -8,7 +8,7 @@ namespace CasinoMares.UI
 {
     /// <summary>
     /// On-screen controls for phones and tablets (<see cref="Platform.IsTouch"/>). A finger on the left part of the
-    /// screen grabs a joystick where it lands (push it to the rim to run); a finger anywhere else drags the camera,
+    /// screen grabs a joystick where it lands (a gentle push walks slowly, past the ring runs); a finger anywhere else drags the camera,
     /// also while seated. Buttons for jump, paw swipe and emotes, plus menu, chat and leaderboard pills. Everything is
     /// fed into <see cref="GameInput"/>, so gameplay code reads touch and keyboard the same way.
     ///
@@ -29,9 +29,14 @@ namespace CasinoMares.UI
 
         /// <summary>The joystick takes fingers that land on this share of the screen, from the left.</summary>
         const float StickZone = 0.42f;
-        const float StickRadius = 78f;
+        /// <summary>UI pixels from the stick's centre to a full push (UX §1.7).</summary>
+        const float StickRadius = 96f;
+        /// <summary>Share of the radius below which the stick reads as nothing; the same as <see cref="CatMotion.SlowWalkInput"/>.</summary>
         const float StickDeadzone = 0.15f;
-        const float StickRunShare = 0.85f;
+        /// <summary>Share of the radius (the ring) from which the stick runs; the same as <see cref="CatMotion.FullWalkInput"/>.</summary>
+        const float StickRunShare = 0.9f;
+        const string StickRunClass = "touch-stick--run";
+        const string KnobRunClass = "touch-stick-knob--run";
 
         /// <summary>Converts a drag in UI pixels into mouse counts, so the look sensitivity setting applies to both.</summary>
         const float LookPerUiPixel = 1.6f;
@@ -264,7 +269,8 @@ namespace CasinoMares.UI
             var share = offset.magnitude / StickRadius;
             var move = share < StickDeadzone ? Vector2.zero : new Vector2(offset.x, -offset.y) / StickRadius;
             var run = share >= StickRunShare;
-            _knob.EnableInClassList("touch-stick-knob--run", run);
+            _knob.EnableInClassList(KnobRunClass, run);
+            _stick.EnableInClassList(StickRunClass, run);
             GameInput.SetTouchMove(move, run);
         }
 
@@ -281,7 +287,8 @@ namespace CasinoMares.UI
             _stick.style.bottom = StyleKeyword.Null;
             _stick.RemoveFromClassList("touch-stick--active");
             _knob.style.translate = new Translate(0, 0);
-            _knob.RemoveFromClassList("touch-stick-knob--run");
+            _knob.RemoveFromClassList(KnobRunClass);
+            _stick.RemoveFromClassList(StickRunClass);
             GameInput.SetTouchMove(Vector2.zero, false);
         }
 

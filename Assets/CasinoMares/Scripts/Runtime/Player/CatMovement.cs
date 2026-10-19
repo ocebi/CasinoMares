@@ -59,6 +59,7 @@ namespace CasinoMares.Player
         void Awake()
         {
             _character = GetComponent<NetworkCharacterController>();
+            _character.rotationSpeed = CatMotion.TurnSharpness;
         }
 
         public override void Spawned()
@@ -97,7 +98,7 @@ namespace CasinoMares.Player
             }
 
             var input = GameInput.ReadMove();
-            _character.maxSpeed = GameInput.IsSprinting() ? CatMotion.RunSpeed : CatMotion.WalkSpeed;
+            _character.maxSpeed = MaxSpeedFor(input.magnitude, GameInput.IsSprinting());
 
             // Floaty cat jumps: full gravity on the way up, gentler on the way down.
             _character.gravity = _character.Grounded || _character.Velocity.y > 0f ? CatMotion.RiseGravity : CatMotion.FallGravity;
@@ -119,6 +120,18 @@ namespace CasinoMares.Player
                 velocity.y = -CatMotion.MaxFallSpeed;
                 _character.Velocity = velocity;
             }
+        }
+
+        /// <summary>
+        /// The controller normalizes the direction, so the push's length has to become the speed cap: a gentle
+        /// joystick push walks slowly, a full one trots, a key (always 1) trots, Shift or the stick's rim runs.
+        /// </summary>
+        static float MaxSpeedFor(float magnitude, bool sprinting)
+        {
+            if (sprinting)
+                return CatMotion.RunSpeed;
+            var push = Mathf.InverseLerp(CatMotion.SlowWalkInput, CatMotion.FullWalkInput, magnitude);
+            return Mathf.Lerp(CatMotion.SlowWalkSpeed, CatMotion.WalkSpeed, push);
         }
 
         static Vector3 CameraRelative(Vector2 input)
