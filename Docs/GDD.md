@@ -739,10 +739,10 @@ and the floating cards.
 
 ### 13.1 Roulette
 - **European single-zero** wheel (0-36), no en prison or la partage.
-- **The table is a cat head** seen from above, like the game's icon (`CasinoSceneBuilder.RouletteCatHead`): a
-  rounded felt head in a wooden rim, two raised ears at the back, gold almond eyes with slit pupils, a
-  gold nose and three gold whiskers a side. The wheel stays at the east end, and the footprint,
-  colliders and NavMesh are the same as the old rectangular table.
+- **The wheel is a cat head** (`CasinoSceneBuilder.RouletteCatHead`): two triangular wooden ears rise
+  from the round rim of the wheel's bowl on the croupier's side (40° either side of centre, 20 cm tall,
+  leaning back 15°), so from the seats the wheel reads as a cat's head. The table top is the plain
+  rectangular felt and rim; the ears have no collider, so the colliders and NavMesh are unchanged.
 - 6 stools and a croupier cat. There's one shared betting window (15/20/30/45 s, or shorter if
   everyone presses Ready). Then the wheel spins for 7.5 s and the ball lands in the networked result.
 - **The wheel** is modelled, not painted flat: a wooden bowl with a ball track, a sloped apron with

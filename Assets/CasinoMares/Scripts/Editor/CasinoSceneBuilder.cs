@@ -1949,11 +1949,11 @@ namespace CasinoMares.Editor
             Box("Base", t, new Vector3(0f, 0.25f, 0f), new Vector3(2.3f, 0.5f, 0.8f), m.DarkWood);
             Box("Rim", t, new Vector3(0f, 0.53f, 0f), new Vector3(2.9f, 0.04f, 1.4f), m.Wood, collider: false);
             Box("Felt", t, new Vector3(0f, 0.55f, 0f), new Vector3(2.8f, 0.04f, 1.3f), m.Felt);
-            BuildRouletteCatHead(t, m);
 
             // The wheel sits in a wooden bowl at the east end; the rotor spins, the ball is placed by the view. Bowl
             // and rotor meshes are lathed at runtime (RouletteWheelGeometry), with frets, diamonds and turret in brass.
             var wheelCenter = new Vector3(0.95f, feltTop, 0.1f);
+            BuildRouletteCatEars(t, wheelCenter, m);
             var bowl = new GameObject("WheelBowl");
             bowl.transform.SetParent(t, false);
             bowl.transform.localPosition = wheelCenter;
