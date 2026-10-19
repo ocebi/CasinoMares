@@ -45,7 +45,7 @@ namespace CasinoMares.Social
             if (!CanInteract(player))
                 return;
 
-            if (!ChipRewards.TryEarn(WelfareKey, WelfareAmount, WelfareCooldown, big: true))
+            if (!ChipRewards.TryEarn(WelfareKey, WelfareAmount, WelfareCooldown, big: true, countsForSession: false))
                 return;
             Toasts.Show($"The cashier slides you {WelfareAmount} chips. Good luck!");
             player.Announce($"{player.DisplayName} got a Cat Welfare refill (+{WelfareAmount}).");

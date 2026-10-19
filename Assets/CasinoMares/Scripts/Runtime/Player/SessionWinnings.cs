@@ -11,7 +11,8 @@ namespace CasinoMares.Player
     /// <summary>
     /// How far up the player is at the table or machine they're sitting at. The owner adds up its own results from
     /// every game while seated and starts over when it gets up. Networked so the master client's patrons can
-    /// gather around a winning streak and cheer each win (GDD §4.4).
+    /// gather around a winning streak and cheer each win (GDD §4.4). It also keeps the cat's whole-session net for
+    /// the leaderboard (<see cref="PlayerCat.SessionNet"/>): every result, seated or not, plus counted rewards.
     /// </summary>
     public class SessionWinnings : NetworkBehaviour
     {
@@ -22,10 +23,14 @@ namespace CasinoMares.Player
         [Networked] public int LastResult { get; set; }
         [Networked] public int ResultCount { get; set; }
 
+        PlayerCat _cat;
+
         public override void Spawned()
         {
             if (!HasStateAuthority)
                 return;
+            _cat = GetComponent<PlayerCat>();
+            ChipRewards.SessionEarned += AddToSession;
             SeatingController.LocalSeatChanged += OnSeatChanged;
             BlackjackTable.LocalRoundResult += OnBlackjack;
             RouletteTable.LocalRoundResult += OnRoulette;
@@ -37,6 +42,7 @@ namespace CasinoMares.Player
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
             SeatingController.LocalSeatChanged -= OnSeatChanged;
+            ChipRewards.SessionEarned -= AddToSession;
             BlackjackTable.LocalRoundResult -= OnBlackjack;
             RouletteTable.LocalRoundResult -= OnRoulette;
             BaccaratTable.LocalRoundResult -= OnBaccarat;
@@ -54,12 +60,19 @@ namespace CasinoMares.Player
 
         void Add(int net)
         {
+            AddToSession(net);
             // Hands still settling after the player got up don't count toward a new streak.
             if (Object == null || !Object.IsValid || SeatingController.LocalTable == null)
                 return;
             Amount += net;
             LastResult = net;
             ResultCount++;
+        }
+
+        void AddToSession(int net)
+        {
+            if (_cat != null && _cat.Object != null && _cat.Object.IsValid)
+                _cat.SessionNet += net;
         }
     }
 }

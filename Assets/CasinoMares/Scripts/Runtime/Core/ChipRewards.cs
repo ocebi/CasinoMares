@@ -19,8 +19,18 @@ namespace CasinoMares.Core
         /// </summary>
         public static event Action<int, bool, bool> Earned;
 
+        /// <summary>
+        /// Chips just earned that count toward the session leaderboard (GDD §7.4): paws, the cat wall, the tipsy bonus.
+        /// Charity (the Cat Welfare refill) doesn't.
+        /// </summary>
+        public static event Action<int> SessionEarned;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => Earned = null;
+        static void ResetStatics()
+        {
+            Earned = null;
+            SessionEarned = null;
+        }
 
         static long Now => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -43,9 +53,10 @@ namespace CasinoMares.Core
 
         /// <summary>
         /// Pays <paramref name="amount"/> chips and starts the cooldown of <paramref name="key"/>, unless it's still
-        /// cooling down. Returns whether it paid. A <paramref name="quiet"/> reward makes no sound.
+        /// cooling down. Returns whether it paid. A <paramref name="quiet"/> reward makes no sound; one that isn't
+        /// <paramref name="countsForSession"/> stays off the leaderboard.
         /// </summary>
-        public static bool TryEarn(string key, int amount, TimeSpan cooldown, bool big = false, bool quiet = false)
+        public static bool TryEarn(string key, int amount, TimeSpan cooldown, bool big = false, bool quiet = false, bool countsForSession = true)
         {
             if (SecondsLeft(key, cooldown) > 0)
                 return false;
@@ -57,6 +68,8 @@ namespace CasinoMares.Core
             // Saves the profile (cooldowns included) and updates the networked balance.
             ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
             Earned?.Invoke(amount, big, quiet);
+            if (countsForSession)
+                SessionEarned?.Invoke(amount);
             return true;
         }
 
@@ -67,6 +80,7 @@ namespace CasinoMares.Core
                 return;
             ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
             Earned?.Invoke(amount, big, false);
+            SessionEarned?.Invoke(amount);
         }
 
         /// <summary>

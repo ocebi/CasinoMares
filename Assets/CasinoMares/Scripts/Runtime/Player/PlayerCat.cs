@@ -35,6 +35,14 @@ namespace CasinoMares.Player
         [Networked]
         public int Balance { get; set; }
 
+        /// <summary>
+        /// Net chips earned since joining (GDD §7.4): every game's net result plus paw, cat-wall and tipsy-bonus
+        /// rewards, not the welfare refill. The owner adds them up (<see cref="SessionWinnings"/>); the leaderboard
+        /// ranks by it.
+        /// </summary>
+        [Networked]
+        public int SessionNet { get; set; }
+
         /// <summary>Set by the owner while sitting at a game table; drives the sit animation everywhere.</summary>
         [Networked]
         public NetworkBool IsSeated { get; set; }
