@@ -195,8 +195,8 @@ The hall is 22 × 14 m (as built):
   - In its south-east corner, open water to the east and south, is a 4 × 5.5 m stone pool, 1.2 m deep,
     the water 0.15 m below the deck.
   - Shallow steps at its north end, toward the terrace door, lead in and out.
-  - Two cat-sized sun loungers lie along the east railing beside it, with a fourth café table and a pool
-    bar (§4.3) at the south end.
+  - Two cat-sized sun loungers lie along its west edge, on the hall side south of the steps, facing
+    across the water; a fourth café table and a pool bar (§4.3) are at the south end.
   - Patrons never walk into it.
   - Stepping into the water makes a cat swim (the Swim state, plan §11.1): it floats at the surface,
     paddles slowly, and can't jump, sprint, emote or paw. Walking up the steps ends it. Other players
