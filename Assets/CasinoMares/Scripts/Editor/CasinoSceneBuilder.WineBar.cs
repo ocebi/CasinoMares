@@ -1,5 +1,7 @@
 using CasinoMares.Npc;
 using CasinoMares.Social;
+using Fusion;
+using Unity.Cinemachine;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -8,9 +10,10 @@ using UnityEngine.Rendering;
 namespace CasinoMares.Editor
 {
     /// <summary>
-    /// The wine bar (GDD §4.3): the networked <see cref="WineBar"/> on the bar's seat object, the generated wine glass
-    /// prefab, and the cat animator's Drink state. Hooked at the end of BuildBarSeats (sea scene only: the classic
-    /// hall has a bar but no stools you can sit on) and from BuildCatController.
+    /// The wine bars (GDD §4.3): the networked <see cref="WineBar"/> on a bar's seat object, the generated wine glass
+    /// prefab, and the cat animator's Drink state. <see cref="BuildWineBar"/> runs once per bar: from BuildBarSeats
+    /// for the hall's (sea scene only: the classic hall has a bar but no stools you can sit on), from BuildPoolBar for
+    /// the one by the pool. The Drink state is hooked from BuildCatController.
     /// </summary>
     public static partial class CasinoSceneBuilder
     {
@@ -24,26 +27,75 @@ namespace CasinoMares.Editor
         /// </summary>
         static readonly Vector3 WineSlideLane = new(-5.2f, BarCounterTop, 5.2f);
 
-        /// <summary>Adds the wine service to the bar seats (the "Bar Seats" TerraceTable under the hall's Bar).</summary>
-        static void BuildWineBar(Transform hall)
+        /// <summary>
+        /// The seats of one bar: one <see cref="TerraceTable"/> for the row (a master-client object under
+        /// <paramref name="parent"/>), and for each stool a seat anchor on its top, a little behind its centre and
+        /// facing the counter (<paramref name="facing"/>), its own orbiting camera kept on the guests' side, the
+        /// <see cref="TerraceSeat"/> prompt on the stool, and the patron spot that gives way to players.
+        /// </summary>
+        static TerraceTable BuildBarSeatRow(Transform parent, string name, string displayName, Transform[] stools, PatronSpot[] spots, Quaternion facing)
         {
-            var bar = hall.Find("Bar");
-            var seats = bar.Find("Bar Seats");
-            var table = seats.GetComponent<TerraceTable>();
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            MakeMasterClientObject(root.AddComponent<NetworkObject>());
+            var table = root.AddComponent<TerraceTable>();
+
+            var anchors = new Transform[stools.Length];
+            var cameras = new CinemachineCamera[stools.Length];
+            for (var i = 0; i < stools.Length; i++)
+            {
+                var stool = stools[i];
+                var top = new Vector3(stool.position.x, BarStoolHeight, stool.position.z) - facing * Vector3.forward * SeatBack;
+                anchors[i] = Child(root.transform, $"Seat_{i + 1}", root.transform.InverseTransformPoint(top),
+                    Quaternion.Inverse(root.transform.rotation) * facing);
+                var camera = TableOrbitCamera(anchors[i]);
+                var orbit = camera.GetComponent<CinemachineOrbitalFollow>();
+                orbit.Radius = 1.9f;
+                orbit.HorizontalAxis.Range = new Vector2(-100f, 100f);
+                orbit.HorizontalAxis.Wrap = false;
+                cameras[i] = camera;
+
+                var seat = stool.gameObject.AddComponent<TerraceSeat>();
+                SetFields(seat, ("_table", table));
+                SetInt(seat, "_seat", i);
+                SetFloat(seat, "_radius", 0.6f);
+                SetString(seat, "_prompt", "Sit at the bar");
+
+                SetFields(spots[i], ("_playerTable", table));
+                SetInt(spots[i], "_playerSeat", i);
+            }
+
+            SetString(table, "_displayName", displayName);
+            SetArray(table, "_seatAnchors", anchors);
+            SetArray(table, "_seatCameras", cameras);
+            return table;
+        }
+
+        /// <summary>
+        /// Adds the wine service to a bar's seat row: <paramref name="bartender"/> pours at <paramref name="pourPoint"/>
+        /// and slides glasses along the counter through <paramref name="slideLane"/>, which runs along the counter
+        /// (across <paramref name="facing"/>, the way the seated cats face). Each bar runs its own orders; every glass
+        /// counts toward the drinker's one DrinkCount. The bars share one <paramref name="glassPrefab"/>
+        /// (<see cref="BuildWineGlassPrefab"/>, made once per build).
+        /// </summary>
+        static void BuildWineBar(TerraceTable table, StaffCat bartender, Vector3 pourPoint, Vector3 slideLane, Quaternion facing, GameObject glassPrefab)
+        {
+            var seats = table.transform;
             SetBool(table, "_isBar", true);
 
-            var bartender = bar.Find("Bartender");
             var wineBar = seats.gameObject.AddComponent<WineBar>();
-            var pour = Child(seats, "PourPoint", seats.InverseTransformPoint(WinePourPoint));
-            var lane = Child(seats, "SlideLane", seats.InverseTransformPoint(WineSlideLane));
+            var pour = Child(seats, "PourPoint", seats.InverseTransformPoint(pourPoint));
+            var lane = Child(seats, "SlideLane", seats.InverseTransformPoint(slideLane), Quaternion.Inverse(seats.rotation) * facing);
             SetFields(wineBar,
                 ("_table", table),
-                ("_bartender", bartender.GetComponent<StaffCat>()),
+                ("_bartender", bartender),
                 ("_bartenderVisual", bartender.GetComponent<NpcCatVisual>()),
-                ("_glassPrefab", BuildWineGlassPrefab()),
+                ("_glassPrefab", glassPrefab),
                 ("_pourPoint", pour),
                 ("_slideLane", lane));
         }
+
+
 
         /// <summary>
         /// A stemmed glass from primitives: base disc, stem and bowl in the props' glass material, and a "Wine"

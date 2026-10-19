@@ -192,7 +192,7 @@ The hall is 22 × 14 m (as built):
 - Seaside scene only: the terrace outside the east door runs 8 m further out to sea than at first, with
   the glass railing round the new edge. In its corner toward the islands and the sunset is a 6 × 4 m
   stone pool, 1.2 m deep, the water 0.15 m below the deck. Shallow steps at the hall end lead in and out.
-  Two sun loungers and a fourth café table stand beside it. Patrons never walk into it.
+  Two sun loungers, a fourth café table and a pool bar (§4.3) stand beside it. Patrons never walk into it.
   - Stepping into the water makes a cat swim (the Swim state, plan §11.1): it floats at the surface,
     paddles slowly, and can't jump, sprint, emote or paw. Walking up the steps ends it. Other players
     see it swim.
@@ -211,6 +211,10 @@ The hall is 22 × 14 m (as built):
   doesn't ride on the cat), then the empty glass sits on the
   counter for a second and the seat can order again at once (three glasses in about 25 s). A glass
   belongs to the cat that ordered it; if that cat leaves the stool, the glass is cleared. Chat line: "<name> ordered a glass of wine."
+- **Pool bartender cat** (sea scene): a second bar by the pool, along the terrace's east railing, with
+  three stools on the pool side, so seated cats look across the counter at the sea and the sunset. It has
+  its own bartender and serves wine exactly like the hall bar, with its own orders. Its glasses count
+  toward the same `DrinkCount`, so drinks at both bars add up.
 - **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
   (networked, not saved: a reload sobers you). At **3** glasses the cat is drunk: everyone sees a slow
   sway of the model (roll ±4°, yaw ±3° at 0.7 Hz, a fifth stronger per extra glass up to 5), the chat

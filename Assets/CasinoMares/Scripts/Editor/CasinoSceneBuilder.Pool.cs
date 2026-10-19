@@ -89,8 +89,8 @@ namespace CasinoMares.Editor
             NotWalkable(pool.gameObject);
 
             var pad = Lit("Sea_LoungerPad", new Color(0.9f, 0.93f, 0.95f), 0.1f);
-            Lounger(terrace, "Lounger_1", new Vector3(PoolWest + 3.9f, 0f, PoolSouth - 1.05f), teak, pad);
-            Lounger(terrace, "Lounger_2", new Vector3(PoolWest + 3.9f, 0f, PoolSouth - 2.05f), teak, pad);
+            Lounger(terrace, "Lounger_1", new Vector3(PoolWest + 3f, 0f, PoolSouth - 1.05f), teak, pad);
+            Lounger(terrace, "Lounger_2", new Vector3(PoolWest + 3f, 0f, PoolSouth - 2.05f), teak, pad);
         }
 
         /// <summary>

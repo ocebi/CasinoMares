@@ -445,6 +445,7 @@ namespace CasinoMares.Editor
             BuildTerraceFurniture(terrace, m, teak);
             BuildPool(terrace, stone, teak);
             BuildBarSeats(hall);
+            BuildPoolBar(terrace, stone, teak);
             BuildCatWall(hall, m, teak);
 
             var hud = CreateDocument("UI_Terrace", "Terrace.uxml", Load<PanelSettings>(PanelSettingsPath), 6);
@@ -1255,8 +1256,9 @@ namespace CasinoMares.Editor
 
             // Patrons also come out to sit at the railing and look at the sea. Sitting, not standing: a standing cat plays
             // idle emotes, and the meow and groom ones sit it down and stand it up again.
-            AddPatronSpot(spots, "Terrace_Rail_East_A", new Vector3(DeckEast - 0.8f, 0f, 0.9f), 90f, true, new Vector2(10f, 25f));
-            AddPatronSpot(spots, "Terrace_Rail_East_B", new Vector3(DeckEast - 0.8f, 0f, -0.5f), 90f, true, new Vector2(10f, 25f));
+            // The east railing is the pool bar's (CasinoSceneBuilder.PoolBar.cs), so they sit at the south one.
+            AddPatronSpot(spots, "Terrace_Rail_South_A", new Vector3(21.6f, 0f, TerraceSouth + 0.6f), 180f, true, new Vector2(10f, 25f));
+            AddPatronSpot(spots, "Terrace_Rail_South_B", new Vector3(23f, 0f, TerraceSouth + 0.6f), 180f, true, new Vector2(10f, 25f));
 
             var pot = Lit("Sea_Terracotta", new Color(0.72f, 0.38f, 0.24f), 0.15f);
             var soil = Lit("Sea_Soil", new Color(0.18f, 0.12f, 0.08f), 0.05f);
@@ -1289,41 +1291,17 @@ namespace CasinoMares.Editor
         {
             var bar = hall.Find("Bar");
             var spots = GameObject.Find(PatronSpotsName).transform;
-            var root = new GameObject("Bar Seats");
-            root.transform.SetParent(bar, false);
-            MakeMasterClientObject(root.AddComponent<NetworkObject>());
-            var table = root.AddComponent<TerraceTable>();
-
-            var anchors = new Transform[BarStools];
-            var cameras = new CinemachineCamera[BarStools];
+            var stools = new Transform[BarStools];
+            var stoolSpots = new PatronSpot[BarStools];
             for (var i = 0; i < BarStools; i++)
             {
-                var stool = bar.Find($"BarStool_{i + 1}");
-                // Facing the counter (+Z), like the patrons who sit here, and a little behind the stool's centre.
-                var top = new Vector3(stool.position.x, BarStoolHeight, stool.position.z - SeatBack);
-                anchors[i] = Child(root.transform, $"Seat_{i + 1}", root.transform.InverseTransformPoint(top));
-                var camera = TableOrbitCamera(anchors[i]);
-                var orbit = camera.GetComponent<CinemachineOrbitalFollow>();
-                orbit.Radius = 1.9f;
-                orbit.HorizontalAxis.Range = new Vector2(-100f, 100f);
-                orbit.HorizontalAxis.Wrap = false;
-                cameras[i] = camera;
-
-                var seat = stool.gameObject.AddComponent<TerraceSeat>();
-                SetFields(seat, ("_table", table));
-                SetInt(seat, "_seat", i);
-                SetFloat(seat, "_radius", 0.6f);
-                SetString(seat, "_prompt", "Sit at the bar");
-
-                var spot = spots.Find($"BarStool_{i + 1}").GetComponent<PatronSpot>();
-                SetFields(spot, ("_playerTable", table));
-                SetInt(spot, "_playerSeat", i);
+                stools[i] = bar.Find($"BarStool_{i + 1}");
+                stoolSpots[i] = spots.Find($"BarStool_{i + 1}").GetComponent<PatronSpot>();
             }
 
-            SetString(table, "_displayName", "Bar");
-            SetArray(table, "_seatAnchors", anchors);
-            SetArray(table, "_seatCameras", cameras);
-            BuildWineBar(hall);
+            // Facing the counter (+Z), like the patrons who sit here.
+            var table = BuildBarSeatRow(bar, "Bar Seats", "Bar", stools, stoolSpots, Quaternion.identity);
+            BuildWineBar(table, bar.Find("Bartender").GetComponent<StaffCat>(), WinePourPoint, WineSlideLane, Quaternion.identity, BuildWineGlassPrefab());
         }
 
         static CinemachineCamera TableOrbitCamera(Transform table)

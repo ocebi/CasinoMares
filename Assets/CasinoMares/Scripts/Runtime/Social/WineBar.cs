@@ -25,7 +25,8 @@ namespace CasinoMares.Social
     /// id and the tick it was accepted; every client plays the whole sequence from the tick, so late joiners see the
     /// same glass in the same place. The orderer pays locally when it first sees its order accepted (trusted client,
     /// like bets), so a refused request costs nothing. A glass belongs to the cat that ordered it: if that cat leaves
-    /// the stool, the glass is cleared and the stool is free for the next cat.
+    /// the stool, the glass is cleared and the stool is free for the next cat. Each bar (the hall's, the pool's) is its
+    /// own instance with its own orders; only the drinker's DrinkCount is shared.
     /// </summary>
     public class WineBar : NetworkBehaviour
     {
@@ -66,7 +67,7 @@ namespace CasinoMares.Social
         [SerializeField] GameObject _glassPrefab;
         [Tooltip("Where a fresh glass appears on the counter, in front of the bartender.")]
         [SerializeField] Transform _pourPoint;
-        [Tooltip("A point on the counter top: glasses slide along its height and depth to the stool's x.")]
+        [Tooltip("A point on the counter top, its right axis along the counter: glasses slide down that line to the stool.")]
         [SerializeField] Transform _slideLane;
 
         /// <summary>Per seat: a counter that changes on every accepted order (0 = never ordered), and when it was accepted.</summary>
@@ -309,7 +310,9 @@ namespace CasinoMares.Social
                 glass.gameObject.SetActive(true);
 
             var anchor = _table.GetSeatAnchor(seat);
-            var counterSpot = new Vector3(anchor.position.x, _slideLane.position.y, _slideLane.position.z);
+            // Level with the stool along the lane (the hall's runs along x; the pool bar's along z).
+            var laneRight = _slideLane.right;
+            var counterSpot = _slideLane.position + laneRight * Vector3.Dot(anchor.position - _slideLane.position, laneRight);
             var flatForward = Vector3.ProjectOnPlane(anchor.forward, Vector3.up).normalized;
             var drinkSpot = anchor.position + flatForward * DrinkForward;
             drinkSpot.y = _slideLane.position.y;
