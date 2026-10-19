@@ -16,8 +16,9 @@ namespace CasinoMares.Rules.Tests
         }
 
         [TestCase(SlotRules.Seven, SlotRules.Seven, SlotRules.Seven, 120)]
-        [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 7)]
-        [TestCase(SlotRules.Paw, SlotRules.Paw, SlotRules.Paw, 50)]
+        [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 6)]
+        [TestCase(SlotRules.Paw, SlotRules.Paw, SlotRules.Paw, 24)]
+        [TestCase(SlotRules.Mouse, SlotRules.Mouse, SlotRules.Mouse, 50)]
         [TestCase(SlotRules.Paw, SlotRules.Fish, SlotRules.Paw, 4)]
         [TestCase(SlotRules.Milk, SlotRules.Paw, SlotRules.Yarn, 1)]
         [TestCase(SlotRules.Milk, SlotRules.Fish, SlotRules.Yarn, 0)]
@@ -40,7 +41,18 @@ namespace CasinoMares.Rules.Tests
                 expected += p * SlotRules.Multiplier(a, b, c);
             }
 
-            Assert.That(expected, Is.InRange(0.9, 1.0), $"RTP was {expected:P1}");
+            Assert.That(expected, Is.InRange(0.92, 0.96), $"RTP was {expected:P1}");
+        }
+
+        [Test]
+        public void RarerSymbolsPayMore()
+        {
+            for (var a = 0; a < SlotRules.SymbolCount; a++)
+            for (var b = 0; b < SlotRules.SymbolCount; b++)
+            {
+                if (SlotRules.Weights[a] < SlotRules.Weights[b])
+                    Assert.Greater(SlotRules.ThreeOfAKind[a], SlotRules.ThreeOfAKind[b], $"{SlotRules.Names[a]} vs {SlotRules.Names[b]}");
+            }
         }
 
         [Test]

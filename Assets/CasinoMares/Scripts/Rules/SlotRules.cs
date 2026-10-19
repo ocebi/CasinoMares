@@ -14,7 +14,7 @@ namespace CasinoMares.Rules
 
     /// <summary>
     /// Three-reel cat slot machine (GDD §13.3). Reels are weighted; three of a kind pays by symbol, and paws pay on
-    /// their own (one paw hands the bet back, two pay four times). Return to player is about 94.7%.
+    /// their own (one paw hands the bet back, two pay four times). Return to player is about 94.2%.
     /// </summary>
     public static class SlotRules
     {
@@ -34,8 +34,8 @@ namespace CasinoMares.Rules
         /// <summary>Relative frequency of each symbol on a reel.</summary>
         public static readonly int[] Weights = { 36, 24, 14, 8, 10, 4 };
 
-        /// <summary>Multiplier (stake included) for three of a kind.</summary>
-        public static readonly int[] ThreeOfAKind = { 7, 6, 12, 24, 50, 120 };
+        /// <summary>Multiplier (stake included) for three of a kind: the rarer the symbol on the reels, the more it pays.</summary>
+        public static readonly int[] ThreeOfAKind = { 6, 10, 12, 50, 24, 120 };
 
         public const int OnePaw = 1;
         public const int TwoPaws = 4;
