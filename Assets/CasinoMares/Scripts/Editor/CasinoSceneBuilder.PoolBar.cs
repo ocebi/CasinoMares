@@ -35,14 +35,16 @@ namespace CasinoMares.Editor
             var facing = Quaternion.Euler(0f, PoolBarYaw, 0f);
             var bar = Child(terrace, "Pool Bar", PoolBarStools, facing);
 
-            Box("Counter", bar, new Vector3(0f, 0.4f, PoolBarCounterMiddle), new Vector3(PoolBarCounterLength, 0.8f, PoolBarCounterDepth), teak);
-            Box("CounterTop", bar, new Vector3(0f, BarCounterTop - 0.025f, PoolBarTopMiddle), new Vector3(PoolBarCounterLength + 0.2f, 0.05f, PoolBarTopDepth), stone);
+            Box("Counter", bar, new Vector3(0f, BarCounterBodyHeight / 2f, PoolBarCounterMiddle), new Vector3(PoolBarCounterLength, BarCounterBodyHeight, PoolBarCounterDepth), teak);
+            Box("CounterTop", bar, new Vector3(0f, BarCounterTop - BarCounterTopThickness / 2f, PoolBarTopMiddle),
+                new Vector3(PoolBarCounterLength + 0.2f, BarCounterTopThickness, PoolBarTopDepth), stone);
             Box("BartenderStep", bar, new Vector3(0f, PoolBarStepHeight / 2f, PoolBarBartender), new Vector3(1.2f, PoolBarStepHeight, 0.6f), teak);
             // Side panels from the counter's back to the railing, so nobody walks round behind the bartender.
             var back = PoolBarCounterMiddle + PoolBarCounterDepth / 2f;
             const float behind = 0.65f;
             foreach (var side in new[] { -1f, 1f })
-                Box("Side", bar, new Vector3(side * (PoolBarCounterLength / 2f - 0.05f), 0.4f, back + behind / 2f), new Vector3(0.1f, 0.8f, behind), teak);
+                Box("Side", bar, new Vector3(side * (PoolBarCounterLength / 2f - 0.05f), BarCounterBodyHeight / 2f, back + behind / 2f),
+                    new Vector3(0.1f, BarCounterBodyHeight, behind), teak);
 
             var spots = GameObject.Find(PatronSpotsName).transform;
             var stools = new Transform[PoolBarStoolCount];

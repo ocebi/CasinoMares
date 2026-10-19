@@ -18,8 +18,15 @@ namespace CasinoMares.Editor
     public static partial class CasinoSceneBuilder
     {
         const string WineGlassPrefabPath = Root + "/Prefabs/WineGlass.prefab";
-        /// <summary>The bar counter's top surface (see BuildBar) and where glasses are poured and slide.</summary>
-        const float BarCounterTop = 0.845f;
+        /// <summary>
+        /// The bar counters' top surface (BuildBar, BuildPoolBar), where glasses are poured, slide and stand, and the
+        /// props on the hall bar rest. Low enough for a cat seated on a stool (BarStoolHeight, 0.4 m; the cat is about
+        /// 0.58 m tall) that its chin is about level with the top and its head and shoulders are above it.
+        /// </summary>
+        const float BarCounterTop = 0.72f;
+        /// <summary>The solid top slab on each counter, and the counter body under it (overlapping it a little).</summary>
+        const float BarCounterTopThickness = 0.05f;
+        const float BarCounterBodyHeight = BarCounterTop - 0.045f;
         static readonly Vector3 WinePourPoint = new(-5.2f, BarCounterTop, 5.45f);
         /// <summary>
         /// Glasses slide down the middle of the counter top rather than its front edge (z 4.95), where the knockable

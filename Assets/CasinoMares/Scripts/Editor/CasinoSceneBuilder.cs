@@ -1734,7 +1734,6 @@ namespace CasinoMares.Editor
         {
             var root = new GameObject("Props").transform;
             const float felt = 0.57f;
-            const float barTop = 0.845f;
             var props = new List<(PropKind kind, Vector3 position, int variant)>
             {
                 (PropKind.Glass, new Vector3(-3.6f - 1.0f, felt, 0.8f + 0.3f), 0),
@@ -1745,11 +1744,11 @@ namespace CasinoMares.Editor
                 (PropKind.Glass, new Vector3(-0.4f + 1.05f, felt, -3.4f + 0.4f), 0),
                 (PropKind.Glass, new Vector3(-7.9f + 1.1f, felt, -0.9f + 0.45f), 0),
                 (PropKind.Mug, new Vector3(-7.9f - 1.1f, felt, -0.9f + 0.45f), 0),
-                (PropKind.Glass, new Vector3(-7.2f, barTop, 4.95f), 0),
-                (PropKind.Glass, new Vector3(-6.1f, barTop, 4.95f), 0),
-                (PropKind.Bottle, new Vector3(-5.0f, barTop, 5.0f), 0),
-                (PropKind.Glass, new Vector3(-4.3f, barTop, 4.95f), 0),
-                (PropKind.Glass, new Vector3(-3.3f, barTop, 4.95f), 0),
+                (PropKind.Glass, new Vector3(-7.2f, BarCounterTop, 4.95f), 0),
+                (PropKind.Glass, new Vector3(-6.1f, BarCounterTop, 4.95f), 0),
+                (PropKind.Bottle, new Vector3(-5.0f, BarCounterTop, 5.0f), 0),
+                (PropKind.Glass, new Vector3(-4.3f, BarCounterTop, 4.95f), 0),
+                (PropKind.Glass, new Vector3(-3.3f, BarCounterTop, 4.95f), 0),
                 (PropKind.Mug, new Vector3(7.25f, 0.4f, 0.5f), 0),
                 (PropKind.Yarn, new Vector3(7.6f, 0.4f, 0.8f), 0),
                 (PropKind.Glass, new Vector3(-5.0f, 0.74f, -5.0f), 0),
@@ -2429,9 +2428,9 @@ namespace CasinoMares.Editor
         {
             var bar = new GameObject("Bar").transform;
             bar.SetParent(hall, false);
-            Box("Counter", bar, new Vector3(-5.2f, 0.4f, 5.3f), new Vector3(5f, 0.8f, 0.8f), m.Wood);
+            Box("Counter", bar, new Vector3(-5.2f, BarCounterBodyHeight / 2f, 5.3f), new Vector3(5f, BarCounterBodyHeight, 0.8f), m.Wood);
             // Solid tops so props (and cats that jump up) rest on the visible surface.
-            Box("CounterTop", bar, new Vector3(-5.2f, 0.82f, 5.25f), new Vector3(5.2f, 0.05f, 0.95f), m.DarkWood);
+            Box("CounterTop", bar, new Vector3(-5.2f, BarCounterTop - BarCounterTopThickness / 2f, 5.25f), new Vector3(5.2f, BarCounterTopThickness, 0.95f), m.DarkWood);
             Box("BackShelf", bar, new Vector3(-5.2f, 1.4f, 6.65f), new Vector3(5f, 1.6f, 0.4f), m.DarkWood);
             Box("BartenderStep", bar, new Vector3(-5.2f, 0.25f, 6.0f), new Vector3(1.2f, 0.5f, 0.6f), m.DarkWood);
             BuildBarShelf(bar, m);
