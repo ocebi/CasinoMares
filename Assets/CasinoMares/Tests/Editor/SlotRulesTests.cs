@@ -19,7 +19,7 @@ namespace CasinoMares.Rules.Tests
         [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 6)]
         [TestCase(SlotRules.Paw, SlotRules.Paw, SlotRules.Paw, 24)]
         [TestCase(SlotRules.Mouse, SlotRules.Mouse, SlotRules.Mouse, 50)]
-        [TestCase(SlotRules.Paw, SlotRules.Fish, SlotRules.Paw, 4)]
+        [TestCase(SlotRules.Paw, SlotRules.Fish, SlotRules.Paw, 3)]
         [TestCase(SlotRules.Milk, SlotRules.Paw, SlotRules.Yarn, 1)]
         [TestCase(SlotRules.Milk, SlotRules.Fish, SlotRules.Yarn, 0)]
         public void Multipliers(int a, int b, int c, int expected)
@@ -41,7 +41,7 @@ namespace CasinoMares.Rules.Tests
                 expected += p * SlotRules.Multiplier(a, b, c);
             }
 
-            Assert.That(expected, Is.InRange(0.955, 0.97), $"RTP was {expected:P1}");
+            Assert.That(expected, Is.InRange(0.955, 0.98), $"RTP was {expected:P1}");
         }
 
         [Test]
