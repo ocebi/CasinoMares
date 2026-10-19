@@ -2,28 +2,42 @@ using CasinoMares.Core;
 using CasinoMares.Player;
 using CasinoMares.Social;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace CasinoMares.UI
 {
     /// <summary>
     /// Seated at a terrace table or on a bar stool there's no game UI, just Stand up (E). Phones need the button:
-    /// with no keyboard, it's the only way back up.
+    /// with no keyboard, it's the only way back up. At the bar there's also the wine order (UX §1.5): one button
+    /// whose text is its state ("Order wine · 20", "Pouring…", "Another in 12 s") and a readable glass count; Space
+    /// orders on desktop.
     /// </summary>
     public class TerraceHud : MonoBehaviour
     {
         [SerializeField] UIDocument _document;
 
         VisualElement _root;
+        VisualElement _barBottom;
+        Label _count;
+        Button _orderButton;
         TerraceTable _table;
+        WineBar _bar;
         int _seat;
+        string _orderText;
+        bool _orderReady;
+        int _shownDrinks = -1;
 
         void OnEnable()
         {
             var ui = _document.rootVisualElement;
             UiSounds.Attach(ui);
             _root = ui.Q("terrace-root");
+            _barBottom = ui.Q("bar-bottom");
+            _count = ui.Q<Label>("bar-count");
+            _orderButton = ui.Q<Button>("order-button");
             ui.Q<Button>("leave-button").clicked += () => _table?.RequestLeave(_seat);
+            _orderButton.clicked += Order;
             SeatingController.LocalSeatChanged += OnLocalSeatChanged;
             OnLocalSeatChanged(SeatingController.LocalTable, SeatingController.LocalSeat);
         }
@@ -34,7 +48,64 @@ namespace CasinoMares.UI
         {
             _table = table as TerraceTable;
             _seat = seat;
+            _bar = _table != null && _table.IsBar ? _table.GetComponent<WineBar>() : null;
             _root.EnableInClassList("hidden", _table == null);
+            _barBottom.EnableInClassList("hidden", _bar == null);
+            _shownDrinks = -1;
+            _orderText = null;
+        }
+
+        void Update()
+        {
+            if (_bar == null)
+                return;
+            UpdateOrderButton();
+            UpdateCount();
+            if (_orderReady && GameInput.KeyPressed(Key.Space))
+                Order();
+        }
+
+        void Order() => _bar?.RequestOrder(_seat);
+
+        /// <summary>One element, its text the state; only written when the text (or the countdown second) changes.</summary>
+        void UpdateOrderButton()
+        {
+            var phase = _bar.PhaseAt(_seat, out var elapsed);
+            var ready = phase == WinePhase.Idle && !_bar.IsOrderPending(_seat);
+            var text = phase switch
+            {
+                WinePhase.Idle when ready => $"Order wine · {WineBar.WinePrice}" + KeyHints.For("Space"),
+                WinePhase.Idle => "Ordering…",
+                WinePhase.Pour => "Pouring…",
+                WinePhase.Paw or WinePhase.Slide => "Coming your way…",
+                WinePhase.Drink => "Drinking…",
+                _ => $"Another in {Mathf.CeilToInt(WineBar.EmptyEnd - elapsed)} s",
+            };
+
+            if (text == _orderText)
+                return;
+            _orderText = text;
+            _orderReady = ready;
+            _orderButton.text = text;
+            _orderButton.SetEnabled(ready);
+            _orderButton.EnableInClassList("bj-button--wait", !ready);
+        }
+
+        void UpdateCount()
+        {
+            var cat = PlayerCat.Local;
+            var drinks = cat != null && cat.Object != null && cat.Object.IsValid ? cat.DrinkCount : 0;
+            if (drinks == _shownDrinks)
+                return;
+            _shownDrinks = drinks;
+            var tipsy = drinks >= PlayerCat.DrunkAt;
+            _count.text = drinks switch
+            {
+                0 => "No glasses yet",
+                1 => "1 glass",
+                _ => tipsy ? $"{drinks} glasses · tipsy" : $"{drinks} glasses",
+            };
+            _count.EnableInClassList("bar-count--tipsy", tipsy);
         }
     }
 }

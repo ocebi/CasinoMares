@@ -12,8 +12,9 @@ namespace CasinoMares.UI
 {
     /// <summary>
     /// The seated blackjack UI (GDD §8): chip buttons and Deal while betting, Hit/Stand/Double/Split on your turn,
-    /// a phase banner with the timer, table settings and Stand up. Keyboard: 1-5 chips, Backspace clear,
-    /// Space deal, then H hit, Space stand, X double, P split (WASD is left free for looking around the table).
+    /// a phase banner with the timer, table settings, a View button that cycles the table camera (GDD §3.5) and
+    /// Stand up. Keyboard: 1-5 chips, Backspace clear, Space deal, then H hit, Space stand, X double, P split, V view
+    /// (WASD is left free for looking around the table).
     /// </summary>
     public class BlackjackHud : MonoBehaviour
     {
@@ -38,6 +39,7 @@ namespace CasinoMares.UI
         Button _turnTimerButton;
         Button _betTimerButton;
         Button _npcButton;
+        TableViewControl _views;
 
         BlackjackTable _table;
         BlackjackTable.Snapshot _shown;
@@ -67,6 +69,7 @@ namespace CasinoMares.UI
             _turnTimerButton = ui.Q<Button>("turn-timer-button");
             _betTimerButton = ui.Q<Button>("bet-timer-button");
             _npcButton = ui.Q<Button>("npc-button");
+            _views = new TableViewControl(ui);
 
             var chipRow = ui.Q("chip-row");
             chipRow.Clear();
@@ -112,6 +115,7 @@ namespace CasinoMares.UI
             _seat = _table != null ? seat : -1;
             _root.EnableInClassList("hidden", _table == null);
             _settingsPanel.AddToClassList("hidden");
+            _views.OnSeated(_table != null);
         }
 
         void OnLocalRoundResult(BlackjackTable table, int net)
@@ -127,6 +131,8 @@ namespace CasinoMares.UI
 
         void Update()
         {
+            if (_table != null)
+                _views.Update();
             if (_table == null || _table.Object == null || !_table.Object.IsValid)
                 return;
 
@@ -168,8 +174,9 @@ namespace CasinoMares.UI
                     ? _table.PendingBetAt(_seat) > 0 ? "Bet locked. Waiting for the others..." : "Sitting this round out"
                     : $"Place your bet ({BlackjackRules.MinBet}-{BlackjackRules.MaxBet})",
                 BlackjackPhase.Dealing => "Dealing...",
+                // A tipsy player's label shows two totals (TableOverlay), so the banner keeps the real one to itself.
                 BlackjackPhase.PlayerTurns => myTurn
-                    ? $"Your turn: {_shown.EvaluateHand(_seat, _shown.ActiveHand)}" + (_shown.HandCountAt(_seat) > 1 ? $" (hand {_shown.ActiveHand + 1})" : "")
+                    ? (PlayerCat.LocalIsDrunk ? "Your turn" : $"Your turn: {_shown.EvaluateHand(_seat, _shown.ActiveHand)}") + (_shown.HandCountAt(_seat) > 1 ? $" (hand {_shown.ActiveHand + 1})" : "")
                     : $"{TurnName()}'s turn",
                 BlackjackPhase.DealerTurn => $"Dealer's turn: {_shown.EvaluateDealerVisible()}",
                 BlackjackPhase.Settlement => SettlementText(),

@@ -1,6 +1,13 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <Style src="Common.uss" />
     <ui:VisualElement name="terrace-root" class="screen hidden" picking-mode="Ignore">
+        <!-- Only at the bar (TerraceTable.IsBar): the wine order and how many glasses you've had. -->
+        <ui:VisualElement name="bar-bottom" class="bj-bottom hidden" picking-mode="Ignore">
+            <ui:VisualElement name="bar-panel" class="bj-panel">
+                <ui:Label name="bar-count" text="No glasses yet" class="bar-count" picking-mode="Ignore" />
+                <ui:Button name="order-button" text="Order wine · 20 (Space)" class="bj-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
         <ui:VisualElement class="bj-corner">
             <ui:Button name="leave-button" text="Stand up (E)" class="bj-button bj-button--secondary" />
         </ui:VisualElement>

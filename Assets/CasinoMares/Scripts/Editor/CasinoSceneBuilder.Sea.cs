@@ -1305,6 +1305,7 @@ namespace CasinoMares.Editor
             SetString(table, "_displayName", "Bar");
             SetArray(table, "_seatAnchors", anchors);
             SetArray(table, "_seatCameras", cameras);
+            BuildWineBar(hall);
         }
 
         static CinemachineCamera TableOrbitCamera(Transform table)

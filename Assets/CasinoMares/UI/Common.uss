@@ -8,6 +8,7 @@
     --cm-text: rgb(245, 236, 222);
     --cm-text-dim: rgb(190, 176, 160);
     --cm-danger: rgb(222, 104, 96);
+    --cm-wine: rgb(140, 28, 56);
     -unity-font-style: normal;
     color: var(--cm-text);
 }
@@ -184,6 +185,38 @@
 .balance-gain--big {
     top: 2px;
     font-size: 30px;
+}
+
+/* Glasses of wine beside the balance (UX §1.1): a pip per glass, "Tipsy" from the third. */
+.drink-row {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 12px;
+    padding-left: 10px;
+    border-left-width: 1px;
+    border-color: rgba(120, 84, 52, 0.8);
+}
+
+.drink-pips {
+    flex-direction: row;
+    align-items: center;
+}
+
+.drink-pip {
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    margin-left: 4px;
+    background-color: var(--cm-wine);
+    border-width: 1px;
+    border-color: rgba(232, 186, 98, 0.7);
+}
+
+.drink-label {
+    margin-left: 8px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
 }
 
 .hud-players {
@@ -518,11 +551,53 @@
     background-color: rgba(255, 255, 255, 0.16);
 }
 
+/* The bar's Order button while busy (UX §1.5): it carries a countdown, so it stays readable when disabled. */
+.bj-button--wait {
+    color: var(--cm-text-dim);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--cm-border);
+}
+
+.bj-button--wait:disabled {
+    opacity: 0.9;
+}
+
+.bar-count {
+    min-width: 120px;
+    margin-right: 10px;
+    font-size: 16px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-right;
+}
+
+.bar-count--tipsy {
+    color: var(--cm-gold);
+    -unity-font-style: bold;
+}
+
 .bj-corner {
     position: absolute;
     right: 20px;
     bottom: 20px;
     flex-direction: row;
+}
+
+/* The table view's name, shown for a moment beside the View button when it changes (UX §1.4). */
+.bj-view-caption {
+    align-self: center;
+    margin-right: 6px;
+    padding: 4px 10px;
+    font-size: 15px;
+    color: var(--cm-text-dim);
+    border-radius: 8px;
+    background-color: var(--cm-bg-soft);
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.4s;
+}
+
+.bj-view-caption--show {
+    opacity: 1;
 }
 
 .bj-settings {
@@ -577,6 +652,12 @@
 
 .hand-label--push {
     background-color: rgba(90, 90, 110, 0.85);
+}
+
+/* The drunk player's own hand: "17 or 21?" (UX §1.2). */
+.hand-label--tipsy {
+    background-color: rgba(90, 24, 48, 0.82);
+    -unity-font-style: bold-and-italic;
 }
 
 /* Spectator panel */
@@ -1190,9 +1271,9 @@
     position: absolute;
     left: 70px;
     bottom: 70px;
-    width: 156px;
-    height: 156px;
-    border-radius: 78px;
+    width: 192px;
+    height: 192px;
+    border-radius: 96px;
     border-width: 3px;
     border-color: rgba(245, 236, 222, 0.35);
     background-color: rgba(20, 12, 16, 0.25);
@@ -1204,6 +1285,27 @@
 .touch-stick--active {
     translate: -50% -50%;
     opacity: 1;
+}
+
+/* The run ring at 90% of the radius (UX §1.7): faint gold while walking, solid gold (and a tinted pad) past it. */
+.touch-stick-ring {
+    position: absolute;
+    left: 7px;
+    top: 7px;
+    width: 172px;
+    height: 172px;
+    border-radius: 86px;
+    border-width: 2px;
+    border-color: rgba(232, 186, 98, 0.3);
+}
+
+.touch-stick--run {
+    background-color: rgba(232, 186, 98, 0.12);
+}
+
+.touch-stick--run .touch-stick-ring {
+    border-width: 3px;
+    border-color: rgba(232, 186, 98, 0.9);
 }
 
 .touch-stick-knob {

@@ -21,6 +21,8 @@ namespace CasinoMares.Social
         public static readonly List<TerraceTable> All = new();
 
         [SerializeField] string _displayName = "Terrace table";
+        [Tooltip("The row of bar stools: the seated HUD offers wine (WineBar on the same object).")]
+        [SerializeField] bool _isBar;
         [SerializeField] Transform[] _seatAnchors = Array.Empty<Transform>();
         [SerializeField] CinemachineCamera[] _seatCameras = Array.Empty<CinemachineCamera>();
 
@@ -30,6 +32,7 @@ namespace CasinoMares.Social
         static void ResetStatics() => All.Clear();
 
         public string DisplayName => _displayName;
+        public bool IsBar => _isBar;
         public int SeatCount => _seatAnchors.Length;
 
         public PlayerRef OccupantOf(int seat) =>

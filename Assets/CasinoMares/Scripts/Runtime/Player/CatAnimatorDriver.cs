@@ -15,6 +15,7 @@ namespace CasinoMares.Player
         static readonly int SpeedId = Animator.StringToHash("Speed");
         static readonly int AirborneId = Animator.StringToHash("Airborne");
         static readonly int SittingId = Animator.StringToHash("Sitting");
+        static readonly int DrinkingId = Animator.StringToHash("Drinking");
 
         /// <summary>Faster than any cat walks: a sit-down, stand-up or catch-up snap, not movement.</summary>
         const float TeleportSpeed = 12f;
@@ -29,6 +30,8 @@ namespace CasinoMares.Player
         [SerializeField] float _speedSmoothing = 10f;
 
         public bool Sitting { get; set; }
+        /// <summary>Lapping at a glass of wine (WineBar sets it); only plays while the cat sits.</summary>
+        public bool Drinking { get; set; }
         public Animator Animator => _animator;
 
         NetworkObject _networkObject;
@@ -94,6 +97,7 @@ namespace CasinoMares.Player
             _animator.SetFloat(SpeedId, _speed < 0.05f || Sitting ? 0f : _speed);
             _animator.SetBool(AirborneId, _movement != null && _movement.IsAirborne);
             _animator.SetBool(SittingId, Sitting);
+            _animator.SetBool(DrinkingId, Drinking && Sitting);
         }
     }
 }

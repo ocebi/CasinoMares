@@ -98,7 +98,7 @@ Meanwhile: watch friends' tables, chat, gift chips, check leaderboard, visit cas
 
 | Input | Action |
 |---|---|
-| WASD | Move (camera-relative; the camera slowly swings behind the cat as it turns) |
+| WASD | Move (camera-relative; the camera swings behind the cat as it turns). A key always trots; a gentle joystick push on touch walks slowly, growing to the trot at 90% of the stick |
 | Mouse | Orbit camera |
 | Shift | Run |
 | Space | Jump |
@@ -114,11 +114,12 @@ Seated shortcuts (every action also has a clickable button; the cursor is free w
 
 | Game | Keys |
 |---|---|
-| Blackjack | **1-5** add chips, **Backspace** clear, **Space** deal, **H** hit, **Space** stand, **X** double, **P** split |
+| Blackjack | **1-5** add chips, **Backspace** clear, **Space** deal, **H** hit, **Space** stand, **X** double, **P** split, **V** cycle the table view (Seat → Wide → Overhead) |
 | Roulette | **Space** ready (bets are placed by clicking the layout) |
-| Baccarat | **Space** ready (click Player / Banker / Tie) |
-| Poker | **F** fold, **C** check/call, **R** raise |
+| Baccarat | **Space** ready (click Player / Banker / Tie), **V** table view |
+| Poker | **F** fold, **C** check/call, **R** raise, **V** table view |
 | Slots | **Space** spin |
+| Bar stool | **Space** order a glass of wine (20 chips) |
 
 ### 3.5 Camera (Cinemachine)
 - **Exploration**: a third-person camera behind the cat (`CinemachineCamera` with orbital follow
@@ -126,15 +127,29 @@ Seated shortcuts (every action also has a clickable button; the cursor is free w
   - It follows a smoothed anchor instead of the cat itself. The anchor tracks the cat sideways
     exactly, but only 15% of a jump's height, so jumping doesn't bounce the view (less motion
     sickness). Landing somewhere higher (a table top) eases the view up.
-  - **Auto-follow** (on by default, a toggle in the pause menu): while the cat walks, the orbit swings
-    toward its heading, fastest when it walks sideways. It doesn't swing when the cat walks toward the
-    camera, and it waits 0.6 s after any mouse look. So WASD alone can steer around the room.
+  - **Auto-follow** (on by default, the "Camera turns with the cat" toggle in the pause menu): while the
+    cat walks, the orbit swings behind the cat within about a second, and never when the cat walks
+    straight at the camera. It aims at the cat's own facing (not its smoothed velocity) with an
+    exponential approach: 3/s of the remaining angle, never slower than 25°/s nor faster than 100°/s,
+    stopping within 1°; nothing happens beyond 150° off (walking at the camera) or for 0.6 s after any
+    mouse look. The cat itself turns to its move direction in ~0.17 s (`CatMotion.TurnSharpness`). So
+    WASD or the joystick alone can steer around the room.
 - **Seated**: each seat has its own `CinemachineCamera` that frames the player's hands, the
   dealer's hand and the chip area. Sitting down blends to it (~0.8 s ease-in-out) and standing up
   blends back.
   - **Look around**: A/D swing the seat camera up to 35° around a point in the middle of the felt, and
     W/S tilt it 12°. The table stays in view while the other players' hands come into sight. The view
     stays where it's left and resets the next time you sit down.
+  - **Table views** (blackjack, baccarat and poker; `TableViewControl` is the shared button/caption/key):
+    the View button (**V**) cycles **Seat → Wide → Overhead**. Wide is the seat camera moved 1.1 m straight back
+    and 0.55 m up, pitched to keep the felt's middle framed, still with the A/D look (it glides there in
+    0.8 s; pulled in if a wall is in the way). Overhead is a fixed camera the scene builder solves per
+    table (`CasinoSceneBuilder.TableViews`): on the players' side above the felt, pitched 70°, backed
+    away until every seat, the dealer's cards and the chip circles fit a 16:9 phone held sideways, kept
+    under the ceiling beams (≤ 3.1 m) by widening the lens (50° up to 70°) instead; no look input. The
+    brain's 0.8 s blend carries each change, a caption names the view for 1.5 s, standing up goes back
+    to Seat, and the last choice is remembered per game (`PlayerPrefs` "TableView.Blackjack",
+    "TableView.Baccarat", "TableView.Poker") and restored on sitting down.
 - Only the local player's cameras are active. Remote players have no camera objects.
 
 ---
@@ -179,7 +194,25 @@ The hall is 22 × 14 m (as built):
 ### 4.3 Staff NPCs
 - **Dealer cats**: one per table. They sit behind the table and react to results (see §5.8).
 - **Cashier cat**: this is where a broke player gets a refill (§7.2).
-- **Bartender cat**: ambience only. Idles, grooms and meows. No drink system in v1.
+- **Bartender cat**: serves wine at the bar stools (sea scene). A cat seated on a stool orders a glass
+  (**Order wine · 20**, or **Space**; 20 chips, paid at once, refused with a toast when short). The bar
+  (`WineBar`, on the stools' `TerraceTable`, master-client authority) stamps an order id and tick per
+  seat; every client plays the same 20 s sequence from the tick, so late joiners agree: the glass is
+  poured in front of the bartender (0.8 s), the bartender stands, turns and swats it (`PlaySwipe`), it
+  slides down the counter to the stool (to 2.5 s), the cat laps at it (the `Drink` animator state,
+  `licking`, 4 s) while the glass lifts to its muzzle and empties, then the empty glass sits on the
+  counter until 20 s, when the seat can order again. Chat line: "<name> ordered a glass of wine."
+- **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
+  (networked, not saved: a reload sobers you). At **3** glasses the cat is drunk: everyone sees a slow
+  sway of the model (roll ±4°, yaw ±3° at 0.7 Hz, a fifth stronger per extra glass up to 5), the chat
+  says "<name> has had one too many." For the drunk player (`TipsyEffect`, "Tipsy visuals" in the
+  pause menu, on by default): a fisheye lens, colour fringing, a wine-dark vignette and a slow
+  Cinemachine sway on the live camera, at half strength with 3 glasses, three quarters with 4, full
+  with 5+, ramped in over 3 s and out over 6 s. The HUD shows a pip per glass beside the balance and
+  "Tipsy" from the third. At blackjack the drunk player's own unsettled hand labels show two totals,
+  "17 or 21?" (the real one and a decoy within 4, never a bust, fixed per hand until a card is added),
+  and the turn banner drops the total; bust and settled hands, the dealer and other players are honest.
+  The upside: net wins pay **10% extra** while drunk (§7.2).
 
 ### 4.4 Ambient patrons
 - 10 NPC cats wander between points of interest: the bar, near tables, lounge cushions. The
@@ -305,6 +338,7 @@ who didn't lock in a bet sits the round out.
 | Push | — | — | "Push" label |
 | Dealer blackjack | Angry | Celebrate | |
 | Big win (≥ 250 net) | Celebrate | — | Nearby patrons turn and cheer |
+| Huge win (≥ 500 net in a round, or a top-tier slot win) | Lights a victory cigar for 5 minutes: a glowing ember and smoke that breathe on a 4 s cycle, seen by everyone including late joiners (`CatCigar`, `PlayerCat.CigarUntilTick`); a later huge win extends it | — | Chat: "<name> lights a victory cigar."; toast for the winner on a fresh light |
 
 - **Result pause**: every table game waits `GameTables.ResultPause` (1.5 s) between the last card
   (or the ball settling) and the result, so players can read the cards before labels, payouts and
@@ -356,6 +390,9 @@ You can watch a friend just by walking up to them, and this works the same way f
     **5 minutes**. Only a paw that lands pays (a patron still spooked from an earlier paw ignores
     it, so it doesn't). Other players' cats and the NPCs seated at tables can't be pawed.
   - **Topping the cat wall**: **100 chips**, at most once every **10 minutes**.
+  - **Tipsy bonus** (`TipsyBonus`): while drunk (§4.3), a net win at any table or machine pays an
+    extra **10%** (rounded down, at least 1 chip), shown as "+N" with a toast. No cooldown; it's
+    bounded by the wins themselves. A glass of wine costs 20 chips.
 - A "+10" pops up beside the balance with a coin sound; the cat wall and welfare show a bigger
   "+100"/"+500" with a chime. A paw on cooldown pays nothing and says nothing.
 - The balance is client-side, so these cooldowns are the only guard against farming. They're saved
@@ -421,7 +458,7 @@ Shared Mode has no host, so authority is split like this:
 | Object | State authority | Why |
 |---|---|---|
 | `PlayerCat` (one per player) | That player | Own movement, appearance, balance, seated flag |
-| Game tables: `BlackjackTable`, `RouletteTable`, `BaccaratTable`, `PokerTable`, `SlotMachine` (scene objects) | **Master client.** `MasterClientObject` is set and `DestroyWhenStateAuthorityLeaves` is cleared, so authority moves when the master leaves | One authority runs each round's state machine, shoe, NPC seats and timers |
+| Game tables: `BlackjackTable`, `RouletteTable`, `BaccaratTable`, `PokerTable`, `SlotMachine`, and the bar stools' `TerraceTable` + `WineBar` (scene objects) | **Master client.** `MasterClientObject` is set and `DestroyWhenStateAuthorityLeaves` is cleared, so authority moves when the master leaves | One authority runs each round's state machine, shoe, NPC seats and timers |
 | Ambient patrons (`PatronBrain`, scene objects) | Master client | Walks NavMesh paths inside `FixedUpdateNetwork`. Everyone else sees the `NetworkTransform` |
 | Staff, dealer and NPC seat cats | Nobody (local visuals) | Driven locally from networked table state |
 
@@ -780,6 +817,13 @@ players join the same room as the desktop builds.
   - keeps the profile file in IndexedDB (`autoSyncPersistentDataPath`).
 - Files are gzipped with decompression fallback, so any static host works. `Tools/serve_webgl.py`
   serves the build on the local network for testing on a phone.
+- Size (2026-10-19): `WebBuild` builds with managed stripping **High** and IL2CPP code generation
+  **OptimizeSize** (verified to boot, join a room and spawn in Chrome); `Cat_N` is 512² and the sky
+  photo 2048² on WebGL (platform overrides, desktop keeps its sizes); the Kenney clips are Vorbis
+  0.5, mono. ProBuilder, VFX Graph, glTFast and Timeline are removed (the runtime never used them), and
+  so is the unused `LowPolyAnimatedAnimals` pack. The Roslyn dlls in `Assets/Plugins/Roslyn` are editor-only. Data 14.8 MB desktop and
+  14.7 MB mobile, wasm 9.7 MB (gzip), from 18.6/19.0 and 12.7. jsDelivr refuses files over 20 MB. Still to try: Brotli
+  (estimated −18% data, −30% wasm) and Addressables for the cat furs, sky and island meshes.
 
 ### 15.2 What changes in a browser (`Platform`)
 - **Quality:** desktop browsers use the PC quality level, phones and tablets the Mobile one.
@@ -797,6 +841,27 @@ players join the same room as the desktop builds.
   Photon drops it, and it comes back to the menu with the disconnect message.
 - **URL options:** `?profile=name` keeps a separate profile (two tabs share one storage); `?touch=1`
   forces the touch controls (`?touch=0` turns them off).
+- **Phone performance** (a phone that has run hot slows its GPU, and each frame is then held up by pixel
+  work; the per-pixel cost under Forward+ is the number of realtime lights reaching the pixel):
+  - The Mobile pipeline asset renders without additional-light shadows or soft shadows, with a 512 main
+    shadow map, 1 cascade and a 25 m shadow distance. `?shadows=hi` restores the PC main-light shadow
+    settings on a phone, `?shadows=lo` applies the Mobile ones on a desktop, to compare.
+  - **Light trim** (`MobileLightTrim`): the scene builder names the decorative point lights (sconces,
+    neon spill, shelf glow, cat-wall lamp, lanterns, vestibule, the lounge's fills) `Ambience_*`; on the
+    Mobile quality level their range is cut to 70 %, so at most three lights reach any pixel (the lamps
+    over the games are untouched; the slot machines' lights are off on Mobile, `SlotCelebration`).
+    `?lighttrim=0` turns it off, `?lighttrim=1` turns it on anywhere.
+  - **Auto render scale** (`AutoRenderScale`): steps the render scale down to 0.6 while under 45 fps,
+    back up after a steady 57 fps. `?autoscale=0/1`.
+  - **Frame rate cap** (`FrameRateCap`): when the lowest render scale still leaves it under 45 fps for
+    10 s, the frame rate is held at 30 (steady beats judder, and the phone cools); it's tried off again
+    after 30 s, then 60, up to 4 minutes. The pause menu's **Hold the frame rate at 30** toggle (touch
+    devices, `PlayerPrefs` `FrameRate.Cap30`, off by default) holds it regardless. `?fps30=1` caps from
+    the start, `?fps30=0` never caps. The cap sets `Application.targetFrameRate` (on WebGL that means a
+    `setTimeout` loop instead of `requestAnimationFrame`); if it judders, the alternative is
+    `OnDemandRendering.renderFrameInterval = 2`, which keeps the browser's loop and renders every other
+    frame.
+  - `?debug=1` shows what the phone settled on: render scale step, frame rate target, light trim.
 
 ### 15.3 Touch controls (`TouchControls`, `Platform.IsTouch`)
 Phones and tablets get on-screen controls, detected from a coarse pointer, since iPadOS reports a
@@ -804,7 +869,7 @@ desktop browser. Everything feeds `GameInput`, so gameplay code reads touch and 
 
 | Control | Action |
 |---|---|
-| Finger on the left part of the screen | Joystick appears under it; push to the rim to run |
+| Finger on the left part of the screen | Joystick appears under it (radius 96 UI px): a gentle push walks slowly, speed grows with the push, past the gold ring at 90% it runs (the ring and pad turn gold); the first 15% is a deadzone |
 | Finger anywhere else | Drag to look (also while seated, where it swings the seat camera) |
 | Jump / Paw / Emote buttons | Jump, paw swipe, open the emote wheel (tap an emote, or anywhere else to close) |
 | The interaction prompt | Tap it to sit down, use the cashier or gift chips |
@@ -815,7 +880,7 @@ desktop browser. Everything feeds `GameInput`, so gameplay code reads touch and 
 - The whole UI is scaled to the screen's physical size: about 560 UI pixels tall on a phone, against
   1080 on a desktop.
 - Keyboard hints such as "(Space)" are dropped from button labels.
-- The table corner buttons (Settings, Stand up) and toasts move to the top, clear of the bottom
+- The table corner buttons (View, Settings, Stand up) and toasts move to the top, clear of the bottom
   panels.
 - **Testing in the editor:** turn on **Casino Mares ▸ Web ▸ Simulate Touch Controls** and set the
   Game view to a phone-shaped size. The Game view counts as a screen with 2 pixels per CSS pixel.

@@ -26,6 +26,7 @@ fur color and chip balance are saved on your own machine.
 | Key | Action |
 |---|---|
 | WASD / Shift / Space | Move / run / jump (the camera swings behind the cat as it turns) |
+| V (seated at blackjack, baccarat or poker) | Cycle the table view: Seat → Wide → Overhead |
 | Mouse | Orbit camera |
 | Left click | Paw swipe (knock glasses, mugs and yarn off tables) |
 | Q (hold) | Emote wheel: point with the mouse, release to play |
@@ -36,7 +37,8 @@ fur color and chip balance are saved on your own machine.
 
 While seated: **WASD** looks around the table; blackjack **1-5** chips, **Space** deal, then **H** hit,
 **Space** stand, **X** double, **P** split; poker **F/C/R** fold/check-call/raise; roulette, baccarat
-and slots use **Space** for ready/spin. Everything also has buttons. Poker and baccarat have a
+and slots use **Space** for ready/spin; on a bar stool **Space** orders a glass of wine (20 chips;
+three glasses and your cat is tipsy). Everything also has buttons. Poker and baccarat have a
 **Rules** button and an optional **Coach** (table settings) that explains the game and suggests moves.
 
 ## Development
@@ -77,13 +79,16 @@ In a desktop browser the cursor stays free. The camera swings behind the cat as 
 mouse button to look around.
 
 On phones and tablets the game shows touch controls:
-- The left thumb walks with a joystick; push it to the rim to run.
+- The left thumb walks with a joystick; a gentle push walks slowly, push past the ring to run.
 - Drag anywhere else to look.
 - Tap the prompt to sit down.
 - Menu, Chat and Top cats are pills at the top-left.
 
 Add `?touch=1` to the URL to try the touch controls with a mouse, or `?profile=name` to play a second cat
-in another tab. To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
+in another tab. On a hot phone the game lowers its render scale and, if that isn't enough, holds the frame
+rate at 30 (the pause menu can hold it at 30 outright); `?debug=1` shows what it settled on, and
+`?fps30=0`, `?autoscale=0`, `?lighttrim=0` and `?shadows=hi` switch the phone savings off one at a time
+(GDD §15.2). To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
 Controls**. Turn it off and switch the build target back to macOS before making a desktop build.
 
 ## Credits

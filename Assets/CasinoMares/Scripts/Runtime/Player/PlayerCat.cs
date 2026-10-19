@@ -48,22 +48,60 @@ namespace CasinoMares.Player
         [Networked]
         public short RttMs { get; set; }
 
+        /// <summary>
+        /// The tick until which this cat smokes its victory cigar, 0 when it never lit one (GDD §5.8). The owner
+        /// stamps it on a huge win (a later one extends it); every client, late joiners included, renders from it.
+        /// </summary>
+        [Networked]
+        public int CigarUntilTick { get; set; }
+
+        /// <summary>
+        /// Glasses of wine still in effect (GDD §4.3): the owner counts the ones drunk in the last
+        /// <see cref="DrinkDuration"/>. Everyone reads it for the sway; the owner for the visuals and the bonus.
+        /// </summary>
+        [Networked]
+        public byte DrinkCount { get; set; }
+
+        /// <summary>The ticks the last <see cref="MaxDrinks"/> glasses were finished at (0 = empty slot), on the network clock like the cigar.</summary>
+        [Networked, Capacity(MaxDrinks)]
+        NetworkArray<int> DrinkTicks => default;
+
+        /// <summary>Glasses at which a cat is drunk, and how long each glass counts. Not saved: a reload sobers you.</summary>
+        public const int DrunkAt = 3;
+        public const float DrinkDuration = 360f;
+        /// <summary>Glasses remembered at once; a ninth replaces the oldest.</summary>
+        const int MaxDrinks = 8;
+        const float DrinkRecountInterval = 1f;
+
         /// <summary>Raised on every client when the name or fur color changes.</summary>
         public event Action AppearanceChanged;
+
+        /// <summary>Owner only: crossed the drunk line either way.</summary>
+        public event Action<bool> DrunkChanged;
 
         public Transform NameplateAnchor => _nameplateAnchor != null ? _nameplateAnchor : transform;
         public Color Swatch => _palette.Get(FurIndex).Swatch;
         public bool IsLocal => Object != null && Object.HasStateAuthority;
         public PlayerRef Owner => Object != null ? Object.StateAuthority : PlayerRef.None;
         public CatReactions Reactions => _reactions;
+        public CatAnimatorDriver AnimatorDriver => _animatorDriver;
         public SessionWinnings Winnings { get; private set; }
+        public bool IsCigarLit => CigarUntilTick > 0 && Runner != null && Runner.Tick.Raw < CigarUntilTick;
+        public bool IsDrunk => DrinkCount >= DrunkAt;
+
+        /// <summary>The local cat has spawned and is drunk.</summary>
+        public static bool LocalIsDrunk => Local != null && Local.Object != null && Local.Object.IsValid && Local.IsDrunk;
 
         const float RttUpdateInterval = 1f;
         const int RttChangeMs = 10;
+        /// <summary>How long a victory cigar burns.</summary>
+        const float CigarSeconds = 300f;
 
         CatReactions _reactions;
         CatAnimatorDriver _animatorDriver;
+        CatCigar _cigar;
         float _nextRttUpdate;
+        float _nextDrinkRecount;
 
         /// <summary>The cat owned by this player, if it has spawned on this client.</summary>
         public static PlayerCat Find(PlayerRef player)
@@ -90,6 +128,7 @@ namespace CasinoMares.Player
             _reactions = GetComponentInChildren<CatReactions>();
             _animatorDriver = GetComponent<CatAnimatorDriver>();
             Winnings = GetComponent<SessionWinnings>();
+            _cigar = GetComponent<CatCigar>();
         }
 
         public override void Render()
@@ -97,8 +136,74 @@ namespace CasinoMares.Player
             if (_animatorDriver != null)
                 _animatorDriver.Sitting = IsSeated;
 
+            if (_cigar != null)
+                _cigar.SetLit(IsCigarLit);
+
             if (HasStateAuthority)
+            {
                 UpdateRtt();
+                if (Time.time >= _nextDrinkRecount)
+                    RecountDrinks();
+            }
+        }
+
+        // ---------------------------------------------------------------- Wine (GDD §4.3)
+
+        /// <summary>Owner only: a glass has just been finished at the bar.</summary>
+        public void AddDrink()
+        {
+            if (!HasStateAuthority)
+                return;
+            var oldest = 0;
+            for (var i = 1; i < MaxDrinks; i++)
+            {
+                if (DrinkTicks[i] < DrinkTicks[oldest])
+                    oldest = i;
+            }
+
+            DrinkTicks.Set(oldest, Runner.Tick.Raw);
+            RecountDrinks();
+        }
+
+        /// <summary>Drops the glasses that have worn off and publishes the count; about once a second.</summary>
+        void RecountDrinks()
+        {
+            _nextDrinkRecount = Time.time + DrinkRecountInterval;
+            var count = (byte)0;
+            for (var i = 0; i < MaxDrinks; i++)
+            {
+                var tick = DrinkTicks[i];
+                if (tick != 0 && (Runner.Tick.Raw - tick) * Runner.DeltaTime < DrinkDuration)
+                    count++;
+            }
+
+            if (count == DrinkCount)
+                return;
+
+            var wasDrunk = IsDrunk;
+            DrinkCount = count;
+            if (IsDrunk == wasDrunk)
+                return;
+            if (IsDrunk)
+                Announce($"{DisplayName} has had one too many.");
+            DrunkChanged?.Invoke(IsDrunk);
+        }
+
+        /// <summary>
+        /// Owner only: a huge win (<see cref="CatCigar"/> spots them) lights a victory cigar for everyone to see, or
+        /// keeps one that's already lit burning for another five minutes. The chat line and the toast go out only
+        /// for a fresh light (UX spec §1.6).
+        /// </summary>
+        public void LightCigar()
+        {
+            if (!HasStateAuthority || Runner == null)
+                return;
+            var wasLit = IsCigarLit;
+            CigarUntilTick = Runner.Tick.Raw + Mathf.RoundToInt(CigarSeconds / Runner.DeltaTime);
+            if (wasLit)
+                return;
+            Announce($"{DisplayName} lights a victory cigar.");
+            Toasts.Show("Big win! You light a victory cigar.");
         }
 
         /// <summary>About once a second, and only when it moved noticeably, so it doesn't churn the network.</summary>
@@ -195,6 +300,7 @@ namespace CasinoMares.Player
                 Balance = profile.Balance;
                 ProfileStore.Changed += OnProfileChanged;
                 PlayerCameraRig.Instance?.Follow(_cameraTarget);
+                _cigar?.Bind(this);
             }
 
             ApplyAppearance();
@@ -209,6 +315,7 @@ namespace CasinoMares.Player
                 Local = null;
                 ProfileStore.Changed -= OnProfileChanged;
                 PlayerCameraRig.Instance?.Release();
+                _cigar?.Unbind();
             }
 
             Left?.Invoke(this);

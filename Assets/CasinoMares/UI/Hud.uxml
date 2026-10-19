@@ -4,6 +4,11 @@
         <ui:VisualElement class="hud-chip hud-balance" picking-mode="Ignore">
             <ui:Label text="Chips" class="hud-label-dim" />
             <ui:Label name="balance-label" text="0" class="hud-value" />
+            <!-- Glasses of wine still in effect: one pip each (up to 5), "Tipsy" from the third. -->
+            <ui:VisualElement name="drink-row" class="drink-row hidden" picking-mode="Ignore">
+                <ui:VisualElement name="drink-pips" class="drink-pips" picking-mode="Ignore" />
+                <ui:Label name="drink-label" text="Tipsy" class="drink-label hidden" picking-mode="Ignore" />
+            </ui:VisualElement>
             <!-- Chips just earned (pawing, the cat wall, welfare): HudController animates it. -->
             <ui:Label name="balance-gain" text="+10" class="balance-gain hidden" picking-mode="Ignore" />
         </ui:VisualElement>
@@ -33,6 +38,8 @@
                 <ui:Slider name="sensitivity-slider" label="Mouse sensitivity" low-value="0.02" high-value="0.4" />
                 <ui:Slider name="distance-slider" label="Camera distance" low-value="1" high-value="3.5" />
                 <ui:Toggle name="follow-toggle" label="Camera turns with the cat" class="pause-toggle" />
+                <ui:Toggle name="tipsy-toggle" label="Tipsy visuals" class="pause-toggle" />
+                <ui:Toggle name="fps-toggle" label="Hold the frame rate at 30 (cooler phone)" class="pause-toggle hidden" />
                 <ui:Button name="resume-button" text="Resume" class="primary-button" />
                 <ui:Button name="fullscreen-button" text="Full screen" class="secondary-button" />
                 <ui:Label name="home-screen-hint" text="For full screen on iPhone: tap Share, then Add to Home Screen, and open the game from there." class="hint pause-hint hidden" />

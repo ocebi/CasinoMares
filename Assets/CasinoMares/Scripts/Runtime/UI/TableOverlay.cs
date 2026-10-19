@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using CasinoMares.Baccarat;
@@ -16,12 +17,24 @@ namespace CasinoMares.UI
     /// <summary>
     /// World-anchored labels over every hand at nearby tables (totals, results, whose turn), plus the spectator
     /// panel when you stand near a playing friend (GDD §6). Everything shown is public table information, read from
-    /// each table's shown round so the labels change together with the cards.
+    /// each table's shown round so the labels change together with the cards. The labels are placed every frame, so
+    /// their text comes from a cache of strings built once per distinct value (<see cref="Cached{T}"/>) and only the
+    /// style classes that changed are touched: on a phone, formatting a dozen strings a frame was garbage every frame.
     /// </summary>
     public class TableOverlay : MonoBehaviour
     {
         const float LabelRange = 8f;
         const float SpectateRange = 3f;
+        /// <summary>The drunk player's own hand labels rock gently (UX §1.2): degrees and Hz.</summary>
+        const float TipsyWobbleDegrees = 3f;
+        const float TipsyWobbleHz = 0.25f;
+        /// <summary>Pots and payouts make new entries; past this many the cache starts over.</summary>
+        const int MaxCachedStrings = 512;
+
+        /// <summary>Which label a cached string is for; part of its key.</summary>
+        enum Text : byte { Hand, Dealer, Pot, Won, Action, Player, Banker, Slots, Bets, Result, Fuzzy }
+
+        static readonly string[] Modifiers = { "hand-label--active", "hand-label--win", "hand-label--lose", "hand-label--push", "hand-label--tipsy" };
 
         [SerializeField] UIDocument _document;
 
@@ -35,7 +48,23 @@ namespace CasinoMares.UI
         readonly Dictionary<RouletteTable, RouletteView> _rouletteViews = new();
         readonly Dictionary<BaccaratTable, BaccaratView> _baccaratViews = new();
         readonly Dictionary<PokerTable, PokerView> _pokerViews = new();
+        readonly Dictionary<long, string> _strings = new();
         int _used;
+
+        static long Key(Text kind, int a, int b = 0, int c = 0) =>
+            ((long)kind << 56) | ((long)(uint)a << 24) | ((long)(ushort)b << 8) | (byte)c;
+
+        /// <summary>The string for <paramref name="key"/>, made from <paramref name="state"/> the first time only.</summary>
+        string Cached<T>(long key, T state, Func<T, string> make)
+        {
+            if (_strings.TryGetValue(key, out var text))
+                return text;
+            if (_strings.Count >= MaxCachedStrings)
+                _strings.Clear();
+            text = make(state);
+            _strings.Add(key, text);
+            return text;
+        }
 
         void OnEnable()
         {
@@ -116,23 +145,43 @@ namespace CasinoMares.UI
                 return;
 
             var shown = table.Shown;
+            // A drunk player can't quite read its own cards (GDD §5.8): its unsettled hands show two totals.
+            var local = PlayerCat.Local;
+            var tipsy = local != null && local.Object != null && local.Object.IsValid && local.IsDrunk;
+            var wobble = tipsy && CameraRig.TipsyEffect.VisualsEnabled;
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
             {
                 var hands = shown.HandCountAt(seat);
+                var mySeat = tipsy && shown.RoundOwnerAt(seat) == local.Owner;
                 for (var hand = 0; hand < hands; hand++)
                 {
-                    if (shown.CardCountAt(seat, hand) == 0)
+                    var cards = shown.CardCountAt(seat, hand);
+                    if (cards == 0)
                         continue;
 
                     var outcome = shown.OutcomeAt(seat, hand);
                     var value = shown.EvaluateHand(seat, hand);
-                    var text = outcome == HandOutcome.None
-                        ? value.IsBust ? "Bust" : value.ToString()
-                        : $"{value.Total} · {BlackjackTable.OutcomeLabel(outcome)}";
+                    var fuzzy = mySeat && outcome == HandOutcome.None && !value.IsBust;
+                    string text;
+                    if (fuzzy)
+                    {
+                        var (first, second) = DrunkTotals.Candidates(value.Total, DrunkTotals.Hash(table.Object.Id.Raw, shown.RoundId, seat, hand, cards));
+                        text = Cached(Key(Text.Fuzzy, first, second), (first, second), static s => $"{s.first} or {s.second}?");
+                    }
+                    else
+                    {
+                        text = outcome == HandOutcome.None
+                            ? value.IsBust ? "Bust" : Cached(Key(Text.Hand, value.Total, 0, value.IsSoft ? 1 : 0), value, static v => v.ToString())
+                            : Cached(Key(Text.Hand, value.Total, (int)outcome + 1), (value.Total, outcome),
+                                static s => $"{s.Total} · {BlackjackTable.OutcomeLabel(s.outcome)}");
+                    }
 
                     var label = Place(view.HandLabelPosition(seat, hand, hands), text, cam);
                     if (label == null)
                         continue;
+                    label.EnableInClassList("hand-label--tipsy", fuzzy);
+                    if (fuzzy && wobble)
+                        label.style.rotate = new Rotate(TipsyWobbleDegrees * Mathf.Sin(2f * Mathf.PI * TipsyWobbleHz * Time.time + seat * 1.7f + hand * 0.9f));
                     label.EnableInClassList("hand-label--active", shown.IsActiveTurn(seat) && shown.ActiveHand == hand);
                     label.EnableInClassList("hand-label--win", outcome is HandOutcome.Win or HandOutcome.Blackjack);
                     label.EnableInClassList("hand-label--lose", outcome is HandOutcome.Lose or HandOutcome.Bust || (outcome == HandOutcome.None && value.IsBust));
@@ -142,7 +191,9 @@ namespace CasinoMares.UI
 
             if (shown.DealerCardCount > 0)
             {
-                var dealer = Place(view.DealerLabelPosition, $"Dealer {shown.EvaluateDealerVisible()}", cam);
+                var dealerValue = shown.EvaluateDealerVisible();
+                var dealer = Place(view.DealerLabelPosition,
+                    Cached(Key(Text.Dealer, dealerValue.Total, 0, dealerValue.IsSoft ? 1 : 0), dealerValue, static v => $"Dealer {v}"), cam);
                 dealer?.EnableInClassList("hand-label--active", shown.Phase == BlackjackPhase.DealerTurn);
             }
         }
@@ -160,7 +211,7 @@ namespace CasinoMares.UI
                 return;
 
             if (shown.TotalPot > 0 && !(shown.Phase == PokerPhase.Showdown && shown.ShowdownSettled))
-                Place(view.PotLabelPosition, $"Pot {shown.TotalPot:N0}", cam);
+                Place(view.PotLabelPosition, Cached(Key(Text.Pot, shown.TotalPot), shown.TotalPot, static pot => $"Pot {pot:N0}"), cam);
 
             for (var seat = 0; seat < PokerTable.SeatCount; seat++)
             {
@@ -169,13 +220,14 @@ namespace CasinoMares.UI
 
                 string text;
                 if (shown.Phase == PokerPhase.Showdown && shown.WonAt(seat) > 0)
-                    text = $"+{shown.WonAt(seat):N0}";
+                    text = Cached(Key(Text.Won, shown.WonAt(seat)), shown.WonAt(seat), static won => $"+{won:N0}");
                 else if ((shown.FlagsAt(seat) & PokerSeatFlags.Folded) != 0)
                     text = "Fold";
                 else if ((shown.FlagsAt(seat) & PokerSeatFlags.AllIn) != 0)
                     text = "All in";
                 else
-                    text = PokerTable.ActionLabel(shown.LastActionAt(seat), shown.LastAmountAt(seat));
+                    text = Cached(Key(Text.Action, shown.LastAmountAt(seat), (int)shown.LastActionAt(seat)), (shown.LastActionAt(seat), shown.LastAmountAt(seat)),
+                        static s => PokerTable.ActionLabel(s.Item1, s.Item2));
 
                 if (string.IsNullOrEmpty(text))
                     continue;
@@ -201,9 +253,9 @@ namespace CasinoMares.UI
 
             var shown = table.Shown;
             var result = shown.Phase == BaccaratPhase.Result;
-            var player = Place(view.PlayerLabelPosition, $"Player {shown.VisibleTotal(false)}", cam);
+            var player = Place(view.PlayerLabelPosition, Cached(Key(Text.Player, shown.VisibleTotal(false)), shown.VisibleTotal(false), static t => $"Player {t}"), cam);
             player?.EnableInClassList("hand-label--win", result && shown.Outcome == Rules.BaccaratOutcome.Player);
-            var banker = Place(view.BankerLabelPosition, $"Banker {shown.VisibleTotal(true)}", cam);
+            var banker = Place(view.BankerLabelPosition, Cached(Key(Text.Banker, shown.VisibleTotal(true)), shown.VisibleTotal(true), static t => $"Banker {t}"), cam);
             banker?.EnableInClassList("hand-label--win", result && shown.Outcome == Rules.BaccaratOutcome.Banker);
             if (result && shown.Outcome == Rules.BaccaratOutcome.Tie)
             {
@@ -217,7 +269,10 @@ namespace CasinoMares.UI
             if (machine.IsSpinning)
                 return;
             var payout = machine.LastPayout;
-            var label = Place(machine.LabelPosition, payout > 0 ? $"{PlayerCat.NameOf(machine.SpinOwner)} won {payout:N0}" : $"{PlayerCat.NameOf(machine.SpinOwner)}: no luck", cam);
+            // Keyed on the spin too, so a new spin by a cat of the same number (someone who left) gets its own name.
+            var text = Cached(Key(Text.Slots, payout, machine.SpinOwner.PlayerId, machine.SpinId), (machine.SpinOwner, payout),
+                static s => s.payout > 0 ? $"{PlayerCat.NameOf(s.SpinOwner)} won {s.payout:N0}" : $"{PlayerCat.NameOf(s.SpinOwner)}: no luck");
+            var label = Place(machine.LabelPosition, text, cam);
             label?.AddToClassList(payout > machine.Bet ? "hand-label--win" : "hand-label--push");
         }
 
@@ -233,11 +288,12 @@ namespace CasinoMares.UI
                 return;
 
             var shown = table.Shown;
+            var seconds = Mathf.CeilToInt(Mathf.Max(0f, shown.TimeRemaining));
             var text = shown.Phase switch
             {
-                RoulettePhase.Betting => $"Place your bets · {Mathf.CeilToInt(Mathf.Max(0f, shown.TimeRemaining))}s",
+                RoulettePhase.Betting => Cached(Key(Text.Bets, seconds), seconds, static s => $"Place your bets · {s}s"),
                 RoulettePhase.Spinning => "No more bets!",
-                RoulettePhase.Result => $"{shown.Result} {Rules.RouletteRules.ColorName(shown.Result)}",
+                RoulettePhase.Result => Cached(Key(Text.Result, shown.Result), shown.Result, static r => $"{r} {Rules.RouletteRules.ColorName(r)}"),
                 _ => null,
             };
 
@@ -268,8 +324,11 @@ namespace CasinoMares.UI
             label.style.left = position.x;
             label.style.top = position.y;
             label.text = text;
-            label.ClearClassList();
-            label.AddToClassList("hand-label");
+            // Back to a plain, upright label; the caller adds its modifiers (and the tipsy wobble). Only a class that
+            // was there is a style change, and an unchanged inline rotate is skipped by the style accessor.
+            label.style.rotate = new Rotate(0f);
+            foreach (var modifier in Modifiers)
+                label.EnableInClassList(modifier, false);
             return label;
         }
 

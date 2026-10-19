@@ -32,6 +32,17 @@ namespace CasinoMares.Player
         const float SwipeRearMinSpeed = 0.3f;
         /// <summary>Roughly where the hind paws stand, in the cat's local space (the rear-up pivots there).</summary>
         static readonly Vector3 HindPivot = new(0f, 0f, -0.35f);
+        /// <summary>
+        /// The drunk sway (GDD §4.3), seen by everyone: a slow roll and yaw of the model once the cat has had
+        /// <see cref="PlayerCat.DrunkAt"/> glasses, a fifth stronger per extra glass up to <see cref="SwayMaxGlasses"/>,
+        /// blended in and out over <see cref="SwayBlendSeconds"/>.
+        /// </summary>
+        const float SwayRollDegrees = 4f;
+        const float SwayYawDegrees = 3f;
+        const float SwayHz = 0.7f;
+        const float SwayPerExtraGlass = 0.2f;
+        const int SwayMaxGlasses = 5;
+        const float SwayBlendSeconds = 2f;
 
         [SerializeField] Transform _model;
         [SerializeField] Animator _animator;
@@ -52,6 +63,9 @@ namespace CasinoMares.Player
         float _happyAt = -1f;
         int _delayedHops;
         float _angryAt = -1f;
+        PlayerCat _cat;
+        float _swayNow;
+        float _swayPhase;
 
         /// <summary>A short random wait so a table of cats doesn't react in perfect unison.</summary>
         public static float StaggerDelay() => Random.Range(0.05f, 0.7f);
@@ -63,6 +77,9 @@ namespace CasinoMares.Player
             _restPosition = _model.localPosition;
             _restRotation = _model.localRotation;
             _restScale = _model.localScale;
+            // Only player cats drink; NPC visuals have no PlayerCat and never sway.
+            _cat = GetComponentInParent<PlayerCat>();
+            _swayPhase = Random.Range(0f, 10f);
         }
 
         /// <summary>A happy hop (or several for a blackjack), optionally after <paramref name="delay"/> seconds.</summary>
@@ -142,18 +159,37 @@ namespace CasinoMares.Player
             }
 
             UpdateSounds();
-            var posed = _swipeTime >= 0f || _hopTime >= 0f;
+            var posed = _swipeTime >= 0f || _hopTime >= 0f || _swayNow > 0f;
             UpdateSwipe();
             UpdateHop();
-            if (posed)
+            UpdateSway();
+            if (posed || _swayNow > 0f)
                 ApplyModelPose();
         }
 
-        /// <summary>Hop (up and squash) and swipe rear-up (pitch around the hind paws) combined on the model.</summary>
+        /// <summary>Blends the drunk sway toward what the cat's drink count calls for.</summary>
+        void UpdateSway()
+        {
+            var goal = 0f;
+            if (_cat != null && _cat.Object != null && _cat.Object.IsValid && _cat.DrinkCount >= PlayerCat.DrunkAt)
+                goal = 1f + SwayPerExtraGlass * (Mathf.Min(_cat.DrinkCount, SwayMaxGlasses) - PlayerCat.DrunkAt);
+            _swayNow = Mathf.MoveTowards(_swayNow, goal, Time.deltaTime / SwayBlendSeconds);
+        }
+
+        /// <summary>Hop (up and squash), swipe rear-up (pitch around the hind paws) and the drunk sway combined on the model.</summary>
         void ApplyModelPose()
         {
             var pitch = Quaternion.Euler(-_rearNow, 0f, 0f);
-            _model.localRotation = _restRotation * pitch;
+            var rotation = _restRotation * pitch;
+            if (_swayNow > 0f)
+            {
+                var t = Time.time * SwayHz * Mathf.PI * 2f + _swayPhase;
+                var roll = Mathf.Sin(t) * SwayRollDegrees * _swayNow;
+                var yaw = Mathf.Sin(t * 0.73f + 1.3f) * SwayYawDegrees * _swayNow;
+                rotation *= Quaternion.Euler(0f, yaw, roll);
+            }
+
+            _model.localRotation = rotation;
             _model.localPosition = _restPosition + Vector3.up * _hopHeightNow + (HindPivot - pitch * HindPivot);
             _model.localScale = new Vector3(_restScale.x / _squashNow, _restScale.y * _squashNow, _restScale.z / _squashNow);
         }

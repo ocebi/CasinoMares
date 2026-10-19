@@ -20,10 +20,12 @@ namespace CasinoMares.UI
         const float ToastSeconds = 4f;
         const float GainSeconds = 1.4f;
         const float BigGainSeconds = 2.6f;
+        /// <summary>Glasses the HUD shows as pips; five or more all look the same.</summary>
+        const int MaxDrinkPips = 5;
         const string WalkingHint = "WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string WebWalkingHint = "WASD move · Right-drag look · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu";
         const string SeatedHint = "WASD or right-drag look around · E stand up · Enter chat · Esc menu";
-        const string TouchWalkingHint = "Left thumb walks (push to the rim to run) · drag to look · tap a prompt to use it";
+        const string TouchWalkingHint = "Left thumb walks: push past the ring to run · drag to look · tap a prompt to use it";
         const string TouchSeatedHint = "Drag to look around the table";
 
         [SerializeField] UIDocument _document;
@@ -43,6 +45,12 @@ namespace CasinoMares.UI
         Slider _distance;
         Slider _volume;
         Toggle _follow;
+        Toggle _tipsy;
+        VisualElement _drinkRow;
+        VisualElement _drinkPips;
+        Label _drinkLabel;
+        int _shownDrinks = -1;
+        Toggle _fpsCap;
         Button _fullscreen;
         Button _emotesButton;
         bool _paused;
@@ -77,6 +85,14 @@ namespace CasinoMares.UI
             _distance.highValue = PlayerCameraRig.MaxDistance;
             _volume = ui.Q<Slider>("volume-slider");
             _follow = ui.Q<Toggle>("follow-toggle");
+            _tipsy = ui.Q<Toggle>("tipsy-toggle");
+            _drinkRow = ui.Q("drink-row");
+            _drinkPips = ui.Q("drink-pips");
+            _drinkLabel = ui.Q<Label>("drink-label");
+            // Frame rate: Auto, or held at 30 (FrameRateCap). Only phones and tablets get hot enough to want it.
+            _fpsCap = ui.Q<Toggle>("fps-toggle");
+            _fpsCap.EnableInClassList("hidden", !Platform.IsTouch);
+            _fpsCap.RegisterValueChangedCallback(evt => FrameRateCap.Preference = evt.newValue);
             _fullscreen = ui.Q<Button>("fullscreen-button");
             UiSounds.Attach(ui);
 
@@ -134,6 +150,7 @@ namespace CasinoMares.UI
                 if (PlayerCameraRig.Instance != null)
                     PlayerCameraRig.Instance.AutoFollow = evt.newValue;
             });
+            _tipsy.RegisterValueChangedCallback(evt => TipsyEffect.VisualsEnabled = evt.newValue);
 
             ProfileStore.Changed += OnProfileChanged;
             PlayerCat.Joined += OnPlayersChanged;
@@ -174,6 +191,58 @@ namespace CasinoMares.UI
             UpdateLeaderboard();
             ExpireToasts();
             UpdateGain();
+            UpdateDrinks();
+        }
+
+        // ---------------------------------------------------------------- Wine (GDD §4.3, UX §1.1)
+
+        /// <summary>
+        /// One pip per glass still in effect (up to five) and "Tipsy" from the third, beside the balance; rebuilt only
+        /// when the count changes. The toasts for the 2nd, 3rd and 5th glass and for sobering up fire here too.
+        /// </summary>
+        void UpdateDrinks()
+        {
+            var cat = PlayerCat.Local;
+            var inGame = cat != null && cat.Object != null && cat.Object.IsValid;
+            var drinks = inGame ? cat.DrinkCount : 0;
+            if (drinks == _shownDrinks)
+                return;
+
+            var previous = _shownDrinks;
+            _shownDrinks = drinks;
+            _drinkPips.Clear();
+            for (var i = 0; i < Mathf.Min(drinks, MaxDrinkPips); i++)
+            {
+                var pip = new VisualElement { pickingMode = PickingMode.Ignore };
+                pip.AddToClassList("drink-pip");
+                _drinkPips.Add(pip);
+            }
+
+            _drinkRow.EnableInClassList("hidden", drinks == 0);
+            _drinkLabel.EnableInClassList("hidden", drinks < PlayerCat.DrunkAt);
+
+            // No toast on the first look (a reload) or once the cat is gone.
+            if (previous < 0 || !inGame)
+                return;
+            if (drinks > previous)
+            {
+                switch (drinks)
+                {
+                    case 2:
+                        Toasts.Show("One more glass and you'll be tipsy.");
+                        break;
+                    case PlayerCat.DrunkAt:
+                        Toasts.Show("You're tipsy. The room sways, and wins pay 10% extra.");
+                        break;
+                    case MaxDrinkPips:
+                        Toasts.Show("That's plenty. Everything's a bit of a blur.");
+                        break;
+                }
+            }
+            else if (previous >= PlayerCat.DrunkAt && drinks < PlayerCat.DrunkAt)
+            {
+                Toasts.Show("You feel steady again.");
+            }
         }
 
         void SetOverPills(bool over)
@@ -349,7 +418,9 @@ namespace CasinoMares.UI
                     _follow.SetValueWithoutNotify(PlayerCameraRig.Instance.AutoFollow);
                 }
 
+                _tipsy.SetValueWithoutNotify(TipsyEffect.VisualsEnabled);
                 _volume.SetValueWithoutNotify(Sfx.MasterVolume);
+                _fpsCap.SetValueWithoutNotify(FrameRateCap.Preference);
                 _fullscreen.text = Screen.fullScreen ? "Leave full screen" : "Full screen";
                 GameInput.PushUIBlock();
             }

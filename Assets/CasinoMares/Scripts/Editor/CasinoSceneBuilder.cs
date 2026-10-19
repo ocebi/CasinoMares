@@ -454,6 +454,7 @@ namespace CasinoMares.Editor
             Transition(sit, standUp, 0.1f, ("Sitting", AnimatorConditionMode.IfNot));
             ExitTransition(standUp, locomotion, 0.85f, 0.15f);
             Transition(standUp, sit, 0.15f, ("Sitting", AnimatorConditionMode.If));
+            BuildDrinkState(controller, machine, sit, standUp);
 
             Transition(locomotion, angry, 0.1f, ("Angry", AnimatorConditionMode.If));
             Transition(sit, angry, 0.1f, ("Angry", AnimatorConditionMode.If));
@@ -651,6 +652,7 @@ namespace CasinoMares.Editor
 
             var (model, _, driver, _) = AddCatBody(root, controller);
             SetFields(driver, ("_movement", movement));
+            AddVictoryCigar(root);
 
             var cameraTarget = Child(root.transform, "CameraTarget", new Vector3(0f, 0.45f, 0f));
             var nameplateAnchor = Child(root.transform, "NameplateAnchor", new Vector3(0f, 0.85f, 0f));
@@ -851,6 +853,7 @@ namespace CasinoMares.Editor
             BuildUI(panelSettings, palette);
             if (_sea)
                 BuildSeaside(hall, materials);
+            TagAmbienceLights();
             BakeNavMesh(hall);
             BakeReflectionProbe();
 
@@ -1887,6 +1890,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
+            BuildOverheadCamera(t, table, new Vector3(-1.9f, feltTop, -1.5f), new Vector3(1.9f, feltTop + OverheadHeadroom, 0.75f));
             SetString(table, "_displayName", name.Replace("Blackjack ", ""));
 
             SetFields(view,
@@ -2082,6 +2086,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
+            BuildOverheadCamera(t, table, new Vector3(-1.3f, feltTop, -1.2f), new Vector3(1.3f, feltTop + OverheadHeadroom, 0.6f));
             SetString(table, "_displayName", name);
             SetFields(view,
                 ("_table", table),
@@ -2183,6 +2188,7 @@ namespace CasinoMares.Editor
 
             SetArray(table, "_seatAnchors", seatAnchors);
             SetArray(table, "_seatCameras", seatCameras);
+            BuildOverheadCamera(t, table, new Vector3(-(radiusX + 0.6f), feltTop, -(radiusZ + 0.6f)), new Vector3(radiusX + 0.6f, feltTop + OverheadHeadroom, 0.8f));
             SetString(table, "_displayName", name);
             SetFields(view,
                 ("_table", table),

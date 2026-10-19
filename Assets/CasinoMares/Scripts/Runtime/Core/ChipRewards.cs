@@ -57,6 +57,15 @@ namespace CasinoMares.Core
             return true;
         }
 
+        /// <summary>Pays <paramref name="amount"/> chips with no cooldown (the tipsy bonus), with the same "+N" fuss.</summary>
+        public static void Grant(int amount, bool big = false)
+        {
+            if (amount <= 0)
+                return;
+            ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
+            Earned?.Invoke(amount, big);
+        }
+
         /// <summary>
         /// Where an object sits in its scene, e.g. "CasinoSea/Props/Glass_3": unlike runtime network ids, the same
         /// after a reload and on every client of a build.
