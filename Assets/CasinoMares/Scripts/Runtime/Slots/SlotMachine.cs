@@ -349,8 +349,7 @@ namespace CasinoMares.Slots
             {
                 _paidSpin = SpinId;
                 var payout = LastPayout;
-                if (payout > 0)
-                    ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
+                ChipRewards.PayRound(payout);
                 var me = PlayerCat.Local;
                 if (LastWin == SlotWin.Top && me != null)
                     me.Announce($"{me.DisplayName} won {payout:N0} chips on {_displayName}!");

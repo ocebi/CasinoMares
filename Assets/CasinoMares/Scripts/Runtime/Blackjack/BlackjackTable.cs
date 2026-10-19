@@ -1136,8 +1136,7 @@ namespace CasinoMares.Blackjack
                 for (var h = 0; h < shown.HandCountAt(seat); h++)
                     payout += BlackjackRules.Payout(shown.OutcomeAt(seat, h), shown.HandBetAt(seat, h));
 
-                if (payout > 0)
-                    ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
+                ChipRewards.PayRound(payout);
 
                 var net = payout - _walletCharged;
                 LocalRoundResult?.Invoke(this, net);

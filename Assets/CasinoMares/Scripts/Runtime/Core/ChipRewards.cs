@@ -9,7 +9,8 @@ namespace CasinoMares.Core
     /// Chips a cat earns around the casino rather than wins (GDD §7.2): pawing props and patrons, topping the cat
     /// wall, the cashier's Cat Welfare. Each reward key pays at most once per cooldown. The balance is client-side, so
     /// these cooldowns are the only guard against farming; they're saved in the profile as wall-clock UTC times
-    /// (game time restarts on a reload).
+    /// (game time restarts on a reload). Every game's payout for a round or spin also comes through here
+    /// (<see cref="PayRound"/>), so whatever watches for a big payout (the victory cigar) sees all games, new ones too.
     /// </summary>
     public static class ChipRewards
     {
@@ -25,11 +26,18 @@ namespace CasinoMares.Core
         /// </summary>
         public static event Action<int> SessionEarned;
 
+        /// <summary>
+        /// The local player's gross payout for one settled round or spin, any game: what it hands back, stake included
+        /// (a pushed 500 bet is 500). Only raised for a payout above zero.
+        /// </summary>
+        public static event Action<int> RoundPaid;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
             Earned = null;
             SessionEarned = null;
+            RoundPaid = null;
         }
 
         static long Now => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -81,6 +89,28 @@ namespace CasinoMares.Core
             ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
             Earned?.Invoke(amount, big, false);
             SessionEarned?.Invoke(amount);
+        }
+
+        /// <summary>
+        /// A game's payout to the local player for a settled round or spin, stake included: adds it to the balance and
+        /// reports it (<see cref="RoundPaid"/>). Each game calls this once per round, before its own result event.
+        /// </summary>
+        public static void PayRound(int payout)
+        {
+            if (payout <= 0)
+                return;
+            ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
+            RoundPaid?.Invoke(payout);
+        }
+
+        /// <summary>
+        /// Reports a payout that stays at the table rather than going to the balance (a poker pot joins the seat's
+        /// stack, cashed out on leaving).
+        /// </summary>
+        public static void ReportRound(int payout)
+        {
+            if (payout > 0)
+                RoundPaid?.Invoke(payout);
         }
 
         /// <summary>

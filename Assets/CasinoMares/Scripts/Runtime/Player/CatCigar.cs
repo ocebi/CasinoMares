@@ -1,18 +1,12 @@
-using CasinoMares.Baccarat;
-using CasinoMares.Blackjack;
 using CasinoMares.Core;
-using CasinoMares.Poker;
-using CasinoMares.Roulette;
-using CasinoMares.Rules;
-using CasinoMares.Slots;
 using UnityEngine;
 
 namespace CasinoMares.Player
 {
     /// <summary>
     /// The victory cigar (GDD §5.8): a cat that just had a huge win smokes one for five minutes, on every screen.
-    /// The owner's cat spots its own huge wins here (a table round's net of <see cref="HugeWinNet"/> or more, or a
-    /// top-tier slot win) and has <see cref="PlayerCat.LightCigar"/> stamp the networked end tick; every client,
+    /// The owner's cat spots its own huge wins here (any game's round or spin paying out <see cref="HugeWinPayout"/>
+    /// or more, stake included, whatever the net: <see cref="ChipRewards.RoundPaid"/>) and has <see cref="PlayerCat.LightCigar"/> stamp the networked end tick; every client,
     /// late joiners included, lights and puts out the cigar from that tick (<see cref="PlayerCat.Render"/> calls
     /// <see cref="SetLit"/>). The cigar is three primitives and a smoke system built on the first light and parked at
     /// the corner of the mouth: they follow the skull bone in LateUpdate (the bone's own scale and axes are unknown,
@@ -22,8 +16,8 @@ namespace CasinoMares.Player
     [DefaultExecutionOrder(50)] // LateUpdate after CatRigAnchor has pinned the rig, so the cigar reads this frame's skull pose.
     public class CatCigar : MonoBehaviour
     {
-        /// <summary>A table round's net win that earns a cigar (blackjack, roulette, baccarat, poker).</summary>
-        public const int HugeWinNet = 500;
+        /// <summary>A round's or spin's gross payout (stake included) that earns a cigar, in every game.</summary>
+        public const int HugeWinPayout = 500;
 
         // Dimensions in world units (the prefab's cat is about 0.58 m tall).
         const float CigarLength = 0.06f;
@@ -111,11 +105,7 @@ namespace CasinoMares.Player
             if (_bound)
                 return;
             _bound = true;
-            BlackjackTable.LocalRoundResult += OnBlackjack;
-            RouletteTable.LocalRoundResult += OnRoulette;
-            BaccaratTable.LocalRoundResult += OnBaccarat;
-            PokerTable.LocalHandResult += OnPoker;
-            SlotMachine.LocalSpinResult += OnSlots;
+            ChipRewards.RoundPaid += OnRoundPaid;
         }
 
         public void Unbind()
@@ -123,29 +113,14 @@ namespace CasinoMares.Player
             if (!_bound)
                 return;
             _bound = false;
-            BlackjackTable.LocalRoundResult -= OnBlackjack;
-            RouletteTable.LocalRoundResult -= OnRoulette;
-            BaccaratTable.LocalRoundResult -= OnBaccarat;
-            PokerTable.LocalHandResult -= OnPoker;
-            SlotMachine.LocalSpinResult -= OnSlots;
+            ChipRewards.RoundPaid -= OnRoundPaid;
         }
 
         void OnDestroy() => Unbind();
 
-        void OnBlackjack(BlackjackTable table, int net) => OnTableResult(net);
-        void OnRoulette(RouletteTable table, int net) => OnTableResult(net);
-        void OnBaccarat(BaccaratTable table, int net) => OnTableResult(net);
-        void OnPoker(PokerTable table, int net) => OnTableResult(net);
-
-        void OnTableResult(int net)
+        void OnRoundPaid(int payout)
         {
-            if (net >= HugeWinNet)
-                _cat?.LightCigar();
-        }
-
-        void OnSlots(SlotMachine machine, int net)
-        {
-            if (machine.LastWin == SlotWin.Top)
+            if (payout >= HugeWinPayout)
                 _cat?.LightCigar();
         }
 

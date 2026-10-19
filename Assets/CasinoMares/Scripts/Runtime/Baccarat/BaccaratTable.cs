@@ -678,8 +678,7 @@ namespace CasinoMares.Baccarat
             {
                 _walletPaidRound = shown.RoundId;
                 var payout = shown.PayoutAt(seat);
-                if (payout > 0)
-                    ProfileStore.SetBalance(ProfileStore.Current.Balance + payout);
+                ChipRewards.PayRound(payout);
                 if (_walletCharged > 0)
                     LocalRoundResult?.Invoke(this, payout - _walletCharged);
             }

@@ -1160,6 +1160,7 @@ namespace CasinoMares.Poker
                 if (shown.Phase == PokerPhase.Showdown && shown.ShowdownSettled && _reportedHand != shown.HandId && (shown.FlagsAt(seat) & PokerSeatFlags.InHand) != 0)
                 {
                     _reportedHand = shown.HandId;
+                    ChipRewards.ReportRound(shown.WonAt(seat));
                     LocalHandResult?.Invoke(this, shown.WonAt(seat) - shown.ContributedAt(seat));
                 }
             }
