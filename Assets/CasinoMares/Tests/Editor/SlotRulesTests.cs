@@ -19,7 +19,7 @@ namespace CasinoMares.Rules.Tests
         [TestCase(SlotRules.Fish, SlotRules.Fish, SlotRules.Fish, 3)]
         [TestCase(SlotRules.Paw, SlotRules.Paw, SlotRules.Paw, 50)]
         [TestCase(SlotRules.Paw, SlotRules.Fish, SlotRules.Paw, 4)]
-        [TestCase(SlotRules.Milk, SlotRules.Paw, SlotRules.Yarn, 2)]
+        [TestCase(SlotRules.Milk, SlotRules.Paw, SlotRules.Yarn, 1)]
         [TestCase(SlotRules.Milk, SlotRules.Fish, SlotRules.Yarn, 0)]
         public void Multipliers(int a, int b, int c, int expected)
         {
@@ -44,12 +44,15 @@ namespace CasinoMares.Rules.Tests
         }
 
         [Test]
-        public void NoSpinJustReturnsTheBet()
+        public void OnlyOnePawJustReturnsTheBet()
         {
             for (var a = 0; a < SlotRules.SymbolCount; a++)
             for (var b = 0; b < SlotRules.SymbolCount; b++)
             for (var c = 0; c < SlotRules.SymbolCount; c++)
-                Assert.AreNotEqual(1, SlotRules.Multiplier(a, b, c));
+            {
+                var paws = (a == SlotRules.Paw ? 1 : 0) + (b == SlotRules.Paw ? 1 : 0) + (c == SlotRules.Paw ? 1 : 0);
+                Assert.AreEqual(paws == 1, SlotRules.Multiplier(a, b, c) == 1);
+            }
         }
 
         [TestCase(10, 0, SlotWin.None)]
