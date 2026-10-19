@@ -12,11 +12,14 @@ namespace CasinoMares.UI
     /// Text chat (GDD §8): Enter or the HUD's Chat button opens the input, Enter sends, Esc cancels. Old lines fade
     /// out. With touch controls the Chat pill opens and closes it, there's a Send button, and the chat sits at the top,
     /// clear of the on-screen keyboard. In a browser the typing goes through a page text box (<see cref="WebTextInput"/>),
-    /// which the Chat pill's tap focuses so a phone's keyboard comes up with it.
+    /// which the Chat pill's tap focuses so a phone's keyboard comes up with it. The log keeps the newest line in view
+    /// unless the player has scrolled up to read back; their own message, or closing the input, brings it down again.
     /// </summary>
     public class ChatPanel : MonoBehaviour
     {
         const float LineVisibleSeconds = 12f;
+        /// <summary>Within this many pixels of the bottom counts as at the bottom.</summary>
+        const float BottomSlack = 2f;
 
         [SerializeField] UIDocument _document;
 
@@ -36,6 +39,9 @@ namespace CasinoMares.UI
         int _openedFrame = -1;
         /// <summary>The Enter that opened the input is still down: its key events reach the field too, and mustn't send.</summary>
         bool _openingEnterHeld;
+        /// <summary>The log follows new lines; false once the player scrolls up, until they're back at the bottom.</summary>
+        bool _stickToBottom = true;
+        System.Action _scrollToBottom;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -53,6 +59,11 @@ namespace CasinoMares.UI
             var ui = _document.rootVisualElement;
             _root = ui.Q("chat-root");
             _log = ui.Q<ScrollView>("chat-log");
+            _scrollToBottom ??= ScrollToBottom;
+            // A new line only has a height once layout has run, and the scroller's range follows after that: scroll on
+            // the pass after the content's size changes, not straight after adding it (that stopped a line short).
+            _log.contentContainer.RegisterCallback<GeometryChangedEvent>(OnLogResized);
+            _log.verticalScroller.valueChanged += OnLogScrolled;
             _inputRow = ui.Q("chat-input-row");
             _input = ui.Q<TextField>("chat-input");
             _input.RegisterCallback<KeyDownEvent>(OnInputKeyDown, TrickleDown.TrickleDown);
@@ -72,6 +83,8 @@ namespace CasinoMares.UI
         void OnDisable()
         {
             ChatLog.Added -= OnMessageAdded;
+            _log.contentContainer.UnregisterCallback<GeometryChangedEvent>(OnLogResized);
+            _log.verticalScroller.valueChanged -= OnLogScrolled;
             if (IsTyping)
                 CloseInput();
         }
@@ -117,6 +130,8 @@ namespace CasinoMares.UI
             GameInput.PopUIBlock();
             _inputRow.AddToClassList("hidden");
             WebTextInput.Blur(_input);
+            // The log fades and can't be read back once the input is closed: show the newest lines again.
+            FollowNewest();
         }
 
         void OnInputKeyDown(KeyDownEvent evt)
@@ -146,7 +161,36 @@ namespace CasinoMares.UI
             var text = _input.value;
             CloseInput();
             if (PlayerCat.Local != null && !string.IsNullOrWhiteSpace(text))
+            {
+                FollowNewest();
                 PlayerCat.Local.SendChat(text);
+            }
+        }
+
+        void FollowNewest()
+        {
+            _stickToBottom = true;
+            _log.schedule.Execute(_scrollToBottom);
+        }
+
+        void OnLogResized(GeometryChangedEvent evt)
+        {
+            if (_stickToBottom)
+                _log.schedule.Execute(_scrollToBottom);
+        }
+
+        /// <summary>The player scrolled (or the log was scrolled for them): follow new lines only from the bottom.</summary>
+        void OnLogScrolled(float value)
+        {
+            var scroller = _log.verticalScroller;
+            _stickToBottom = value >= scroller.highValue - BottomSlack;
+        }
+
+        void ScrollToBottom()
+        {
+            var bottom = Mathf.Max(0f, _log.contentContainer.layout.height - _log.contentViewport.layout.height);
+            _log.scrollOffset = new Vector2(0f, bottom);
+            _stickToBottom = true;
         }
 
         void OnMessageAdded(ChatLog.Message message)
@@ -173,7 +217,6 @@ namespace CasinoMares.UI
             _log.Add(line);
             while (_log.contentContainer.childCount > ChatLog.MaxMessages)
                 _log.contentContainer.RemoveAt(0);
-            _log.schedule.Execute(() => _log.scrollOffset = new Vector2(0f, float.MaxValue));
             _lastMessageAt = Time.unscaledTime;
         }
 
