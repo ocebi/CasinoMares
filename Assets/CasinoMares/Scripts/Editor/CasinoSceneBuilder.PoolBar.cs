@@ -5,17 +5,17 @@ using UnityEngine;
 namespace CasinoMares.Editor
 {
     /// <summary>
-    /// A second wine bar by the pool (plan §11.3, GDD §4.3): a teak counter with a stone top along the east railing,
-    /// three stools on its pool side so the seated cats look across it at the sea and the sunset, and its own bartender
-    /// on a step behind it. The counter, step and stools copy the hall bar's (BuildBar) heights and depths from the
+    /// A second wine bar by the pool (plan §11.3, GDD §4.3): a teak counter with a stone top along the extension's south
+    /// railing, south of the pool, three stools on its pool side so the seated cats look across it at the open sea, and
+    /// its own bartender on a step behind it. The counter, step and stools copy the hall bar's (BuildBar) heights and depths from the
     /// stools to the bartender, so <see cref="Social.WineBar"/>'s glass spots fit both. Its seats and wine service are
     /// built by the same <see cref="BuildBarSeatRow"/> and <see cref="BuildWineBar"/> as the hall's. Sea scene only.
     /// </summary>
     public static partial class CasinoSceneBuilder
     {
-        /// <summary>The middle of the stool row, and the way the seated cats face (toward the counter and the sea).</summary>
-        static readonly Vector3 PoolBarStools = new(23.9f, 0f, 0.5f);
-        const float PoolBarYaw = 90f;
+        /// <summary>The middle of the stool row, and the way the seated cats face (toward the counter and the sea, south).</summary>
+        static readonly Vector3 PoolBarStools = new(15f, 0f, -8.5f);
+        const float PoolBarYaw = 180f;
         const int PoolBarStoolCount = 3;
         const float PoolBarStoolSpacing = 1.1f;
 

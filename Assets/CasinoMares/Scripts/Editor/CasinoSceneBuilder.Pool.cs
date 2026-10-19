@@ -8,32 +8,43 @@ using Object = UnityEngine.Object;
 namespace CasinoMares.Editor
 {
     /// <summary>
-    /// The seaside terrace's pool (plan §11.2): the deck runs on <see cref="DeckExtension"/> metres out to sea (the glass
-    /// railing moves out with it), and in its corner toward the islands and the sunset a stone pool, visually
-    /// <see cref="PoolDepth"/> deep, its water a little below the deck. Shallow steps at the hall end are the way in
-    /// and out; a <see cref="SwimmingPool"/> box over the rest makes a cat swim. Two sun loungers stand beside it. One
+    /// The seaside terrace's pool (plan §11.2): the deck runs on <see cref="DeckExtension"/> metres south, along the hall's
+    /// east wall and past its corner (to the right of the café tables, looking out to sea), so the old railing in front
+    /// of the tables stays where it was and the glass railing goes round the new part. In the extension's south-east
+    /// corner, open water to the east and south, is a stone pool, visually <see cref="PoolDepth"/> deep, its water a
+    /// little below the deck. Shallow steps at its north end, toward the terrace door, are the way in and out; a
+    /// <see cref="SwimmingPool"/> box over the rest makes a cat swim. Two sun loungers stand beside it. One
     /// mesh each for the extension's deck and the pool's stone, a flat transparent Lit plane for the water (cheaper on
     /// phones than the sea's shader), no new shaders. Sea scene only.
     /// </summary>
     public static partial class CasinoSceneBuilder
     {
-        /// <summary>How far the deck now runs on past the old terrace edge (<see cref="TerraceEast"/>), out to sea.</summary>
-        const float DeckExtension = 8f;
-        const float DeckEast = TerraceEast + DeckExtension;
-        /// <summary>The pool's water, east–west and north–south, and its gap to the deck's east and north edges.</summary>
-        const float PoolLength = 6f;
+        /// <summary>
+        /// How far the deck now runs on south past the old terrace's south edge (<see cref="TerraceSouth"/>). 9 m reaches
+        /// the hall's stone base's south edge, so the deck's hall side stands on stone all the way.
+        /// </summary>
+        const float DeckExtension = 9f;
+        const float DeckSouth = TerraceSouth - DeckExtension;
+        /// <summary>Where the hall's outside south-east corner is: west of the extension north of here is the hall's wall.</summary>
+        const float HallCornerSouth = -HallDepth / 2f - WallThickness / 2f - CladdingThickness;
+        /// <summary>
+        /// The pool's water, north–south (from the steps) and east–west; its gap to the east railing (room for the
+        /// loungers) and to the old terrace's edge, where the steps start.
+        /// </summary>
+        const float PoolLength = 5.5f;
         const float PoolWidth = 4f;
-        const float PoolEdgeMargin = 0.7f;
-        const float PoolEast = DeckEast - PoolEdgeMargin;
-        const float PoolWest = PoolEast - PoolLength;
-        const float PoolNorth = TerraceNorth - PoolEdgeMargin;
-        const float PoolSouth = PoolNorth - PoolWidth;
+        const float PoolEastMargin = 1.3f;
+        const float PoolNorthMargin = 0.5f;
+        const float PoolEast = TerraceEast - PoolEastMargin;
+        const float PoolWest = PoolEast - PoolWidth;
+        const float PoolNorth = TerraceSouth - PoolNorthMargin;
+        const float PoolSouth = PoolNorth - PoolLength;
         /// <summary>The floor, below the deck (whose top is 0).</summary>
         const float PoolDepth = 1.2f;
         /// <summary>The water surface: where a swimming cat's feet float (its model sinks 0.25 m more, CatReactions).</summary>
         const float PoolWaterLevel = -0.15f;
         /// <summary>
-        /// The steps down from the hall end, full width. Each rises less than the cat's step offset (0.15), so cats walk
+        /// The steps down from the north end, full width. Each rises less than the cat's step offset (0.15), so cats walk
         /// up them; the top one stays just dry.
         /// </summary>
         const int PoolSteps = 5;
@@ -68,20 +79,20 @@ namespace CasinoMares.Editor
             water.name = "Water";
             water.transform.SetParent(pool, false);
             water.transform.SetLocalPositionAndRotation(new Vector3((PoolWest + PoolEast) / 2f, PoolWaterLevel, (PoolSouth + PoolNorth) / 2f), Quaternion.Euler(90f, 0f, 0f));
-            water.transform.localScale = new Vector3(PoolLength, PoolWidth, 1f);
+            water.transform.localScale = new Vector3(PoolWidth, PoolLength, 1f);
             Object.DestroyImmediate(water.GetComponent<Collider>());
             water.GetComponent<MeshRenderer>().sharedMaterial = TransparentLit("Sea_PoolWater", new Color(0.3f, 0.72f, 0.78f, 0.5f), 0.95f);
             NoShadows(water);
             GameObjectUtility.SetStaticEditorFlags(water, StaticEditorFlags.BatchingStatic);
 
-            // The swimmable water: from the swim step to the east wall, floor up to a little over the deck (a cat
+            // The swimmable water: from the swim step to the south wall, floor up to a little over the deck (a cat
             // hopping in from the edge is caught on the way down).
-            var swimWest = PoolWest + PoolSwimFromStep * PoolStepTread;
+            var swimNorth = PoolNorth - PoolSwimFromStep * PoolStepTread;
             const float top = 0.5f;
-            var center = new Vector3((swimWest + PoolEast) / 2f, (top - PoolDepth) / 2f, (PoolSouth + PoolNorth) / 2f);
+            var center = new Vector3((PoolWest + PoolEast) / 2f, (top - PoolDepth) / 2f, (PoolSouth + swimNorth) / 2f);
             var area = Child(pool, "SwimArea", center).gameObject.AddComponent<SwimmingPool>();
             var serialized = new SerializedObject(area);
-            serialized.FindProperty("_size").vector3Value = new Vector3(PoolEast - swimWest, top + PoolDepth, PoolWidth);
+            serialized.FindProperty("_size").vector3Value = new Vector3(PoolWidth, top + PoolDepth, swimNorth - PoolSouth);
             serialized.FindProperty("_surface").floatValue = PoolWaterLevel - center.y;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
@@ -89,9 +100,10 @@ namespace CasinoMares.Editor
             NotWalkable(pool.gameObject);
 
             var pad = Lit("Sea_LoungerPad", new Color(0.9f, 0.93f, 0.95f), 0.1f);
-            // Lying north–south, side by side, so a cat on one looks out sideways over the railing.
-            Lounger(terrace, "Lounger_1", new Vector3(PoolWest + 2.6f, 0f, PoolSouth - 1.2f), LoungerYaw, teak, pad);
-            Lounger(terrace, "Lounger_2", new Vector3(PoolWest + 3.4f, 0f, PoolSouth - 1.2f), LoungerYaw, teak, pad);
+            // Between the pool and the east railing, lying along it, so a cat on one looks out sideways at the sea.
+            var loungerX = (PoolEast + PoolCopingWidth + TerraceEast) / 2f;
+            Lounger(terrace, "Lounger_1", new Vector3(loungerX, 0f, PoolNorth - 2f), LoungerYaw, teak, pad);
+            Lounger(terrace, "Lounger_2", new Vector3(loungerX, 0f, PoolNorth - 3.5f), LoungerYaw, teak, pad);
         }
 
         /// <summary>
@@ -108,12 +120,15 @@ namespace CasinoMares.Editor
             const float holeEast = PoolEast + PoolHoleGap;
             const float holeSouth = PoolSouth - PoolHoleGap;
             const float holeNorth = PoolNorth + PoolHoleGap;
+            const float west = HallWidth / 2f;
+            // The hall side shows only south of the hall's corner; north of it the deck runs under the wall.
             foreach (var (min, max, faces) in new[]
                      {
-                         (new Vector3(TerraceEast, bottom, TerraceSouth), new Vector3(DeckEast, 0f, holeSouth), Faces.Top | Faces.East | Faces.South),
-                         (new Vector3(TerraceEast, bottom, holeNorth), new Vector3(DeckEast, 0f, TerraceNorth), Faces.Top | Faces.East | Faces.North),
-                         (new Vector3(TerraceEast, bottom, holeSouth), new Vector3(holeWest, 0f, holeNorth), Faces.Top),
-                         (new Vector3(holeEast, bottom, holeSouth), new Vector3(DeckEast, 0f, holeNorth), Faces.Top | Faces.East),
+                         (new Vector3(west, bottom, holeNorth), new Vector3(TerraceEast, 0f, TerraceSouth), Faces.Top | Faces.East),
+                         (new Vector3(west, bottom, DeckSouth), new Vector3(TerraceEast, 0f, holeSouth), Faces.Top | Faces.East | Faces.South | Faces.West),
+                         (new Vector3(west, bottom, HallCornerSouth), new Vector3(holeWest, 0f, holeNorth), Faces.Top),
+                         (new Vector3(west, bottom, holeSouth), new Vector3(holeWest, 0f, HallCornerSouth), Faces.Top | Faces.West),
+                         (new Vector3(holeEast, bottom, holeSouth), new Vector3(TerraceEast, 0f, holeNorth), Faces.Top | Faces.East),
                      })
             {
                 mesh.Box(min, max, faces);
@@ -149,23 +164,23 @@ namespace CasinoMares.Editor
 
             for (var i = 0; i < PoolSteps; i++)
             {
-                var x0 = PoolWest + i * PoolStepTread;
-                var x1 = x0 + PoolStepTread;
+                var z1 = PoolNorth - i * PoolStepTread;
+                var z0 = z1 - PoolStepTread;
                 var stepTop = -(i + 1) * PoolStepRise;
                 // Each riser shows from the next step's tread up; the last one from the floor.
                 var riserFoot = i == PoolSteps - 1 ? floor : -(i + 2) * PoolStepRise;
-                mesh.Quad(Vector3.up, new Vector3(x0, stepTop, PoolSouth), new Vector3(x1, stepTop, PoolSouth), new Vector3(x1, stepTop, PoolNorth), new Vector3(x0, stepTop, PoolNorth));
-                mesh.Quad(Vector3.right, new Vector3(x1, riserFoot, PoolSouth), new Vector3(x1, stepTop, PoolSouth), new Vector3(x1, stepTop, PoolNorth), new Vector3(x1, riserFoot, PoolNorth));
-                Solid(basin, new Vector3(x0, floor, PoolSouth), new Vector3(x1, stepTop, PoolNorth));
+                mesh.Quad(Vector3.up, new Vector3(PoolWest, stepTop, z0), new Vector3(PoolEast, stepTop, z0), new Vector3(PoolEast, stepTop, z1), new Vector3(PoolWest, stepTop, z1));
+                mesh.Quad(Vector3.back, new Vector3(PoolWest, riserFoot, z0), new Vector3(PoolEast, riserFoot, z0), new Vector3(PoolEast, stepTop, z0), new Vector3(PoolWest, stepTop, z0));
+                Solid(basin, new Vector3(PoolWest, floor, z0), new Vector3(PoolEast, stepTop, z1));
             }
 
             const float cw = PoolCopingWidth;
             const Faces sides = Faces.East | Faces.West | Faces.North | Faces.South;
             foreach (var (min, max) in new[]
                      {
-                         (new Vector3(PoolWest - cw, 0f, PoolNorth), new Vector3(PoolEast + cw, PoolCopingHeight, PoolNorth + cw)),
-                         (new Vector3(PoolWest - cw, 0f, PoolSouth - cw), new Vector3(PoolEast + cw, PoolCopingHeight, PoolSouth)),
-                         (new Vector3(PoolEast, 0f, PoolSouth), new Vector3(PoolEast + cw, PoolCopingHeight, PoolNorth)),
+                         (new Vector3(PoolWest - cw, 0f, PoolSouth - cw), new Vector3(PoolWest, PoolCopingHeight, PoolNorth + cw)),
+                         (new Vector3(PoolEast, 0f, PoolSouth - cw), new Vector3(PoolEast + cw, PoolCopingHeight, PoolNorth + cw)),
+                         (new Vector3(PoolWest, 0f, PoolSouth - cw), new Vector3(PoolEast, PoolCopingHeight, PoolSouth)),
                      })
             {
                 mesh.Box(min, max, Faces.Top | sides);
@@ -173,7 +188,7 @@ namespace CasinoMares.Editor
             }
 
             // The lip at the steps is too thin to trip on, so it needs no collider.
-            mesh.Box(new Vector3(PoolWest - cw, 0f, PoolSouth), new Vector3(PoolWest, PoolLipHeight, PoolNorth), Faces.Top | Faces.East | Faces.West);
+            mesh.Box(new Vector3(PoolWest, 0f, PoolNorth), new Vector3(PoolEast, PoolLipHeight, PoolNorth + cw), Faces.Top | Faces.North | Faces.South);
 
             basin.AddComponent<MeshFilter>().sharedMesh = SaveMesh(mesh.Build("Sea_Pool"), "Sea_Pool");
             basin.AddComponent<MeshRenderer>().sharedMaterial = stone;

@@ -189,10 +189,15 @@ The hall is 22 × 14 m (as built):
   into a short vestibule with a velvet curtain. NPC players arrive and leave through it (§5.6).
 - The NavMesh (AI Navigation package) covers the whole walkable floor for NPCs. It is baked by the
   scene builder.
-- Seaside scene only: the terrace outside the east door runs 8 m further out to sea than at first, with
-  the glass railing round the new edge. In its corner toward the islands and the sunset is a 6 × 4 m
-  stone pool, 1.2 m deep, the water 0.15 m below the deck. Shallow steps at the hall end lead in and out.
-  Two sun loungers, a fourth café table and a pool bar (§4.3) stand beside it. Patrons never walk into it.
+- Seaside scene only: the terrace outside the east door runs on 9 m south along the hall's east wall and
+  past its corner. Seen from the café tables looking out to sea, that is to the right, so their view is
+  open. The glass railing goes round the new part.
+  - In its south-east corner, open water to the east and south, is a 4 × 5.5 m stone pool, 1.2 m deep,
+    the water 0.15 m below the deck.
+  - Shallow steps at its north end, toward the terrace door, lead in and out.
+  - Two cat-sized sun loungers lie along the east railing beside it, with a fourth café table and a pool
+    bar (§4.3) at the south end.
+  - Patrons never walk into it.
   - Stepping into the water makes a cat swim (the Swim state, plan §11.1): it floats at the surface,
     paddles slowly, and can't jump, sprint, emote or paw. Walking up the steps ends it. Other players
     see it swim.
@@ -211,8 +216,8 @@ The hall is 22 × 14 m (as built):
   doesn't ride on the cat), then the empty glass sits on the
   counter for a second and the seat can order again at once (three glasses in about 25 s). A glass
   belongs to the cat that ordered it; if that cat leaves the stool, the glass is cleared. Chat line: "<name> ordered a glass of wine."
-- **Pool bartender cat** (sea scene): a second bar by the pool, along the terrace's east railing, with
-  three stools on the pool side, so seated cats look across the counter at the sea and the sunset. It has
+- **Pool bartender cat** (sea scene): a second bar by the pool, along the extension's south railing, with
+  three stools on the pool side, so seated cats look across the counter at the open sea. It has
   its own bartender and serves wine exactly like the hall bar, with its own orders. Its glasses count
   toward the same `DrinkCount`, so drinks at both bars add up.
 - **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
