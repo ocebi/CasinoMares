@@ -89,8 +89,9 @@ namespace CasinoMares.Editor
             NotWalkable(pool.gameObject);
 
             var pad = Lit("Sea_LoungerPad", new Color(0.9f, 0.93f, 0.95f), 0.1f);
-            Lounger(terrace, "Lounger_1", new Vector3(PoolWest + 3f, 0f, PoolSouth - 1.05f), teak, pad);
-            Lounger(terrace, "Lounger_2", new Vector3(PoolWest + 3f, 0f, PoolSouth - 2.05f), teak, pad);
+            // Lying north–south, side by side, so a cat on one looks out sideways over the railing.
+            Lounger(terrace, "Lounger_1", new Vector3(PoolWest + 2.6f, 0f, PoolSouth - 1.2f), LoungerYaw, teak, pad);
+            Lounger(terrace, "Lounger_2", new Vector3(PoolWest + 3.4f, 0f, PoolSouth - 1.2f), LoungerYaw, teak, pad);
         }
 
         /// <summary>
@@ -196,10 +197,19 @@ namespace CasinoMares.Editor
             yield return ("_UnderPool", holeWest, holeEast, holeSouth, holeNorth, -PoolDepth - PoolHoleGap);
         }
 
-        /// <summary>A teak sun lounger with a pad, its back raised at the hall end so it faces the sea (east).</summary>
-        static void Lounger(Transform parent, string name, Vector3 foot, Material teak, Material pad)
+        /// <summary>The loungers' size against a person-sized one (1.9 m long): about a cat's.</summary>
+        const float LoungerScale = 0.6f;
+        /// <summary>Which way their foot ends point (degrees from east, clockwise seen from above).</summary>
+        const float LoungerYaw = 90f;
+
+        /// <summary>
+        /// A teak sun lounger with a pad, <see cref="LoungerScale"/> of a person-sized one, its back raised at the head
+        /// end; <paramref name="yaw"/> turns its foot end from east.
+        /// </summary>
+        static void Lounger(Transform parent, string name, Vector3 foot, float yaw, Material teak, Material pad)
         {
-            var lounger = Child(parent, name, foot);
+            var lounger = Child(parent, name, foot, Quaternion.Euler(0f, yaw, 0f));
+            lounger.localScale = Vector3.one * LoungerScale;
             foreach (var (x, z) in new[] { (1f, 1f), (1f, -1f), (-1f, 1f), (-1f, -1f) })
                 Box("Leg", lounger, new Vector3(x * 0.85f, 0.12f, z * 0.27f), new Vector3(0.05f, 0.24f, 0.05f), teak, collider: false);
             Box("Frame", lounger, new Vector3(0f, 0.265f, 0f), new Vector3(1.9f, 0.05f, 0.65f), teak, collider: false);
