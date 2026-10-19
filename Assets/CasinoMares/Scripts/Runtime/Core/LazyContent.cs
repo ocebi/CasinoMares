@@ -22,11 +22,19 @@ namespace CasinoMares.Core
         static readonly Dictionary<string, AsyncOperationHandle> Loads = new();
         static readonly Dictionary<string, Object> Loaded = new();
 
+        /// <summary>Loads started and not yet finished (succeeded or failed), for <see cref="AutoRenderScale"/>.</summary>
+        public static int InFlight { get; private set; }
+
+        /// <summary>When the last load finished (<c>Time.unscaledTime</c>); minus infinity before any has.</summary>
+        public static float LastFinishedAt { get; private set; } = float.NegativeInfinity;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Initialize()
         {
             Loads.Clear();
             Loaded.Clear();
+            InFlight = 0;
+            LastFinishedAt = float.NegativeInfinity;
             if (Platform.IsWeb && Platform.TextureFormat == "ASTC")
                 Addressables.InternalIdTransformFunc = location => location.InternalId.Replace("/StreamingAssets/aa/", $"/StreamingAssets/{MobileFolder}/");
         }
@@ -57,8 +65,11 @@ namespace CasinoMares.Core
             {
                 handle = Addressables.LoadAssetAsync<T>(address);
                 Loads[address] = handle;
+                InFlight++;
                 handle.Completed += done =>
                 {
+                    InFlight--;
+                    LastFinishedAt = Time.unscaledTime;
                     if (done.Status == AsyncOperationStatus.Succeeded && done.Result is T result)
                         Loaded[address] = result;
                     else

@@ -938,8 +938,11 @@ players join the same room as the desktop builds.
     Mobile quality level their range is cut to 70 %, so at most three lights reach any pixel (the lamps
     over the games are untouched; the slot machines' lights are off on Mobile, `SlotCelebration`).
     `?lighttrim=0` turns it off, `?lighttrim=1` turns it on anywhere.
-  - **Auto render scale** (`AutoRenderScale`): steps the render scale down to 0.6 while under 45 fps,
-    back up after a steady 57 fps. `?autoscale=0/1`.
+  - **Auto render scale** (`AutoRenderScale`): steps the render scale down (1, 0.85, 0.7; never below
+    0.7) after 5 s under 45 fps, back up after 20 s at 50 fps or more (Safari caps a phone at 60, where
+    a busy scene measures 55–59). It doesn't judge for 20 s after the cat spawns, nor while bundles load
+    (`LazyContent`) or for 10 s after each: that stutter isn't a slow GPU. `?autoscale=0/1`;
+    `?scale=1` (0.7–1) pins the scale.
   - **Frame rate cap** (`FrameRateCap`): when the lowest render scale still leaves it under 45 fps for
     10 s, the frame rate is held at 30 (steady beats judder, and the phone cools); it's tried off again
     after 30 s, then 60, up to 4 minutes. The pause menu's **Hold the frame rate at 30** toggle (touch
@@ -948,7 +951,8 @@ players join the same room as the desktop builds.
     `setTimeout` loop instead of `requestAnimationFrame`); if it judders, the alternative is
     `OnDemandRendering.renderFrameInterval = 2`, which keeps the browser's loop and renders every other
     frame.
-  - `?debug=1` shows what the phone settled on: render scale step, frame rate target, light trim.
+  - `?debug=1` shows what the phone settled on: render scale step and why (or why it's waiting), frame
+    rate target, light trim.
 
 ### 15.3 Touch controls (`TouchControls`, `Platform.IsTouch`)
 Phones and tablets get on-screen controls, detected from a coarse pointer, since iPadOS reports a

@@ -69,7 +69,7 @@ namespace CasinoMares.Core
                       SystemInfo.IsFormatSupported(GraphicsFormat.B10G11R11_UFloatPack32, GraphicsFormatUsage.Render);
             // What the phone settled on: the render scale step, the frame rate cap and the light trim (for reports).
             _text = $"{fps:0} fps  cpu {cpuMs:0.0} ms  {QualitySettings.names[QualitySettings.GetQualityLevel()]}  " +
-                    $"{Platform.TextureFormat}  {Screen.width}x{Screen.height} x{scale:0.##} (step {AutoRenderScale.Level}/{AutoRenderScale.MaxLevel})  " +
+                    $"{Platform.TextureFormat}  {Screen.width}x{Screen.height} x{scale:0.##} (step {AutoRenderScale.Level}/{AutoRenderScale.MaxLevel}: {AutoRenderScale.Status})  " +
                     $"HDR {(hdr ? "on" : "off")}\ntarget {FrameRateCap.Describe}  light trim {(MobileLightTrim.Active ? "on" : "off")}  " +
                     SystemInfo.graphicsDeviceName;
 
