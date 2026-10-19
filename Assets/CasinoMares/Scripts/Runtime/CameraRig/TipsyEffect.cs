@@ -23,7 +23,8 @@ namespace CasinoMares.CameraRig
         const float TipsyGain = 0.5f;
         const float DrunkGain = 0.75f;
         const float VeryDrunkGain = 1f;
-        const int VeryDrunkAt = 5;
+        /// <summary>Glasses for the full effect; the bar's tipsy meter is full here too.</summary>
+        public const int VeryDrunkAt = 5;
 
         /// <summary>Ramp seconds: into a tier, out when sobering, out when the toggle is switched off.</summary>
         const float RampIn = 3f;

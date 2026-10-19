@@ -1,3 +1,4 @@
+using CasinoMares.CameraRig;
 using CasinoMares.Core;
 using CasinoMares.Player;
 using CasinoMares.Social;
@@ -10,9 +11,10 @@ namespace CasinoMares.UI
     /// <summary>
     /// Seated at a terrace table or on a bar stool there's no game UI, just Stand up (E). Phones need the button:
     /// with no keyboard, it's the only way back up. At the bar there's also the wine order (UX §1.5): one button
-    /// whose text is its state ("Order wine · 20", "Pouring…", "Another in 12 s") and a readable glass count; Space
+    /// whose text is its state ("Order wine · 20", "Pouring…", "Another in 12 s") and a tipsy meter; Space
     /// orders on desktop. On a phone the wine glyph carries the meaning and the label under it is short: the price
-    /// when ready, "…" while busy, the seconds left in the cooldown.
+    /// when ready, "…" while busy, the seconds left in the cooldown. The meter has a segment per glass still in effect
+    /// and is full at <see cref="TipsyEffect.VeryDrunkAt"/>, where the drunk effect is at its strongest.
     /// </summary>
     public class TerraceHud : MonoBehaviour
     {
@@ -21,6 +23,8 @@ namespace CasinoMares.UI
         VisualElement _root;
         VisualElement _barBottom;
         Label _count;
+        VisualElement _meter;
+        readonly VisualElement[] _segments = new VisualElement[TipsyEffect.VeryDrunkAt];
         Button _orderButton;
         TerraceTable _table;
         WineBar _bar;
@@ -36,6 +40,18 @@ namespace CasinoMares.UI
             _root = ui.Q("terrace-root");
             _barBottom = ui.Q("bar-bottom");
             _count = ui.Q<Label>("bar-count");
+            _meter = ui.Q("bar-meter-track");
+            _meter.Clear();
+            for (var i = 0; i < _segments.Length; i++)
+            {
+                var segment = new VisualElement { pickingMode = PickingMode.Ignore };
+                segment.AddToClassList("bar-meter-seg");
+                segment.EnableInClassList("bar-meter-seg--tipsy", i + 1 >= PlayerCat.DrunkAt);
+                segment.EnableInClassList("bar-meter-seg--tipsy-start", i + 1 == PlayerCat.DrunkAt);
+                _meter.Add(segment);
+                _segments[i] = segment;
+            }
+
             _orderButton = ui.Q<Button>("order-button");
             ui.Q<Button>("leave-button").clicked += () => _table?.RequestLeave(_seat);
             _orderButton.clicked += Order;
@@ -110,11 +126,17 @@ namespace CasinoMares.UI
             var tipsy = drinks >= PlayerCat.DrunkAt;
             _count.text = drinks switch
             {
-                0 => "No glasses yet",
+                0 => "Sober",
                 1 => "1 glass",
-                _ => tipsy ? $"{drinks} glasses · tipsy" : $"{drinks} glasses",
+                _ when !tipsy => $"{drinks} glasses",
+                _ when drinks >= TipsyEffect.VeryDrunkAt => "Very drunk",
+                _ when drinks > PlayerCat.DrunkAt => "Drunk",
+                _ => "Tipsy",
             };
             _count.EnableInClassList("bar-count--tipsy", tipsy);
+            for (var i = 0; i < _segments.Length; i++)
+                _segments[i].EnableInClassList("bar-meter-seg--full", i < drinks);
+            _meter.EnableInClassList("bar-meter--full", drinks >= TipsyEffect.VeryDrunkAt);
         }
     }
 }
