@@ -223,16 +223,23 @@
       // How long jsDelivr gets to start sending a file. A cached one starts at once; one it has to fetch from GitHub
       // first can take 10-20 s, which is still quicker than GitHub Pages where that is slow.
       var cdnWaitMs = 25000;
+      // The on-demand art (Addressables bundles in StreamingAssets/aa and aa_Mobile) sits next to Build, so it comes
+      // from the same place and falls back the same way.
+      var assetsUrl = buildUrl.replace(/Build$/, "StreamingAssets");
+      var assetsMirrorUrl = mirrorUrl.replace(/Build$/, "StreamingAssets");
       if (buildUrl != mirrorUrl) {
-        // Unity's loader downloads every file with fetch().
+        // Unity's loader and its web requests download every file with fetch().
         var pageFetch = window.fetch;
         window.fetch = function (resource, init) {
-          if (typeof resource != "string" || resource.indexOf(buildUrl + "/") != 0)
+          var from = typeof resource != "string" ? null
+            : resource.indexOf(buildUrl + "/") == 0 ? buildUrl
+            : resource.indexOf(assetsUrl + "/") == 0 ? assetsUrl : null;
+          if (!from)
             return pageFetch.apply(window, arguments);
-          var file = resource.substring(buildUrl.length + 1);
+          var file = resource.substring(from.length + 1);
           var useMirror = function (reason) {
             console.warn("jsDelivr " + reason + " for " + file + ", loading it from GitHub Pages");
-            return pageFetch(mirrorUrl + "/" + file, init);
+            return pageFetch((from == buildUrl ? mirrorUrl : assetsMirrorUrl) + "/" + file, init);
           };
           var abort = new AbortController();
           var timer = setTimeout(function () { abort.abort(); }, cdnWaitMs);
@@ -256,7 +263,7 @@
 #if SYMBOLS_FILENAME
         symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
 #endif
-        streamingAssetsUrl: "StreamingAssets",
+        streamingAssetsUrl: assetsUrl,
         companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
         productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
         productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},

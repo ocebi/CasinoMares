@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Landscape
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: Landscape
+  m_GUID: eafbadf0f1bb449f8bbd5ff0970f637d
+  m_SerializeEntries:
+  - m_GUID: 56958f0fd00f24d50b110514e7aae2b5
+    m_Address: Sea_Island_North
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 79e6f8d17fa324e2695d34f7ada38138
+    m_Address: Sea_Island_Cliffs
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83a7dfb42e5a142268c12e27e5b1ed47
+    m_Address: Sea_Island_Chapel
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b1aa49f7a3f684886b58fd48ae57cf29
+    m_Address: Sea_Island_Village
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ceb04f905f57a4c0bb3b6a6da6b13871
+    m_Address: Sea_FarCoast
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 57768a560cffc437693780c149701a32, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: c2df454f722d6422c88e9a9d62e7af27, type: 2}
+    - {fileID: 11400000, guid: 36799abd395844f6e869234faef6af90, type: 2}
+    m_SchemaDisplayOrder:
+    - Landscape_BundledAssetGroupSchema
+    - Landscape_ContentUpdateGroupSchema
+  m_IncludeInBuild: 1
+  m_IncludeInBuildMigrated: 1

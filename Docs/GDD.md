@@ -833,9 +833,27 @@ players join the same room as the desktop builds.
   **OptimizeSize** (verified to boot, join a room and spawn in Chrome); `Cat_N` is 512² and the sky
   photo 2048² on WebGL (platform overrides, desktop keeps its sizes); the Kenney clips are Vorbis
   0.5, mono. ProBuilder, VFX Graph, glTFast and Timeline are removed (the runtime never used them), and
-  so is the unused `LowPolyAnimatedAnimals` pack. The Roslyn dlls in `Assets/Plugins/Roslyn` are editor-only. Data 14.8 MB desktop and
-  14.7 MB mobile, wasm 9.7 MB (gzip), from 18.6/19.0 and 12.7. jsDelivr refuses files over 20 MB. Still to try: Brotli
-  (estimated −18% data, −30% wasm) and Addressables for the cat furs, sky and island meshes.
+  so is the unused `LowPolyAnimatedAnimals` pack. The Roslyn dlls in `Assets/Plugins/Roslyn` are editor-only.
+- On-demand art (Addressables, `LazyContent`): the five recolored cat furs, the sky photo and the far
+  islands and coast ship as bundles in `StreamingAssets/aa` (DXT) and `aa_Mobile` (ASTC, picked when the
+  page loaded the mobile data file), not in the data file. `LazyContentSetup` makes the groups from code
+  (Casino Mares ▸ Setup ▸ Set Up Lazy Content; `WebBuild` runs it), and they build with each player pass.
+  - Furs: `CatFurPalette` holds each recolored fur's address, with the black fur as the stand-in. The
+    menu starts loading the picked fur, so it's normally there before the player spawns; other cats show
+    black until theirs arrives. Each fur is its own bundle (about 1 MB); the shared normal map is one more.
+  - Sky and islands: the scenes keep their references. While a build processes a scene,
+    `LazySceneProcessor` empties the island mesh filters and swaps the materials that sample the sky photo
+    for scene copies holding a blurred 64×32 stand-in; `LazySceneContent` fills the real ones in after the
+    scene opens.
+  - A failed load is logged and the stand-in stays; nothing waits on a bundle.
+  - The page loads StreamingAssets from the same place as `Build` (jsDelivr after a deploy, with the same
+    GitHub Pages fallback); `Tools/deploy_pages.py` commits, size-checks and warms both folders.
+- Sizes (gzip, 2026-10-19): data 10.9 MB desktop and 10.5 MB mobile, wasm 10.0 MB (9.98; Addressables
+  added 0.33), from 18.6/19.0 and 12.7 on 2026-10-06. Bundles about 7.5 MB per texture format, loaded as
+  needed. jsDelivr refuses files over 20 MB.
+- URP 17.7 ships all ten film grain textures (2.6 MB) whenever post-processing is on; they live in the
+  URP global settings (an internal resource class) and URP refills emptied slots, so they can't be trimmed
+  from our code.
 
 ### 15.2 What changes in a browser (`Platform`)
 - **Quality:** desktop browsers use the PC quality level, phones and tablets the Mobile one.

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Sky
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: Sky
+  m_GUID: 5f0aed06e4f4e4ae39b0187aef9bea4a
+  m_SerializeEntries:
+  - m_GUID: 40a683f600599435386c92244e0458ed
+    m_Address: industrial_sunset_02_puresky
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 57768a560cffc437693780c149701a32, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 769ae02503a444de28c63400dcfd45f6, type: 2}
+    - {fileID: 11400000, guid: dcc9457d06ad24ae69c694c2da86c099, type: 2}
+    m_SchemaDisplayOrder:
+    - Sky_BundledAssetGroupSchema
+    - Sky_ContentUpdateGroupSchema
+  m_IncludeInBuild: 1
+  m_IncludeInBuildMigrated: 1

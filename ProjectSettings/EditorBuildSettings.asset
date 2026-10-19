@@ -12,4 +12,5 @@ EditorBuildSettings:
     path: Assets/CasinoMares/Scenes/Casino.unity
     guid: 7e41e1e5f1a2f4650a4a3019643a1152
   m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: d78b73a5d900e45a2bf1ef490ddc247b, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

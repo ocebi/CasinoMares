@@ -10,7 +10,10 @@
         "Unity.RenderPipelines.Universal.Runtime",
         "Fusion.Unity",
         "Unity.InputSystem",
-        "Unity.Cinemachine"
+        "Unity.Cinemachine",
+        "Unity.Addressables",
+        "Unity.Addressables.Editor",
+        "Unity.ResourceManager"
     ],
     "includePlatforms": [
         "Editor"

@@ -83,6 +83,7 @@ MonoBehaviour:
   - {fileID: 7796243023420867864}
   _driver: {fileID: 1966209432762902460}
   _reactions: {fileID: 6815879997583771078}
+  _fur: -1
 --- !u!1001 &7796243023415692984
 PrefabInstance:
   m_ObjectHideFlags: 0

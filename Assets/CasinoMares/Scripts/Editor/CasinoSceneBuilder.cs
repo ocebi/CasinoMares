@@ -242,7 +242,10 @@ namespace CasinoMares.Editor
 
                 var element = array.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("Name").stringValue = name;
-                element.FindPropertyRelative("Material").objectReferenceValue = FurMaterial(name, texture);
+                // The recolored furs load on demand (LazyContentSetup); the black one is their stand-in until then.
+                var material = FurMaterial(name, texture);
+                element.FindPropertyRelative("Material").objectReferenceValue = fur.a > 0f ? array.GetArrayElementAtIndex(0).FindPropertyRelative("Material").objectReferenceValue : material;
+                element.FindPropertyRelative("Address").stringValue = fur.a > 0f ? material.name : "";
                 element.FindPropertyRelative("Swatch").colorValue = swatch;
             }
 

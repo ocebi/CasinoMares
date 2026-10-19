@@ -15,7 +15,9 @@ namespace CasinoMares.Npc
         [SerializeField] CatAnimatorDriver _driver;
         [SerializeField] CatReactions _reactions;
 
-        int _fur = -1;
+        // Serialized: the scene builder picks the dealers' furs, and the recolored ones only load at runtime (Start).
+        [SerializeField, HideInInspector] int _fur = -1;
+        System.Action<Material> _onFurLoaded;
 
         public CatReactions Reactions => _reactions;
         public CatAnimatorDriver Driver => _driver;
@@ -30,12 +32,25 @@ namespace CasinoMares.Npc
             }
         }
 
+        void Start()
+        {
+            if (_fur >= 0 && _palette != null)
+                ApplyFur();
+        }
+
         public void SetFur(int index)
         {
             if (index == _fur || _palette == null)
                 return;
             _fur = index;
-            var material = _palette.Get(index).Material;
+            ApplyFur();
+        }
+
+        /// <summary>The fur shows the black fallback until its own has loaded (<see cref="CatFurPalette.Resolve"/>).</summary>
+        void ApplyFur()
+        {
+            _onFurLoaded ??= _ => { if (this != null) ApplyFur(); };
+            var material = _palette.Resolve(_fur, _onFurLoaded);
             foreach (var furRenderer in _furRenderers)
                 PlayerCat.SetFur(furRenderer, material);
         }

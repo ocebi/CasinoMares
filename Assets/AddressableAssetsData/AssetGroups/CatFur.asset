@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: CatFur
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: CatFur
+  m_GUID: 5583c8880d8fb4deeb7c9b725a9568ab
+  m_SerializeEntries:
+  - m_GUID: 22e6c5aeee0534381a00495761d6f1cf
+    m_Address: CatFur_Cream
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 658ed8647b9d94681b8e26e7f1086016
+    m_Address: CatFur_Smoke
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7f1ec2689811b4dd8be29713f3edb939
+    m_Address: CatFur_Ginger
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9fe26427dab794171b8e903d6cf05080
+    m_Address: CatFur_Snow
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f6120857b8f5948a29c7fad72a4d58ba
+    m_Address: CatFur_Cocoa
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 57768a560cffc437693780c149701a32, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: faa236c8f110e42198a322c6bc1660c7, type: 2}
+    - {fileID: 11400000, guid: e27711280a11c407db14b6530bd029cb, type: 2}
+    m_SchemaDisplayOrder:
+    - CatFur_BundledAssetGroupSchema
+    - CatFur_ContentUpdateGroupSchema
+  m_IncludeInBuild: 1
+  m_IncludeInBuildMigrated: 1

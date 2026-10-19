@@ -76,6 +76,8 @@ namespace CasinoMares.UI
             for (var i = 0; i < _swatches.Count; i++)
                 _swatches[i].EnableInClassList("swatch--selected", i == index);
             _furName.text = _palette.Get(index).Name;
+            // The player's own fur loads while they're in the menu and connecting, so it's there when they spawn.
+            _palette.Preload(index);
         }
 
         void OnPlayClicked()

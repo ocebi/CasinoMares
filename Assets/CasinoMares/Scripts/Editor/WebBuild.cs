@@ -13,7 +13,8 @@ namespace CasinoMares.Editor
     /// Casino Mares ▸ Web: the browser build (WebGL) in <c>Builds/WebGL</c>. Desktop browsers load DXT textures. Phones
     /// and tablets can't decode those in hardware, so the full build runs twice and adds the ASTC textures as a second
     /// data file (<c>*_Mobile.data*</c>); the CasinoMares page template picks one when it loads. Both builds share the
-    /// same code. Files are gzipped with decompression fallback, so any static host works.
+    /// same code. Files are gzipped with decompression fallback, so any static host works. The on-demand art
+    /// (<see cref="LazyContentSetup"/>) builds with each pass into StreamingAssets: <c>aa</c> (DXT) and <c>aa_Mobile</c> (ASTC).
     /// </summary>
     public static class WebBuild
     {
@@ -21,6 +22,7 @@ namespace CasinoMares.Editor
         const string MobilePassPath = "Temp/WebGL-Mobile";
         const string MobileSuffix = "_Mobile";
         const string PendingKey = "CasinoMares.WebBuild.Pending";
+        const string StreamingAssets = "StreamingAssets";
 
         [MenuItem("Casino Mares/Web/Build (Desktop and Mobile)", priority = 100)]
         static void BuildAllMenu() => Build(includeMobile: true);
@@ -67,6 +69,7 @@ namespace CasinoMares.Editor
             }
 
             ApplyPlayerSettings();
+            LazyContentSetup.SetUp();
             var previousSubtarget = EditorUserBuildSettings.webGLBuildSubtarget;
             try
             {
@@ -85,6 +88,9 @@ namespace CasinoMares.Editor
                 var buildFolder = Path.Combine(OutputPath, "Build");
                 foreach (var stale in Directory.GetFiles(buildFolder, $"*{MobileSuffix}.data*"))
                     File.Delete(stale);
+                var mobileBundles = Path.Combine(OutputPath, StreamingAssets, LazyContent.MobileFolder);
+                if (Directory.Exists(mobileBundles))
+                    Directory.Delete(mobileBundles, true);
 
                 if (mobileData != null)
                 {
@@ -93,6 +99,8 @@ namespace CasinoMares.Editor
                     var dot = name.IndexOf(".data", StringComparison.Ordinal);
                     var mobileName = name.Substring(0, dot) + MobileSuffix + name.Substring(dot);
                     File.Copy(mobileData, Path.Combine(buildFolder, mobileName), true);
+                    // The ASTC bundles (LazyContent) go next to the DXT ones; phones read them from there.
+                    CopyFolder(Path.Combine(MobilePassPath, StreamingAssets, "aa"), mobileBundles);
                 }
 
                 Debug.Log($"[WebBuild] Done: {Path.GetFullPath(OutputPath)}\n{Summary(buildFolder)}");
@@ -163,6 +171,18 @@ namespace CasinoMares.Editor
 
             Debug.LogError($"[WebBuild] {label} failed: {summary.result}, {summary.totalErrors} errors");
             return false;
+        }
+
+        static void CopyFolder(string from, string to)
+        {
+            if (!Directory.Exists(from))
+                return;
+            foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
+            {
+                var target = Path.Combine(to, Path.GetRelativePath(from, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(file, target, true);
+            }
         }
 
         static string FindDataFile(string buildPath)
