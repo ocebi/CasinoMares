@@ -26,9 +26,40 @@
         <ui:VisualElement name="prompt" class="prompt hidden" picking-mode="Ignore">
             <ui:Label name="prompt-label" class="prompt-label" picking-mode="Ignore" enable-rich-text="true" />
         </ui:VisualElement>
+        <!-- Top cats (UX §1.10): chips earned this session. The podium is fixed here; HudController fills it, adds the
+             lb-row rows from 4th down, and pins the local cat's row below a gap when it's outside them. -->
         <ui:VisualElement name="leaderboard" class="panel leaderboard hidden" picking-mode="Ignore">
-            <ui:Label text="High rollers" class="leaderboard-title" />
-            <ui:VisualElement name="leaderboard-rows" picking-mode="Ignore" />
+            <ui:VisualElement class="lb-header" picking-mode="Ignore">
+                <ui:Label text="Top cats" class="leaderboard-title" />
+                <ui:Label text="this session" class="lb-subtitle" />
+            </ui:VisualElement>
+            <ui:VisualElement name="lb-podium" class="lb-podium" picking-mode="Ignore">
+                <ui:VisualElement name="lb-podium-2" class="lb-podium-card lb-podium-2" picking-mode="Ignore">
+                    <ui:Label text="2" class="lb-podium-place" picking-mode="Ignore" />
+                    <ui:VisualElement class="lb-podium-swatch" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-name" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-net" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="lb-podium-1" class="lb-podium-card lb-podium-1" picking-mode="Ignore">
+                    <ui:VisualElement class="lb-podium-crown icon--crown" picking-mode="Ignore" />
+                    <ui:VisualElement class="lb-podium-swatch" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-name" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-net" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="lb-podium-3" class="lb-podium-card lb-podium-3" picking-mode="Ignore">
+                    <ui:Label text="3" class="lb-podium-place" picking-mode="Ignore" />
+                    <ui:VisualElement class="lb-podium-swatch" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-name" picking-mode="Ignore" />
+                    <ui:Label class="lb-podium-net" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="leaderboard-rows" class="lb-rows" picking-mode="Ignore" />
+            <ui:Label name="lb-gap" text="···" class="lb-gap hidden" picking-mode="Ignore" />
+            <ui:VisualElement name="lb-you-pinned" class="lb-you-pinned hidden" picking-mode="Ignore" />
+            <ui:VisualElement name="lb-empty" class="lb-empty hidden" picking-mode="Ignore">
+                <ui:Label text="Earn your first chips" class="lb-empty-title" picking-mode="Ignore" />
+                <ui:Label text="Win a hand, paw a patron or top the cat wall." class="lb-empty-sub" picking-mode="Ignore" />
+            </ui:VisualElement>
         </ui:VisualElement>
         <ui:Label name="hint-label" text="WASD move · Shift run · Space jump · Click paw swipe · Q emotes · E interact · Enter chat · Tab leaderboard · Esc menu" class="hud-hint" picking-mode="Ignore" />
         <ui:VisualElement name="pause-root" class="screen pause-backdrop hidden">

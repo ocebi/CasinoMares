@@ -7,3 +7,5 @@ Most are from Kenney (www.kenney.nl), license CC0 1.0 Universal (public domain):
     view-seat hit stand split double raise allin call deal spin rebuy
 
 Drawn for Casino Mares in the same flat style (no third-party source): paw emote chat wine
+
+Added for the leaderboard (UX §1.10): crown (Board Game Icons, crown_a).

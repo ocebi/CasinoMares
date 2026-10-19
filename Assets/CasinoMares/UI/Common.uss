@@ -9,6 +9,8 @@
     --cm-text-dim: rgb(190, 176, 160);
     --cm-danger: rgb(222, 104, 96);
     --cm-wine: rgb(140, 28, 56);
+    /* Wine red that reads as text on the dark panels (losses on the leaderboard). */
+    --cm-wine-text: rgb(222, 96, 124);
     -unity-font-style: normal;
     color: var(--cm-text);
 }
@@ -329,6 +331,27 @@
     white-space: nowrap;
 }
 
+/* The leading cat (UX §1.10): gold name and outline (the swatch stays on the bottom edge) and a crown above. */
+.nameplate--leader {
+    color: var(--cm-gold);
+    border-top-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-color: var(--cm-gold);
+}
+
+.nameplate-crown {
+    position: absolute;
+    left: 50%;
+    top: -26px;
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    background-image: url("Icons/crown.png");
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--cm-gold);
+}
+
 /* Interaction prompt & toasts */
 .prompt {
     position: absolute;
@@ -377,12 +400,21 @@
     color: var(--cm-text);
 }
 
-/* Leaderboard */
+/* Top cats (UX §1.10): chips earned this session, a podium for the top three, then rows; the local cat's row is
+   highlighted and pinned at the bottom when it's outside the list. The leader-* rules below are the old rows; they can
+   go once HudController and LeaderboardBoard build lb-row. */
 .leaderboard {
     position: absolute;
     top: 90px;
     right: 20px;
-    width: 320px;
+    width: 360px;
+    padding: 16px 18px;
+}
+
+.lb-header {
+    flex-direction: row;
+    align-items: flex-end;
+    margin-bottom: 10px;
 }
 
 .leaderboard-title {
@@ -390,6 +422,243 @@
     -unity-font-style: bold;
     color: var(--cm-gold);
     margin-bottom: 8px;
+}
+
+.lb-header > .leaderboard-title {
+    margin-bottom: 0;
+}
+
+.lb-subtitle {
+    margin: 0 0 3px 8px;
+    font-size: 14px;
+    color: var(--cm-text-dim);
+}
+
+.lb-podium {
+    flex-direction: row;
+    align-items: flex-end;
+    margin-bottom: 8px;
+}
+
+.lb-podium-card {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 104px;
+    margin: 0 3px;
+    padding: 6px 6px 8px 6px;
+    align-items: center;
+    justify-content: flex-end;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: var(--cm-border);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.lb-podium-1 {
+    height: 124px;
+    border-width: 2px;
+    border-color: var(--cm-gold);
+    background-color: rgba(232, 186, 98, 0.12);
+}
+
+.lb-podium--empty {
+    opacity: 0.35;
+}
+
+.lb-podium-place {
+    margin-bottom: 2px;
+    padding: 0;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--cm-text-dim);
+}
+
+.lb-podium-crown {
+    width: 26px;
+    height: 26px;
+    margin-bottom: 2px;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--cm-gold);
+}
+
+.lb-podium-swatch {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 4px;
+    border-radius: 14px;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.35);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.lb-podium-name {
+    max-width: 100%;
+    padding: 0;
+    font-size: 14px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lb-podium-net {
+    padding: 0;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--cm-text-dim);
+}
+
+.lb-podium-1 > .lb-podium-name {
+    font-size: 15px;
+}
+
+.lb-podium-1 > .lb-podium-net {
+    font-size: 17px;
+}
+
+.lb-row {
+    flex-direction: row;
+    align-items: center;
+    height: 34px;
+    margin-top: 2px;
+    padding: 0 8px;
+    border-radius: 8px;
+}
+
+.lb-rank {
+    width: 24px;
+    margin-right: 4px;
+    padding: 0;
+    font-size: 15px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-right;
+}
+
+/* Shown for a few seconds after the cat's rank changes (C# adds and removes the class). */
+.lb-move {
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    opacity: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.lb-move--up {
+    opacity: 1;
+    background-image: url("Icons/jump.png");
+    -unity-background-image-tint-color: var(--cm-gold);
+}
+
+.lb-move--down {
+    opacity: 1;
+    background-image: url("Icons/view-overhead.png");
+    -unity-background-image-tint-color: var(--cm-wine-text);
+}
+
+.lb-swatch {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border-radius: 7px;
+}
+
+.lb-name {
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 0;
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lb-net {
+    margin-left: 8px;
+    padding: 0;
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--cm-text-dim);
+}
+
+/* Signed net: gold for a gain, wine red for a loss, dim at zero (podium and rows alike). */
+.lb-net--pos {
+    color: var(--cm-gold);
+}
+
+.lb-net--neg {
+    color: var(--cm-wine-text);
+}
+
+.lb-row--you {
+    padding-left: 5px;
+    border-left-width: 3px;
+    border-color: var(--cm-gold);
+    background-color: rgba(232, 186, 98, 0.12);
+}
+
+.lb-gap {
+    height: 16px;
+    padding: 0;
+    font-size: 16px;
+    color: var(--cm-text-dim);
+    -unity-text-align: middle-center;
+}
+
+.lb-empty {
+    align-items: center;
+    padding: 18px 0 8px 0;
+}
+
+.lb-empty-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: var(--cm-gold);
+}
+
+.lb-empty-sub {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--cm-text-dim);
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* Phones (landscape, ~560 px tall): podium, three rows and the pinned row fit under the pills. */
+.touch .leaderboard {
+    top: 140px;
+    width: 340px;
+    max-height: 300px;
+    padding: 12px 14px;
+    overflow: hidden;
+}
+
+.touch .lb-header {
+    margin-bottom: 6px;
+}
+
+.touch .lb-podium-card {
+    height: 88px;
+    padding-bottom: 6px;
+}
+
+.touch .lb-podium-1 {
+    height: 100px;
+}
+
+.touch .lb-podium-place,
+.touch .lb-podium-crown {
+    margin-bottom: 0;
+}
+
+.touch .lb-podium-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+}
+
+.touch .lb-row {
+    height: 30px;
 }
 
 .leader-row {
@@ -562,17 +831,62 @@
     opacity: 0.9;
 }
 
-.bar-count {
-    min-width: 120px;
+/* The bar's tipsy meter: a segment per glass still in effect, the tipsy ones brighter, full at the full effect. */
+.bar-meter {
+    min-width: 128px;
     margin-right: 10px;
+    justify-content: center;
+}
+
+.bar-count {
+    margin-bottom: 5px;
+    padding: 0;
     font-size: 16px;
     color: var(--cm-text-dim);
-    -unity-text-align: middle-right;
+    -unity-text-align: middle-left;
 }
 
 .bar-count--tipsy {
     color: var(--cm-gold);
     -unity-font-style: bold;
+}
+
+.bar-meter-track {
+    flex-direction: row;
+    padding: 2px 2px 2px 0;
+    border-radius: 5px;
+    border-width: 1px;
+    border-color: rgba(120, 84, 52, 0.8);
+    background-color: rgba(0, 0, 0, 0.25);
+    transition-property: border-color;
+    transition-duration: 0.4s;
+}
+
+.bar-meter-seg {
+    width: 22px;
+    height: 10px;
+    margin-left: 2px;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition-property: background-color;
+    transition-duration: 0.4s;
+}
+
+/* A gap before the third glass: where tipsy starts. */
+.bar-meter-seg--tipsy-start {
+    margin-left: 6px;
+}
+
+.bar-meter-seg--full {
+    background-color: var(--cm-wine);
+}
+
+.bar-meter-seg--tipsy.bar-meter-seg--full {
+    background-color: rgb(196, 52, 88);
+}
+
+.bar-meter--full {
+    border-color: var(--cm-gold);
 }
 
 .bj-corner {
@@ -741,6 +1055,36 @@
 
 .board .leader-name,
 .board .leader-balance {
+    font-size: 32px;
+}
+
+.board .lb-row {
+    height: 56px;
+    margin-top: 4px;
+    padding: 0 12px;
+}
+
+.board .lb-rank {
+    width: 56px;
+    margin-right: 8px;
+    font-size: 30px;
+}
+
+.board .lb-move {
+    width: 26px;
+    height: 26px;
+    margin-right: 12px;
+}
+
+.board .lb-swatch {
+    width: 26px;
+    height: 26px;
+    margin-right: 16px;
+    border-radius: 13px;
+}
+
+.board .lb-name,
+.board .lb-net {
     font-size: 32px;
 }
 
@@ -1569,6 +1913,7 @@
 .icon--chat { background-image: url("Icons/chat.png"); }
 .icon--check { background-image: url("Icons/check.png"); }
 .icon--clear { background-image: url("Icons/clear.png"); }
+.icon--crown { background-image: url("Icons/crown.png"); }
 .icon--deal { background-image: url("Icons/deal.png"); }
 .icon--double { background-image: url("Icons/double.png"); }
 .icon--emote { background-image: url("Icons/emote.png"); }

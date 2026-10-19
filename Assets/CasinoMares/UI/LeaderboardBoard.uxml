@@ -1,8 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <Style src="Common.uss" />
     <ui:VisualElement class="screen board" picking-mode="Ignore">
-        <ui:Label text="High Rollers" class="board-title" />
+        <ui:Label text="Top Cats" class="board-title" />
         <ui:VisualElement name="board-rows" class="board-rows" />
-        <ui:Label name="board-empty" text="No cats in the casino yet" class="board-empty" />
+        <ui:Label name="board-empty" text="Earn your first chips" class="board-empty" />
     </ui:VisualElement>
 </ui:UXML>
