@@ -652,6 +652,7 @@ namespace CasinoMares.Editor
             var movement = root.AddComponent<CatMovement>();
             var cat = root.AddComponent<PlayerCat>();
             root.AddComponent<CatSocial>();
+            root.AddComponent<CatDrinking>();
             root.AddComponent<SeatingController>();
             root.AddComponent<PlayerInteractor>();
             root.AddComponent<PawSwipe>();

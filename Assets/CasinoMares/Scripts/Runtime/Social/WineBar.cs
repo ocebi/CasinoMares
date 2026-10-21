@@ -274,7 +274,7 @@ namespace CasinoMares.Social
             if (elapsed >= DrinkEnd && view.DrunkId != id)
             {
                 view.DrunkId = id;
-                cat.AddDrink();
+                cat.Drinking.AddDrink();
             }
         }
 

@@ -59,7 +59,7 @@ namespace CasinoMares.Player
         static void OnResult(TipsyGame game, int net)
         {
             var bonus = BonusFor(game, net);
-            if (bonus <= 0 || !PlayerCat.LocalIsDrunk)
+            if (bonus <= 0 || !CatDrinking.LocalIsDrunk)
                 return;
             ChipRewards.Grant(bonus);
             Toasts.Show($"Tipsy bonus! +{bonus:N0} chips on top.");
