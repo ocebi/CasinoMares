@@ -138,7 +138,7 @@ namespace CasinoMares.Props
             PlayerPrefs.SetFloat(BestKey, _time);
             PlayerPrefs.Save();
             Toasts.Show((best <= 0f ? $"Top of the cat wall in {Format(_time)}!" : $"New best on the cat wall: {Format(_time)}!") + chips);
-            cat.Announce($"{cat.DisplayName} climbed the cat wall in {Format(_time)}");
+            cat.Social.Announce($"{cat.DisplayName} climbed the cat wall in {Format(_time)}");
         }
 
         /// <summary>Seconds as 12.3 s, or 1:02.3 from a minute.</summary>

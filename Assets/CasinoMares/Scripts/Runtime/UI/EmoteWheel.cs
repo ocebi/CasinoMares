@@ -185,7 +185,7 @@ namespace CasinoMares.UI
         void Close(bool play)
         {
             if (play && _selected >= 0)
-                PlayerCat.Local?.PlayEmote(CatEmotes.Wheel[_selected]);
+                PlayerCat.Local?.Social.PlayEmote(CatEmotes.Wheel[_selected]);
 
             _root.AddToClassList("hidden");
             if (_open)
