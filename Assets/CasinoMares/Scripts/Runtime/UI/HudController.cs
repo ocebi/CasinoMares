@@ -203,7 +203,7 @@ namespace CasinoMares.UI
         {
             var cat = PlayerCat.Local;
             var inGame = cat != null && cat.Object != null && cat.Object.IsValid;
-            var drinks = inGame ? cat.DrinkCount : 0;
+            var drinks = inGame ? cat.Drinking.DrinkCount : 0;
             if (drinks == _shownDrinks)
                 return;
 
@@ -218,7 +218,7 @@ namespace CasinoMares.UI
             }
 
             _drinkRow.EnableInClassList("hidden", drinks == 0);
-            _drinkLabel.EnableInClassList("hidden", drinks < PlayerCat.DrunkAt);
+            _drinkLabel.EnableInClassList("hidden", drinks < CatDrinking.DrunkAt);
 
             // No toast on the first look (a reload) or once the cat is gone.
             if (previous < 0 || !inGame)
@@ -230,7 +230,7 @@ namespace CasinoMares.UI
                     case 2:
                         Toasts.Show("One more glass and you'll be tipsy.");
                         break;
-                    case PlayerCat.DrunkAt:
+                    case CatDrinking.DrunkAt:
                         Toasts.Show("You're tipsy. The room sways, and blackjack wins pay 20% extra (poker 10%).");
                         break;
                     case MaxDrinkPips:
@@ -238,7 +238,7 @@ namespace CasinoMares.UI
                         break;
                 }
             }
-            else if (previous >= PlayerCat.DrunkAt && drinks < PlayerCat.DrunkAt)
+            else if (previous >= CatDrinking.DrunkAt && drinks < CatDrinking.DrunkAt)
             {
                 Toasts.Show("You feel steady again.");
             }

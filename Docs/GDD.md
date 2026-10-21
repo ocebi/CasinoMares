@@ -224,7 +224,7 @@ The hall is 22 × 14 m (as built):
   three stools on the pool side, so seated cats look across the counter at the open sea. It has
   its own bartender and serves wine exactly like the hall bar, with its own orders. Its glasses count
   toward the same `DrinkCount`, so drinks at both bars add up.
-- **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `PlayerCat.DrinkCount`
+- **Drunk cats**: each glass counts for **6 minutes**; the owner keeps `CatDrinking.DrinkCount`
   (networked, not saved: a reload sobers you). At **3** glasses the cat is drunk: everyone sees a slow
   sway of the model (roll ±4°, yaw ±3° at 0.7 Hz, a fifth stronger per extra glass up to 5), the chat
   says "<name> has had one too many." For the drunk player (`TipsyEffect`, "Tipsy visuals" in the

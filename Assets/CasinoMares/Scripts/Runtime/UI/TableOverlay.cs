@@ -166,7 +166,7 @@ namespace CasinoMares.UI
 
             // A drunk player can't quite read its own cards (GDD §5.8): its unsettled hands show two totals.
             var local = PlayerCat.Local;
-            var tipsy = local != null && local.Object != null && local.Object.IsValid && local.IsDrunk;
+            var tipsy = local != null && local.Object != null && local.Object.IsValid && local.Drinking.IsDrunk;
             var wobble = tipsy && CameraRig.TipsyEffect.VisualsEnabled;
             for (var seat = 0; seat < BlackjackTable.SeatCount; seat++)
             {

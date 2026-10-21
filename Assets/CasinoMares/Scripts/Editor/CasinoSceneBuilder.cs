@@ -651,6 +651,7 @@ namespace CasinoMares.Editor
             networkCharacter.rotationSpeed = 12f;
             var movement = root.AddComponent<CatMovement>();
             var cat = root.AddComponent<PlayerCat>();
+            root.AddComponent<CatDrinking>();
             root.AddComponent<SeatingController>();
             root.AddComponent<PlayerInteractor>();
             root.AddComponent<PawSwipe>();

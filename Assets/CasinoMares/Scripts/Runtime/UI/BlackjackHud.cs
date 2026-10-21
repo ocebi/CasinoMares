@@ -176,7 +176,7 @@ namespace CasinoMares.UI
                 BlackjackPhase.Dealing => "Dealing...",
                 // A tipsy player's label shows two totals (TableOverlay), so the banner keeps the real one to itself.
                 BlackjackPhase.PlayerTurns => myTurn
-                    ? (PlayerCat.LocalIsDrunk ? "Your turn" : $"Your turn: {_shown.EvaluateHand(_seat, _shown.ActiveHand)}") + (_shown.HandCountAt(_seat) > 1 ? $" (hand {_shown.ActiveHand + 1})" : "")
+                    ? (CatDrinking.LocalIsDrunk ? "Your turn" : $"Your turn: {_shown.EvaluateHand(_seat, _shown.ActiveHand)}") + (_shown.HandCountAt(_seat) > 1 ? $" (hand {_shown.ActiveHand + 1})" : "")
                     : $"{TurnName()}'s turn",
                 BlackjackPhase.DealerTurn => $"Dealer's turn: {_shown.EvaluateDealerVisible()}",
                 BlackjackPhase.Settlement => SettlementText(),
