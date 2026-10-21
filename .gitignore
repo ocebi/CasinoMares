@@ -95,3 +95,14 @@ mono_crash.*.json
 /[Aa]ssets/AddressableAssetsData/link.xml
 /[Aa]ssets/AddressableAssetsData/link.xml.meta
 /[Aa]ssets/AddressableAssetsData/WebGL.meta
+
+# graphify knowledge graph (rebuild with: graphify update .)
+graphify-out/
+
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Python caches
+__pycache__/

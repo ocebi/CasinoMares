@@ -1,0 +1,3 @@
+# graphify: index only our own code, not third-party SDKs
+Assets/Photon/
+Tools/
