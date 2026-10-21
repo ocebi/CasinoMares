@@ -140,7 +140,7 @@ namespace CasinoMares.Player
         void Swipe()
         {
             _aiming = false;
-            _cat.PlaySwipe();
+            _cat.Social.PlaySwipe();
             _target = _clickedProp != null && InReach(transform, _clickedProp.Center, _reach, _maxAngle, out _)
                 ? _clickedProp
                 : Knockable.FindInReach(transform, _reach, _maxAngle);

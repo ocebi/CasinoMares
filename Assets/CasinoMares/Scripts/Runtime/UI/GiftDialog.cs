@@ -102,8 +102,8 @@ namespace CasinoMares.UI
             var target = _target;
             var me = PlayerCat.Local;
             ProfileStore.SetBalance(balance - amount);
-            target.SendGift(amount, me != null ? me.DisplayName.ToString() : "A cat");
-            me?.Announce($"{me.DisplayName} gifted {amount:N0} chips to {target.DisplayName}.");
+            target.Social.SendGift(amount, me != null ? me.DisplayName.ToString() : "A cat");
+            me?.Social.Announce($"{me.DisplayName} gifted {amount:N0} chips to {target.DisplayName}.");
             Toasts.Show($"You gifted {amount:N0} chips to {target.DisplayName}.");
             Hide();
         }

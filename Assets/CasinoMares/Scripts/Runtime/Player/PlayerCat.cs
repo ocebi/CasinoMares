@@ -10,7 +10,8 @@ namespace CasinoMares.Player
 {
     /// <summary>
     /// One per connected player, state authority = that player (GDD §9.2). Holds identity, appearance and the
-    /// networked copy of the balance so others can show it (leaderboard, spectator panel).
+    /// networked copy of the balance so others can show it (leaderboard, spectator panel). Chat, announcements,
+    /// emotes, paw swipes and gifts go through <see cref="Social"/>.
     /// </summary>
     public class PlayerCat : NetworkBehaviour
     {
@@ -106,6 +107,7 @@ namespace CasinoMares.Player
         public CatReactions Reactions => _reactions;
         public CatAnimatorDriver AnimatorDriver => _animatorDriver;
         public SessionWinnings Winnings { get; private set; }
+        public CatSocial Social { get; private set; }
         public bool IsCigarLit => CigarUntilTick > 0 && Runner != null && Runner.Tick.Raw < CigarUntilTick;
         public bool IsDrunk => DrinkCount >= DrunkAt;
 
@@ -148,6 +150,7 @@ namespace CasinoMares.Player
             _reactions = GetComponentInChildren<CatReactions>();
             _animatorDriver = GetComponent<CatAnimatorDriver>();
             Winnings = GetComponent<SessionWinnings>();
+            Social = GetComponent<CatSocial>();
             _cigar = GetComponent<CatCigar>();
         }
 
@@ -217,7 +220,7 @@ namespace CasinoMares.Player
             if (IsDrunk == wasDrunk)
                 return;
             if (IsDrunk)
-                Announce($"{DisplayName} has had one too many.");
+                Social.Announce($"{DisplayName} has had one too many.");
             DrunkChanged?.Invoke(IsDrunk);
         }
 
@@ -234,7 +237,7 @@ namespace CasinoMares.Player
             CigarUntilTick = Runner.Tick.Raw + Mathf.RoundToInt(CigarSeconds / Runner.DeltaTime);
             if (wasLit)
                 return;
-            Announce($"{DisplayName} lights a victory cigar.");
+            Social.Announce($"{DisplayName} lights a victory cigar.");
             Toasts.Show("Big win! You light a victory cigar.");
         }
 
@@ -247,67 +250,6 @@ namespace CasinoMares.Player
             var rtt = Mathf.Clamp((int)Math.Round(Runner.GetPlayerRtt(Runner.LocalPlayer) * 1000.0), 0, short.MaxValue);
             if (Mathf.Abs(rtt - RttMs) >= RttChangeMs)
                 RttMs = (short)rtt;
-        }
-
-        // ---------------------------------------------------------------- Chat & announcements
-
-        /// <summary>Send a chat line from the local player to everyone (GDD §9.5).</summary>
-        public void SendChat(string text)
-        {
-            text = ChatLog.Sanitize(text);
-            if (text.Length > 0)
-                RPC_Chat(text);
-        }
-
-        /// <summary>Broadcast a system line such as "Mochi gifted 200 chips to Luna".</summary>
-        public void Announce(string text) => RPC_Announce(ChatLog.Sanitize(text));
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Chat(string text)
-        {
-            ChatLog.AddPlayer(DisplayName.ToString(), Swatch, text);
-        }
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Announce(string text)
-        {
-            ChatLog.AddSystem(text);
-        }
-
-        // ---------------------------------------------------------------- Emotes and paw swipes
-
-        /// <summary>Play an emote on this cat for everyone. Only standing cats emote.</summary>
-        public void PlayEmote(CatEmote emote)
-        {
-            if (IsLocal && !IsSeated && !Swimming && emote != CatEmote.None)
-                RPC_Emote((byte)emote);
-        }
-
-        /// <summary>Show a paw swipe on this cat for everyone.</summary>
-        public void PlaySwipe()
-        {
-            if (IsLocal)
-                RPC_Swipe();
-        }
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Emote(byte emote) => _reactions?.PlayEmote((CatEmote)emote);
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Swipe() => _reactions?.PlaySwipe();
-
-        // ---------------------------------------------------------------- Gifting (GDD §7.3)
-
-        /// <summary>Called by the sender after taking the chips out of their own balance.</summary>
-        public void SendGift(int amount, string fromName) => RPC_ReceiveGift(amount, fromName);
-
-        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        void RPC_ReceiveGift(int amount, string fromName)
-        {
-            if (amount <= 0)
-                return;
-            ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
-            Toasts.Show($"{fromName} gifted you {amount:N0} chips!");
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
