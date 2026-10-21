@@ -59,14 +59,6 @@ namespace CasinoMares.Player
         public short RttMs { get; set; }
 
         /// <summary>
-        /// The tick until which this cat smokes its victory cigar, 0 when it never lit one (GDD §5.8). The owner
-        /// stamps it on a huge win (a later one extends it); every client, late joiners included, renders from it.
-        /// To test it, <c>?cigar=1</c> on the web lights one on joining and F10 in the editor lights or puts it out.
-        /// </summary>
-        [Networked]
-        public int CigarUntilTick { get; set; }
-
-        /// <summary>
         /// Paddling instead of walking (plan §11.1, §11.2): the Swim animation, a sunk and nose-up body, slower and
         /// no sprint, jump, emotes or paw. Owner writes, everyone reads. CatMovement sets it when the cat steps into
         /// the terrace pool and clears it when it steps out; <c>?swim=1</c> on the web or F9 in the editor turns it on
@@ -106,7 +98,8 @@ namespace CasinoMares.Player
         public CatReactions Reactions => _reactions;
         public CatAnimatorDriver AnimatorDriver => _animatorDriver;
         public SessionWinnings Winnings { get; private set; }
-        public bool IsCigarLit => CigarUntilTick > 0 && Runner != null && Runner.Tick.Raw < CigarUntilTick;
+        /// <summary>The victory cigar and its networked state, on the same object.</summary>
+        public CatCigar Cigar { get; private set; }
         public bool IsDrunk => DrinkCount >= DrunkAt;
 
         /// <summary>The local cat has spawned and is drunk.</summary>
@@ -114,12 +107,9 @@ namespace CasinoMares.Player
 
         const float RttUpdateInterval = 1f;
         const int RttChangeMs = 10;
-        /// <summary>How long a victory cigar burns.</summary>
-        const float CigarSeconds = 300f;
 
         CatReactions _reactions;
         CatAnimatorDriver _animatorDriver;
-        CatCigar _cigar;
         float _nextRttUpdate;
         float _nextDrinkRecount;
 
@@ -148,7 +138,7 @@ namespace CasinoMares.Player
             _reactions = GetComponentInChildren<CatReactions>();
             _animatorDriver = GetComponent<CatAnimatorDriver>();
             Winnings = GetComponent<SessionWinnings>();
-            _cigar = GetComponent<CatCigar>();
+            Cigar = GetComponent<CatCigar>();
         }
 
         public override void Render()
@@ -159,21 +149,11 @@ namespace CasinoMares.Player
                 _animatorDriver.Swimming = Swimming;
             }
 
-            if (_cigar != null)
-                _cigar.SetLit(IsCigarLit);
-
             if (HasStateAuthority)
             {
                 UpdateRtt();
                 if (Application.isEditor && GameInput.KeyPressed(Key.F9))
                     Swimming = !Swimming;
-                if (Application.isEditor && GameInput.KeyPressed(Key.F10))
-                {
-                    if (IsCigarLit)
-                        CigarUntilTick = 0;
-                    else
-                        LightCigar();
-                }
                 if (Time.time >= _nextDrinkRecount)
                     RecountDrinks();
             }
@@ -219,23 +199,6 @@ namespace CasinoMares.Player
             if (IsDrunk)
                 Announce($"{DisplayName} has had one too many.");
             DrunkChanged?.Invoke(IsDrunk);
-        }
-
-        /// <summary>
-        /// Owner only: a huge win (<see cref="CatCigar"/> spots them) lights a victory cigar for everyone to see, or
-        /// keeps one that's already lit burning for another five minutes. The chat line and the toast go out only
-        /// for a fresh light (UX spec §1.6).
-        /// </summary>
-        public void LightCigar()
-        {
-            if (!HasStateAuthority || Runner == null)
-                return;
-            var wasLit = IsCigarLit;
-            CigarUntilTick = Runner.Tick.Raw + Mathf.RoundToInt(CigarSeconds / Runner.DeltaTime);
-            if (wasLit)
-                return;
-            Announce($"{DisplayName} lights a victory cigar.");
-            Toasts.Show("Big win! You light a victory cigar.");
         }
 
         /// <summary>About once a second, and only when it moved noticeably, so it doesn't churn the network.</summary>
@@ -332,10 +295,10 @@ namespace CasinoMares.Player
                 Balance = profile.Balance;
                 ProfileStore.Changed += OnProfileChanged;
                 PlayerCameraRig.Instance?.Follow(_cameraTarget);
-                _cigar?.Bind(this);
                 Swimming = Platform.QueryParameter("swim") == "1";
-                if (Platform.QueryParameter("cigar") == "1")
-                    LightCigar();
+                // After the name is set: the light's chat line names the cat.
+                if (Platform.QueryParameter("cigar") == "1" && Cigar != null)
+                    Cigar.LightCigar();
             }
 
             ApplyAppearance();
@@ -350,7 +313,6 @@ namespace CasinoMares.Player
                 Local = null;
                 ProfileStore.Changed -= OnProfileChanged;
                 PlayerCameraRig.Instance?.Release();
-                _cigar?.Unbind();
             }
 
             Left?.Invoke(this);
