@@ -1,3 +1,14 @@
 # graphify: index only our own code, not third-party SDKs
 Assets/Photon/
 Tools/
+# no semantic pass over textures, icons, audio, licenses or third-party readmes
+*.png
+*.jpg
+*.ogg
+*.wav
+*.mp3
+Assets/ThirdParty/
+Assets/CasinoMares/UI/Icons/LICENSE.txt
+ProjectSettings/
+.claude/
+Packages/
