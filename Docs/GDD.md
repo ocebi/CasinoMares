@@ -396,7 +396,7 @@ who didn't lock in a bet sits the round out.
 | Push | — | — | "Push" label |
 | Dealer blackjack | Angry | Celebrate | |
 | Big win (≥ 250 net) | Celebrate | — | Nearby patrons turn and cheer |
-| Huge win (a round or spin paying out ≥ 500, stake included, in any game, whatever the net) | Lights a victory cigar for 5 minutes: a glowing ember and smoke that breathe on a 4 s cycle, seen by everyone including late joiners (`CatCigar`, `PlayerCat.CigarUntilTick`); a later huge win extends it | — | Chat: "<name> lights a victory cigar."; toast for the winner on a fresh light |
+| Huge win (a round or spin paying out ≥ 500, stake included, in any game, whatever the net) | Lights a victory cigar for 5 minutes: a glowing ember and smoke that breathe on a 4 s cycle, seen by everyone including late joiners (`CatCigar.CigarUntilTick`, a NetworkBehaviour beside `PlayerCat`); a later huge win extends it | — | Chat: "<name> lights a victory cigar."; toast for the winner on a fresh light |
 
 - **Result pause**: every table game waits `GameTables.ResultPause` (1.5 s) between the last card
   (or the ball settling) and the result, so players can read the cards before labels, payouts and

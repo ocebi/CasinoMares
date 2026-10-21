@@ -1,23 +1,30 @@
 using CasinoMares.Core;
+using Fusion;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace CasinoMares.Player
 {
     /// <summary>
     /// The victory cigar (GDD §5.8): a cat that just had a huge win smokes one for five minutes, on every screen.
     /// The owner's cat spots its own huge wins here (any game's round or spin paying out <see cref="HugeWinPayout"/>
-    /// or more, stake included, whatever the net: <see cref="ChipRewards.RoundPaid"/>) and has <see cref="PlayerCat.LightCigar"/> stamp the networked end tick; every client,
-    /// late joiners included, lights and puts out the cigar from that tick (<see cref="PlayerCat.Render"/> calls
-    /// <see cref="SetLit"/>). The cigar is three primitives and a smoke system built on the first light and parked at
-    /// the corner of the mouth: they follow the skull bone in LateUpdate (the bone's own scale and axes are unknown,
-    /// so nothing is parented to it). A four second breathing cycle swings the ember's glow and puffs the smoke.
-    /// Nothing exists, updates or emits while no cigar is lit: the component stays disabled.
+    /// or more, stake included, whatever the net: <see cref="ChipRewards.RoundPaid"/>) and <see cref="LightCigar"/>
+    /// stamps the networked end tick, <see cref="CigarUntilTick"/>; every client, late joiners included, lights and
+    /// puts out the cigar from that tick in <see cref="Render"/>. A NetworkBehaviour on the player prefab's root,
+    /// beside <see cref="PlayerCat"/>, which keeps a reference to it (<see cref="PlayerCat.Cigar"/>). The cigar is
+    /// three primitives and a smoke system built on the first light and parked at the corner of the mouth: they
+    /// follow the skull bone in LateUpdate (the bone's own scale and axes are unknown, so nothing is parented to it).
+    /// A four second breathing cycle swings the ember's glow and puffs the smoke. Nothing exists or emits while no
+    /// cigar is lit, and LateUpdate returns at once. To test it, <c>?cigar=1</c> on the web lights one on joining
+    /// (PlayerCat.Spawned, once the name is set) and F10 in the editor lights or puts it out.
     /// </summary>
     [DefaultExecutionOrder(50)] // LateUpdate after CatRigAnchor has pinned the rig, so the cigar reads this frame's skull pose.
-    public class CatCigar : MonoBehaviour
+    public class CatCigar : NetworkBehaviour
     {
         /// <summary>A round's or spin's gross payout (stake included) that earns a cigar, in every game.</summary>
         public const int HugeWinPayout = 500;
+        /// <summary>How long a victory cigar burns.</summary>
+        const float CigarSeconds = 300f;
 
         // Dimensions in world units (the prefab's cat is about 0.58 m tall). Oversized on purpose (a real one would be a
         // dot at the mouth from the follow camera): long enough that the tip clears the snout.
@@ -76,9 +83,20 @@ namespace CasinoMares.Player
         [SerializeField] Material _emberMaterial;
         [SerializeField] Material _smokeMaterial;
 
+        /// <summary>
+        /// The tick until which this cat smokes its victory cigar, 0 when it never lit one (GDD §5.8). The owner
+        /// stamps it on a huge win (a later one extends it); every client, late joiners included, renders from it.
+        /// </summary>
+        [Networked]
+        public int CigarUntilTick { get; set; }
+
+        public bool IsCigarLit => CigarUntilTick > 0 && Runner != null && Runner.Tick.Raw < CigarUntilTick;
+
         PlayerCat _cat;
         bool _bound;
         bool _lit;
+        /// <summary>Nothing to draw or move: no cigar lit and the last smoke has drifted off.</summary>
+        bool _asleep = true;
         Transform _skull;
         Vector3 _skullLocalPosition;
         Quaternion _skullLocalRotation;
@@ -98,22 +116,26 @@ namespace CasinoMares.Player
 
         void Awake()
         {
-            enabled = false;
+            _cat = GetComponent<PlayerCat>();
         }
 
         // ---------------------------------------------------------------- Owner: spotting huge wins
 
-        /// <summary>The owner's cat listens for its own huge wins. Called from PlayerCat.Spawned on the local cat.</summary>
-        public void Bind(PlayerCat cat)
+        public override void Spawned()
         {
-            _cat = cat;
-            if (_bound)
-                return;
-            _bound = true;
-            ChipRewards.RoundPaid += OnRoundPaid;
+            // The owner's cat listens for its own huge wins.
+            if (HasStateAuthority && !_bound)
+            {
+                _bound = true;
+                ChipRewards.RoundPaid += OnRoundPaid;
+            }
         }
 
-        public void Unbind()
+        public override void Despawned(NetworkRunner runner, bool hasState) => Unbind();
+
+        void OnDestroy() => Unbind();
+
+        void Unbind()
         {
             if (!_bound)
                 return;
@@ -121,17 +143,44 @@ namespace CasinoMares.Player
             ChipRewards.RoundPaid -= OnRoundPaid;
         }
 
-        void OnDestroy() => Unbind();
-
         void OnRoundPaid(int payout)
         {
             if (payout >= HugeWinPayout)
-                _cat?.LightCigar();
+                LightCigar();
+        }
+
+        /// <summary>
+        /// Owner only: a huge win lights a victory cigar for everyone to see, or keeps one that's already lit burning
+        /// for another five minutes. The chat line and the toast go out only for a fresh light (UX spec §1.6).
+        /// </summary>
+        public void LightCigar()
+        {
+            if (Object == null || !HasStateAuthority || Runner == null)
+                return;
+            var wasLit = IsCigarLit;
+            CigarUntilTick = Runner.Tick.Raw + Mathf.RoundToInt(CigarSeconds / Runner.DeltaTime);
+            if (wasLit)
+                return;
+            if (_cat != null && _cat.Social != null)
+                _cat.Social.Announce($"{_cat.DisplayName} lights a victory cigar.");
+            Toasts.Show("Big win! You light a victory cigar.");
+        }
+
+        public override void Render()
+        {
+            SetLit(IsCigarLit);
+            if (HasStateAuthority && Application.isEditor && GameInput.KeyPressed(Key.F10))
+            {
+                if (IsCigarLit)
+                    CigarUntilTick = 0;
+                else
+                    LightCigar();
+            }
         }
 
         // ---------------------------------------------------------------- Everyone: the cigar
 
-        /// <summary>Light or put out the cigar; PlayerCat calls this every frame from the networked end tick.</summary>
+        /// <summary>Light or put out the cigar; <see cref="Render"/> calls this every frame from the networked end tick.</summary>
         public void SetLit(bool lit)
         {
             if (lit == _lit)
@@ -148,7 +197,7 @@ namespace CasinoMares.Player
                 _smoke.Play();
                 StartPhase(Phase.Rest);
                 FollowSkull();
-                enabled = true;
+                _asleep = false;
                 return;
             }
 
@@ -162,12 +211,14 @@ namespace CasinoMares.Player
 
         void LateUpdate()
         {
+            if (_asleep)
+                return;
             if (!_lit)
             {
                 if (!_smoke.IsAlive(false))
                 {
                     _smoke.gameObject.SetActive(false);
-                    enabled = false;
+                    _asleep = true;
                 }
 
                 return;
