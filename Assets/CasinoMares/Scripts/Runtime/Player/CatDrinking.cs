@@ -98,8 +98,8 @@ namespace CasinoMares.Player
             DrinkCount = count;
             if (IsDrunk == wasDrunk)
                 return;
-            if (IsDrunk && _cat != null)
-                _cat.Announce($"{_cat.DisplayName} has had one too many.");
+            if (IsDrunk && _cat != null && _cat.Social != null)
+                _cat.Social.Announce($"{_cat.DisplayName} has had one too many.");
             DrunkChanged?.Invoke(IsDrunk);
         }
     }

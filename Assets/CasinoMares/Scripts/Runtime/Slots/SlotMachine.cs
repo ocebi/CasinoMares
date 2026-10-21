@@ -352,7 +352,7 @@ namespace CasinoMares.Slots
                 ChipRewards.PayRound(payout);
                 var me = PlayerCat.Local;
                 if (LastWin == SlotWin.Top && me != null)
-                    me.Announce($"{me.DisplayName} won {payout:N0} chips on {_displayName}!");
+                    me.Social.Announce($"{me.DisplayName} won {payout:N0} chips on {_displayName}!");
                 LocalSpinResult?.Invoke(this, payout - Bet);
             }
         }

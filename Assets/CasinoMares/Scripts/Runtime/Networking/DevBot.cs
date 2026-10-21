@@ -70,7 +70,7 @@ namespace CasinoMares.Networking
             if (!_greeted)
             {
                 _greeted = true;
-                me.SendChat("Beep boop, I'm a test cat. Deal me in!");
+                me.Social.SendChat("Beep boop, I'm a test cat. Deal me in!");
             }
 
             var table = BlackjackTable.All.Find(t => t.DisplayName == _tableName);
