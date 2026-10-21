@@ -120,16 +120,16 @@ namespace CasinoMares.CameraRig
         static int LocalDrinkCount()
         {
             var cat = PlayerCat.Local;
-            return cat != null && cat.Object != null && cat.Object.IsValid ? cat.DrinkCount : 0;
+            return cat != null && cat.Object != null && cat.Object.IsValid ? cat.Drinking.DrinkCount : 0;
         }
 
         static float TierGain(int drinks)
         {
             if (drinks >= VeryDrunkAt)
                 return VeryDrunkGain;
-            if (drinks == PlayerCat.DrunkAt + 1)
+            if (drinks == CatDrinking.DrunkAt + 1)
                 return DrunkGain;
-            return drinks >= PlayerCat.DrunkAt ? TipsyGain : 0f;
+            return drinks >= CatDrinking.DrunkAt ? TipsyGain : 0f;
         }
 
         // ---------------------------------------------------------------- Post-processing

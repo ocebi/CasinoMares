@@ -10,7 +10,8 @@ namespace CasinoMares.Player
 {
     /// <summary>
     /// One per connected player, state authority = that player (GDD §9.2). Holds identity, appearance and the
-    /// networked copy of the balance so others can show it (leaderboard, spectator panel).
+    /// networked copy of the balance so others can show it (leaderboard, spectator panel). Chat, announcements,
+    /// emotes, paw swipes and gifts go through <see cref="Social"/>.
     /// </summary>
     public class PlayerCat : NetworkBehaviour
     {
@@ -67,29 +68,8 @@ namespace CasinoMares.Player
         [Networked]
         public NetworkBool Swimming { get; set; }
 
-        /// <summary>
-        /// Glasses of wine still in effect (GDD §4.3): the owner counts the ones drunk in the last
-        /// <see cref="DrinkDuration"/>. Everyone reads it for the sway; the owner for the visuals and the bonus.
-        /// </summary>
-        [Networked]
-        public byte DrinkCount { get; set; }
-
-        /// <summary>The ticks the last <see cref="MaxDrinks"/> glasses were finished at (0 = empty slot), on the network clock like the cigar.</summary>
-        [Networked, Capacity(MaxDrinks)]
-        NetworkArray<int> DrinkTicks => default;
-
-        /// <summary>Glasses at which a cat is drunk, and how long each glass counts. Not saved: a reload sobers you.</summary>
-        public const int DrunkAt = 3;
-        public const float DrinkDuration = 360f;
-        /// <summary>Glasses remembered at once; a ninth replaces the oldest.</summary>
-        const int MaxDrinks = 8;
-        const float DrinkRecountInterval = 1f;
-
         /// <summary>Raised on every client when the name or fur color changes.</summary>
         public event Action AppearanceChanged;
-
-        /// <summary>Owner only: crossed the drunk line either way.</summary>
-        public event Action<bool> DrunkChanged;
 
         public Transform NameplateAnchor => _nameplateAnchor != null ? _nameplateAnchor : transform;
         public Color Swatch => _palette.Get(FurIndex).Swatch;
@@ -98,12 +78,11 @@ namespace CasinoMares.Player
         public CatReactions Reactions => _reactions;
         public CatAnimatorDriver AnimatorDriver => _animatorDriver;
         public SessionWinnings Winnings { get; private set; }
+        /// <summary>The wine this cat has drunk (GDD §4.3).</summary>
+        public CatDrinking Drinking { get; private set; }
+        public CatSocial Social { get; private set; }
         /// <summary>The victory cigar and its networked state, on the same object.</summary>
         public CatCigar Cigar { get; private set; }
-        public bool IsDrunk => DrinkCount >= DrunkAt;
-
-        /// <summary>The local cat has spawned and is drunk.</summary>
-        public static bool LocalIsDrunk => Local != null && Local.Object != null && Local.Object.IsValid && Local.IsDrunk;
 
         const float RttUpdateInterval = 1f;
         const int RttChangeMs = 10;
@@ -111,7 +90,6 @@ namespace CasinoMares.Player
         CatReactions _reactions;
         CatAnimatorDriver _animatorDriver;
         float _nextRttUpdate;
-        float _nextDrinkRecount;
 
         /// <summary>The cat owned by this player, if it has spawned on this client.</summary>
         public static PlayerCat Find(PlayerRef player)
@@ -138,7 +116,9 @@ namespace CasinoMares.Player
             _reactions = GetComponentInChildren<CatReactions>();
             _animatorDriver = GetComponent<CatAnimatorDriver>();
             Winnings = GetComponent<SessionWinnings>();
+            Social = GetComponent<CatSocial>();
             Cigar = GetComponent<CatCigar>();
+            Drinking = GetComponent<CatDrinking>();
         }
 
         public override void Render()
@@ -154,51 +134,7 @@ namespace CasinoMares.Player
                 UpdateRtt();
                 if (Application.isEditor && GameInput.KeyPressed(Key.F9))
                     Swimming = !Swimming;
-                if (Time.time >= _nextDrinkRecount)
-                    RecountDrinks();
             }
-        }
-
-        // ---------------------------------------------------------------- Wine (GDD §4.3)
-
-        /// <summary>Owner only: a glass has just been finished at the bar.</summary>
-        public void AddDrink()
-        {
-            if (!HasStateAuthority)
-                return;
-            var oldest = 0;
-            for (var i = 1; i < MaxDrinks; i++)
-            {
-                if (DrinkTicks[i] < DrinkTicks[oldest])
-                    oldest = i;
-            }
-
-            DrinkTicks.Set(oldest, Runner.Tick.Raw);
-            RecountDrinks();
-        }
-
-        /// <summary>Drops the glasses that have worn off and publishes the count; about once a second.</summary>
-        void RecountDrinks()
-        {
-            _nextDrinkRecount = Time.time + DrinkRecountInterval;
-            var count = (byte)0;
-            for (var i = 0; i < MaxDrinks; i++)
-            {
-                var tick = DrinkTicks[i];
-                if (tick != 0 && (Runner.Tick.Raw - tick) * Runner.DeltaTime < DrinkDuration)
-                    count++;
-            }
-
-            if (count == DrinkCount)
-                return;
-
-            var wasDrunk = IsDrunk;
-            DrinkCount = count;
-            if (IsDrunk == wasDrunk)
-                return;
-            if (IsDrunk)
-                Announce($"{DisplayName} has had one too many.");
-            DrunkChanged?.Invoke(IsDrunk);
         }
 
         /// <summary>About once a second, and only when it moved noticeably, so it doesn't churn the network.</summary>
@@ -210,67 +146,6 @@ namespace CasinoMares.Player
             var rtt = Mathf.Clamp((int)Math.Round(Runner.GetPlayerRtt(Runner.LocalPlayer) * 1000.0), 0, short.MaxValue);
             if (Mathf.Abs(rtt - RttMs) >= RttChangeMs)
                 RttMs = (short)rtt;
-        }
-
-        // ---------------------------------------------------------------- Chat & announcements
-
-        /// <summary>Send a chat line from the local player to everyone (GDD §9.5).</summary>
-        public void SendChat(string text)
-        {
-            text = ChatLog.Sanitize(text);
-            if (text.Length > 0)
-                RPC_Chat(text);
-        }
-
-        /// <summary>Broadcast a system line such as "Mochi gifted 200 chips to Luna".</summary>
-        public void Announce(string text) => RPC_Announce(ChatLog.Sanitize(text));
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Chat(string text)
-        {
-            ChatLog.AddPlayer(DisplayName.ToString(), Swatch, text);
-        }
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Announce(string text)
-        {
-            ChatLog.AddSystem(text);
-        }
-
-        // ---------------------------------------------------------------- Emotes and paw swipes
-
-        /// <summary>Play an emote on this cat for everyone. Only standing cats emote.</summary>
-        public void PlayEmote(CatEmote emote)
-        {
-            if (IsLocal && !IsSeated && !Swimming && emote != CatEmote.None)
-                RPC_Emote((byte)emote);
-        }
-
-        /// <summary>Show a paw swipe on this cat for everyone.</summary>
-        public void PlaySwipe()
-        {
-            if (IsLocal)
-                RPC_Swipe();
-        }
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Emote(byte emote) => _reactions?.PlayEmote((CatEmote)emote);
-
-        [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-        void RPC_Swipe() => _reactions?.PlaySwipe();
-
-        // ---------------------------------------------------------------- Gifting (GDD §7.3)
-
-        /// <summary>Called by the sender after taking the chips out of their own balance.</summary>
-        public void SendGift(int amount, string fromName) => RPC_ReceiveGift(amount, fromName);
-
-        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-        void RPC_ReceiveGift(int amount, string fromName)
-        {
-            if (amount <= 0)
-                return;
-            ProfileStore.SetBalance(ProfileStore.Current.Balance + amount);
-            Toasts.Show($"{fromName} gifted you {amount:N0} chips!");
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

@@ -161,8 +161,8 @@ namespace CasinoMares.Player
             CigarUntilTick = Runner.Tick.Raw + Mathf.RoundToInt(CigarSeconds / Runner.DeltaTime);
             if (wasLit)
                 return;
-            if (_cat != null)
-                _cat.Announce($"{_cat.DisplayName} lights a victory cigar.");
+            if (_cat != null && _cat.Social != null)
+                _cat.Social.Announce($"{_cat.DisplayName} lights a victory cigar.");
             Toasts.Show("Big win! You light a victory cigar.");
         }
 

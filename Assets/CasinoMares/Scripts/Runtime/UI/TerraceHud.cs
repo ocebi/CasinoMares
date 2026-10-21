@@ -47,8 +47,8 @@ namespace CasinoMares.UI
             {
                 var segment = new VisualElement { pickingMode = PickingMode.Ignore };
                 segment.AddToClassList("bar-meter-seg");
-                segment.EnableInClassList("bar-meter-seg--tipsy", i + 1 >= PlayerCat.DrunkAt);
-                segment.EnableInClassList("bar-meter-seg--tipsy-start", i + 1 == PlayerCat.DrunkAt);
+                segment.EnableInClassList("bar-meter-seg--tipsy", i + 1 >= CatDrinking.DrunkAt);
+                segment.EnableInClassList("bar-meter-seg--tipsy-start", i + 1 == CatDrinking.DrunkAt);
                 _meter.Add(segment);
                 _segments[i] = segment;
             }
@@ -121,18 +121,18 @@ namespace CasinoMares.UI
         void UpdateCount()
         {
             var cat = PlayerCat.Local;
-            var drinks = cat != null && cat.Object != null && cat.Object.IsValid ? cat.DrinkCount : 0;
+            var drinks = cat != null && cat.Object != null && cat.Object.IsValid ? cat.Drinking.DrinkCount : 0;
             if (drinks == _shownDrinks)
                 return;
             _shownDrinks = drinks;
-            var tipsy = drinks >= PlayerCat.DrunkAt;
+            var tipsy = drinks >= CatDrinking.DrunkAt;
             _count.text = drinks switch
             {
                 0 => "Sober",
                 1 => "1 glass",
                 _ when !tipsy => $"{drinks} glasses",
                 _ when drinks >= TipsyEffect.VeryDrunkAt => "Very drunk",
-                _ when drinks > PlayerCat.DrunkAt => "Drunk",
+                _ when drinks > CatDrinking.DrunkAt => "Drunk",
                 _ => "Tipsy",
             };
             _count.EnableInClassList("bar-count--tipsy", tipsy);

@@ -34,7 +34,7 @@ namespace CasinoMares.Player
         static readonly Vector3 HindPivot = new(0f, 0f, -0.35f);
         /// <summary>
         /// The drunk sway (GDD §4.3), seen by everyone: a slow roll and yaw of the model once the cat has had
-        /// <see cref="PlayerCat.DrunkAt"/> glasses, a fifth stronger per extra glass up to <see cref="SwayMaxGlasses"/>,
+        /// <see cref="CatDrinking.DrunkAt"/> glasses, a fifth stronger per extra glass up to <see cref="SwayMaxGlasses"/>,
         /// blended in and out over <see cref="SwayBlendSeconds"/>.
         /// </summary>
         const float SwayRollDegrees = 4f;
@@ -180,8 +180,8 @@ namespace CasinoMares.Player
         void UpdateSway()
         {
             var goal = 0f;
-            if (_cat != null && _cat.Object != null && _cat.Object.IsValid && _cat.DrinkCount >= PlayerCat.DrunkAt)
-                goal = 1f + SwayPerExtraGlass * (Mathf.Min(_cat.DrinkCount, SwayMaxGlasses) - PlayerCat.DrunkAt);
+            if (_cat != null && _cat.Object != null && _cat.Object.IsValid && _cat.Drinking.DrinkCount >= CatDrinking.DrunkAt)
+                goal = 1f + SwayPerExtraGlass * (Mathf.Min(_cat.Drinking.DrinkCount, SwayMaxGlasses) - CatDrinking.DrunkAt);
             _swayNow = Mathf.MoveTowards(_swayNow, goal, Time.deltaTime / SwayBlendSeconds);
         }
 

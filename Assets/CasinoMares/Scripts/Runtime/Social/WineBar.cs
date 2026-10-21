@@ -268,13 +268,13 @@ namespace CasinoMares.Social
             if (elapsed >= SlideEnd && view.AnnouncedId != id)
             {
                 view.AnnouncedId = id;
-                cat.Announce($"{cat.DisplayName} ordered a glass of wine.");
+                cat.Social.Announce($"{cat.DisplayName} ordered a glass of wine.");
             }
 
             if (elapsed >= DrinkEnd && view.DrunkId != id)
             {
                 view.DrunkId = id;
-                cat.AddDrink();
+                cat.Drinking.AddDrink();
             }
         }
 

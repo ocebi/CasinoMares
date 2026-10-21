@@ -163,7 +163,7 @@ namespace CasinoMares.UI
             if (PlayerCat.Local != null && !string.IsNullOrWhiteSpace(text))
             {
                 FollowNewest();
-                PlayerCat.Local.SendChat(text);
+                PlayerCat.Local.Social.SendChat(text);
             }
         }
 
