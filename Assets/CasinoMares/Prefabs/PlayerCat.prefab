@@ -45,6 +45,8 @@ GameObject:
   - component: {fileID: 192563056130423363}
   - component: {fileID: 8326568470144156863}
   - component: {fileID: 7732513308718657858}
+  - component: {fileID: 4431212885175207659}
+  - component: {fileID: 5454644666441295273}
   - component: {fileID: 8127478801960297046}
   - component: {fileID: 3891039646801290401}
   - component: {fileID: 8157037313602040362}
@@ -124,9 +126,12 @@ MonoBehaviour:
   - {fileID: 192563056130423363}
   - {fileID: 8326568470144156863}
   - {fileID: 7732513308718657858}
+  - {fileID: 4431212885175207659}
+  - {fileID: 5454644666441295273}
   - {fileID: 8127478801960297046}
   - {fileID: 8157037313602040362}
   - {fileID: 4725122722283805535}
+  - {fileID: 1444183133435512323}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &192563056130423363
 MonoBehaviour:
@@ -188,9 +193,32 @@ MonoBehaviour:
   _IsAway:
     RawValue: 0
   _RttMs: 0
-  _CigarUntilTick: 0
   _Swimming:
     RawValue: 0
+--- !u!114 &4431212885175207659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4807889899066465593}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2173f18a8004347fbb9ab91541a92347, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CasinoMares::CasinoMares.Player.CatSocial
+--- !u!114 &5454644666441295273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4807889899066465593}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6339f637d10634a2585b9180e3813d15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CasinoMares::CasinoMares.Player.CatDrinking
   _DrinkCount: 0
 --- !u!114 &8127478801960297046
 MonoBehaviour:
@@ -296,6 +324,7 @@ MonoBehaviour:
   _bandMaterial: {fileID: 2100000, guid: ed8e4fbf3743f4d9aaf81f4ab0225e08, type: 2}
   _emberMaterial: {fileID: 2100000, guid: 3a86de25e451443f487a586c8bb619db, type: 2}
   _smokeMaterial: {fileID: 2100000, guid: e9882396b94e54e86a196408f8347aad, type: 2}
+  _CigarUntilTick: 0
 --- !u!1 &4859116966308139394
 GameObject:
   m_ObjectHideFlags: 0
