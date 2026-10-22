@@ -1774,6 +1774,38 @@
     max-height: 200px;
 }
 
+/* Desktop layout: without touch every document root gets .desktop, and buttons lose their touch glyphs, so a table
+   button grows to its words (TouchControls.UseDesktopLabels). A row never squeezes or wraps a label; the panel wraps
+   instead, and the settings list grows to its longest line. */
+.desktop .bj-button {
+    flex-shrink: 0;
+    padding: 0 14px;
+    white-space: nowrap;
+}
+
+.desktop .pk-small {
+    padding: 0 8px;
+}
+
+.desktop .bar-order {
+    padding: 0 16px;
+}
+
+.desktop .bj-panel {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 94%;
+}
+
+.desktop .bj-settings {
+    width: auto;
+    min-width: 300px;
+}
+
+.desktop .bj-setting {
+    white-space: nowrap;
+}
+
 /* Touch layout: every document root gets .touch. The table corner (settings, stand up) moves to the top right, where
    the bottom panel can't run into it on a narrow screen. */
 .touch .bj-corner {

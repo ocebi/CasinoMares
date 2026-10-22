@@ -72,6 +72,12 @@ namespace CasinoMares.UI
             if (!Platform.IsTouch)
             {
                 _root.AddToClassList("hidden");
+                foreach (var document in FindObjectsByType<UIDocument>())
+                {
+                    if (document.panelSettings == _document.panelSettings && document.rootVisualElement != null)
+                        UseDesktopLabels(document.rootVisualElement);
+                }
+
                 enabled = false;
                 return;
             }
@@ -116,6 +122,22 @@ namespace CasinoMares.UI
 #endif
             _scaledFor = default;
             UpdateScale();
+        }
+
+        /// <summary>
+        /// Desktop counterpart of the .touch tweaks: the root gets .desktop, and buttons lose their touch glyphs (hidden
+        /// on desktop anyway). UI Toolkit sizes a button to its words only while it has no child elements, so with the
+        /// glyph inside, "Ready (Space)" got the bare min-width and was cut off. Runs after the HUDs' OnEnable, so the
+        /// glyphs they hold on to (the View and Check/Call icons) stay valid, just out of the tree.
+        /// </summary>
+        static void UseDesktopLabels(VisualElement root)
+        {
+            root.AddToClassList("desktop");
+            foreach (var icon in root.Query(className: "btn-icon").ToList())
+            {
+                if (icon.parent is Button)
+                    icon.RemoveFromHierarchy();
+            }
         }
 
         void OnDestroy()
