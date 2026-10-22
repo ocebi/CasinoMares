@@ -1,97 +1,145 @@
 # Casino Mares
 
-A cozy multiplayer casino for up to 10 friends, where everyone is a cat. Built with Unity 6
-(URP), Photon Fusion 2 (Shared Mode), Cinemachine and UI Toolkit. The full design is in
-[`Docs/GDD.md`](Docs/GDD.md).
+A cozy multiplayer casino by the sea, where every guest is a cat. Up to 10 friends wander a sunset
+terrace and a warm low-poly hall, hop onto stools, play blackjack against a cat dealer, order a glass
+of wine at the bar, climb the cat wall or paddle in the pool. Cards and chips float around by magic,
+because nobody here has hands.
 
-**Games:** Blackjack (2 tables), European Roulette, Texas Hold'em, Baccarat, and 4 slot machines
-(2 three-reel, 2 cascading Yarn Tumbles).
-There's also chat, a leaderboard (hold Tab, plus the wall board), chip gifting, "Cat Welfare" at the
-cashier when you're broke, NPC cats (dealers, seat fillers, patrons, staff) and a spectator panel
-when you stand near a friend who's playing.
+Runs on desktop and in the browser, including phones held sideways. Everyone lands in the same room,
+so there is nothing to set up: pick a name and a fur colour and walk in.
 
-## Setup
+**Play it:** https://ocebi.github.io/casino/
 
-1. Open the project with **Unity 6000.6.3f1**.
-2. Put your Photon **Fusion App ID** into `Assets/Photon/Fusion/Resources/PhotonAppSettings.asset`
-   (Fusion Hub). The file is gitignored, so every machine that builds needs it. The region is pinned
-   to `eu` in `ConnectionManager.Region`.
-3. Open `Assets/CasinoMares/Scenes/Casino.unity` and press Play.
+![Sunset on the terrace](Docs/Screenshots/terrace.jpg)
 
-Everyone lands in the same room (`CasinoMares-Main`), so there are no codes to share. Your name,
-fur color and chip balance are saved on your own machine.
+## What's inside
+
+| | |
+|---|---|
+| **Games** | Blackjack (2 tables), European roulette, no-limit Texas Hold'em, Baccarat (Punto Banco), 4 slot machines (2 three-reel, 2 cascading Yarn Tumbles) |
+| **Teaching mode** | Poker and baccarat have a Rules panel and an optional coach that explains every step and suggests a move |
+| **Casino life** | Cat dealers, seat-filling NPCs who play basic strategy, patrons wandering the hall and terrace, a bartender and a cashier |
+| **Social** | Text chat, emote wheel, paw swipes that knock glasses and yarn off tables, chip gifting, leaderboard and wall board, spectator panel when you stand behind a friend |
+| **Bars** | Two wine bars (hall and poolside). Three glasses and your cat is tipsy: it sways, the camera wobbles, and blackjack totals get a little uncertain |
+| **Terrace** | Sunset sky, Gerstner sea with sailboats, islands, café tables, lanterns, a cat wall with a climb timer, and a pool you can swim in |
+| **Economy** | A local chip balance that is yours alone. Broke? The cashier's Cat Welfare refills you. Paw swipes and the cat wall pay small rewards. Big wins light a victory cigar |
+
+| | |
+|---|---|
+| ![Blackjack](Docs/Screenshots/blackjack.jpg) | ![Texas Hold'em](Docs/Screenshots/poker.jpg) |
+| ![Roulette](Docs/Screenshots/roulette.jpg) | ![Baccarat](Docs/Screenshots/baccarat.jpg) |
+| ![Slots](Docs/Screenshots/slots.jpg) | ![The wine bar](Docs/Screenshots/drinking.jpg) |
+| ![A victory cigar](Docs/Screenshots/cigar.jpg) | ![The view from the rail](Docs/Screenshots/sea.jpg) |
+
+![On a phone](Docs/Screenshots/phone.jpg)
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| WASD / Shift / Space | Move / run / jump (the camera swings behind the cat as it turns) |
-| V (seated at blackjack, baccarat or poker) | Switch the table view: Seat ↔ Overhead |
-| Mouse | Orbit camera |
-| Left click | Paw swipe (knock glasses, mugs and yarn off tables) |
-| Q (hold) | Emote wheel: point with the mouse, release to play |
+| WASD / Shift / Space | Move / run / jump |
+| Mouse | Orbit the camera (it swings behind the cat as it walks) |
+| Left click | Paw swipe |
 | E | Sit down / stand up, cashier, gift chips to a nearby cat |
+| Q (hold) | Emote wheel: point with the mouse, release to play |
+| V (seated) | Table view: Seat → Wide → Overhead |
 | Enter | Chat |
 | Tab (hold) | Leaderboard |
-| Esc | Pause menu (volume, mouse sensitivity, camera auto-follow, leave) |
+| Esc | Pause menu (volume, sensitivity, auto-follow, tipsy visuals, 30 fps, leave) |
 
-While seated: **WASD** looks around the table; blackjack **1-5** chips, **Space** deal, then **H** hit,
-**Space** stand, **X** double, **P** split; poker **F/C/R** fold/check-call/raise; roulette, baccarat
-and slots use **Space** for ready/spin; on a bar stool **Space** orders a glass of wine (20 chips;
-three glasses and your cat is tipsy). Everything also has buttons. Poker and baccarat have a
-**Rules** button and an optional **Coach** (table settings) that explains the game and suggests moves.
+At a table, WASD looks around. Blackjack: **1-5** chips, **Space** deal or stand, **H** hit, **X** double,
+**P** split. Poker: **F / C / R** fold, check or call, raise. Roulette, baccarat and slots: **Space** to
+ready or spin. On a bar stool, **Space** orders a glass of wine for 20 chips. Everything also has buttons.
+
+On a phone: the left thumb walks (push past the ring to run), drag anywhere else to look, tap the prompt
+to sit. Menu, Chat and Top cats are pills at the top left.
+
+## Tech
+
+| | |
+|---|---|
+| Engine | Unity 6000.6.3f1, Universal Render Pipeline |
+| Networking | Photon Fusion 2 in Shared Mode, one room, clients fully trusted (a private game with friends, no anti-cheat by design) |
+| UI | UI Toolkit |
+| Camera | Cinemachine |
+| Input | Input System, keyboard and mouse or touch |
+| Content | The scenes, prefabs, materials, card faces, slot symbols, islands, sailboats and even the cat meows are generated by code. The repo holds the builders, not the output |
+| Web | WebGL with a custom page template, Addressables bundles for the big textures, GitHub Pages plus jsDelivr |
+
+## Running it yourself
+
+1. Open the project with **Unity 6000.6.3f1** (Unity Hub will offer to install it).
+2. Create a free Photon Fusion app at the Photon dashboard and paste its App ID into
+   `Assets/Photon/Fusion/Resources/PhotonAppSettings.asset` (Fusion Hub). The file is gitignored. The
+   region is pinned to `eu` in `ConnectionManager.Region`.
+3. Open `Assets/CasinoMares/Scenes/CasinoSea.unity` and press Play.
+
+Your name, fur colour and chips are saved on your machine. Add `?room=name` on the web or set the
+`CasinoMares.TestRoom` editor pref to play in a private room.
+
+**Two players on one machine:** Multiplayer Play Mode (Window ▸ Multiplayer) works in the editor. A build
+can also run as a bot that sits at a blackjack table and plays basic strategy:
+
+```sh
+open -n Builds/macOS/CasinoMares.app --args -bot -profile bot -botName BotCat -botTable 2 -screen-fullscreen 0 -screen-width 800 -screen-height 450
+```
+
+`-profile <name>` keeps a separate profile file for any test instance. In a browser, `?profile=name` does
+the same in another tab.
 
 ## Development
 
-- **Scene and generated assets:** built by code. Run **Casino Mares ▸ Setup ▸ Rebuild Casino (Assets
-  and Scene)** after changing `Assets/CasinoMares/Scripts/Editor/CasinoSceneBuilder.cs`. It
-  overwrites the Casino scene, prefabs, materials, UI panel settings and sound bank.
-- **Rules:** pure C# in `Assets/CasinoMares/Scripts/Rules`, with EditMode tests in
-  `Assets/CasinoMares/Tests/Editor` (Test Runner, *CasinoMares.Rules.Tests*).
-- **Two-player testing on one machine:** build the game, then run it as a bot next to the editor:
-  ```sh
-  open -n Builds/macOS/CasinoMares.app --args -bot -profile bot -botName BotCat -botTable 2 -screen-fullscreen 0 -screen-width 800 -screen-height 450
-  ```
-  The bot joins, sits at a blackjack table and plays basic strategy. The build remembers the bot's small
-  window, but a normal launch that finds a small leftover window switches back to full screen
-  (`DisplaySetup`). Multiplayer Play Mode also
-  works (Window ▸ Multiplayer ▸ Multiplayer Play Mode).
-- **Settings to keep:**
-  - Player Settings "Run In Background" is on, so alt-tabbed players stay in sync.
-  - Enter Play Mode Options: domain reload on, scene reload off.
+**Everything is built by code.** The scenes, player prefab, materials, UI settings and sound bank are
+written by `CasinoSceneBuilder` and its partial files. After changing a builder, run
 
-## Web build (experimental)
+- **Casino Mares ▸ Setup ▸ Rebuild Sea Casino (Assets and Scene)** for the seaside scene (the default),
+- **Casino Mares ▸ Setup ▸ Rebuild Casino (Assets and Scene)** for the classic hall,
+- **Casino Mares ▸ Setup ▸ Rebuild Player Prefab** when only the cat changed.
 
-The game also runs in a browser, on desktop and on phones and tablets held sideways. Browser players
-join the same room as the desktop builds. Details are in GDD §15.
+**Default Scene ▸ Classic / Sea** picks which one the build and the menu open.
 
-1. Install the **WebGL Build Support** module for Unity 6000.6.3f1 in Unity Hub. Restart the editor if
-   it was open.
-2. Run **Casino Mares ▸ Web ▸ Build (Desktop and Mobile)**. It switches the project to WebGL and writes
-   `Builds/WebGL`. **Build Desktop Only (Faster)** skips the phone textures.
-3. Serve it and open it on a phone on the same Wi-Fi:
+**Layout**
+
+```
+Assets/CasinoMares/
+  Scripts/Rules      pure C# game rules (blackjack, poker, baccarat, roulette, slots), no Unity
+  Scripts/Runtime    gameplay: Player, Networking, Blackjack, Poker, Baccarat, Roulette, Slots,
+                     Npc, Social, Props, CameraRig, UI, Audio, Core
+  Scripts/Editor     CasinoSceneBuilder.*, WebBuild, LazyContentSetup
+  Tests/Editor       EditMode tests for the rules (Test Runner, CasinoMares.Rules.Tests)
+  Scenes/            Casino.unity (classic), CasinoSea.unity (default)
+  UI/                UXML, USS and icons
+Assets/WebGLTemplates/CasinoMares   the web page: loading screen, rotate prompt, CDN fallback
+Docs/                plans and UX specs per round
+Tools/               serve_webgl.py, deploy_pages.py, prepare_sky.py, make_cursors.py
+```
+
+**Settings to keep:** Player Settings "Run In Background" on, so alt-tabbed players stay in sync. Enter
+Play Mode Options: domain reload on, scene reload off.
+
+**Code graph:** the repo has a [graphify](https://github.com/Graphify-Labs/graphify) knowledge graph.
+`graphify query "how does seating work"` answers most codebase questions without a grep; run
+`graphify update .` after editing. The output folder is gitignored.
+
+## Web build
+
+1. Install the **WebGL Build Support** module for 6000.6.3f1 in Unity Hub.
+2. Run **Casino Mares ▸ Web ▸ Build (Desktop and Mobile)**. It builds `Builds/WebGL` twice, with DXT
+   textures for desktop browsers and ASTC for phones, and the page picks the right data file.
+   **Build Desktop Only (Faster)** skips the phone pass.
+3. Try it on a phone on the same Wi-Fi:
    ```sh
    python3 Tools/serve_webgl.py
    ```
-   Any static host works too (GitHub Pages, itch.io, Netlify...): upload the contents of `Builds/WebGL`.
+4. Publish:
+   ```sh
+   python3 Tools/deploy_pages.py
+   ```
+   copies the build into the GitHub Pages repo, pins the game files to a jsDelivr CDN URL (Pages alone is
+   slow on some networks) and keeps Pages as the fallback. jsDelivr refuses files over 20 MB, so the
+   script checks sizes first. Any static host works too: upload `Builds/WebGL`.
 
-In a desktop browser the cursor stays free. The camera swings behind the cat as it walks; hold the right
-mouse button to look around.
-
-On phones and tablets the game shows touch controls:
-- The left thumb walks with a joystick; a gentle push walks slowly, push past the ring to run.
-- Drag anywhere else to look.
-- Tap the prompt to sit down.
-- Menu, Chat and Top cats are pills at the top-left.
-
-Add `?touch=1` to the URL to try the touch controls with a mouse, or `?profile=name` to play a second cat
-in another tab. On a hot phone the game lowers its render scale and, if that isn't enough, holds the frame
-rate at 30 (the pause menu can hold it at 30 outright); `?debug=1` shows what it settled on, and
-`?fps30=0`, `?autoscale=0`, `?lighttrim=0` and `?shadows=hi` switch the phone savings off one at a time
-(GDD §15.2). For quick looks, `?swim=1` starts your cat swimming and `?cigar=1` lights its victory cigar; in the
-editor, F9 toggles swimming and F10 lights or puts out the cigar. To check touch layouts in the editor, turn on **Casino Mares ▸ Web ▸ Simulate Touch
-Controls**. Turn it off and switch the build target back to macOS before making a desktop build.
-
-## Credits
-
-See [`CREDITS.md`](CREDITS.md).
+**URL switches** for testing: `?touch=1` touch controls with a mouse, `?debug=1` shows the frame rate and
+render scale the phone settled on, `?fps30=0`, `?autoscale=0`, `?lighttrim=0`, `?shadows=hi` turn the
+phone savings off one at a time, `?swim=1` and `?cigar=1` for quick looks. In the editor, F9 toggles
+swimming and F10 the cigar, and **Casino Mares ▸ Web ▸ Simulate Touch Controls** shows the touch layout.
